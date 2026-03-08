@@ -8,16 +8,24 @@ export const metadata = {
   description: "Private club competition, refined.",
 };
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const supabase = await createSupabaseServerClient();
+
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
+
+  const userEmail = error ? null : user?.email ?? null;
 
   return (
     <html lang="en">
       <body>
-        <AppShell userEmail={user?.email ?? null}>{children}</AppShell>
+        <AppShell userEmail={userEmail}>{children}</AppShell>
       </body>
     </html>
   );
