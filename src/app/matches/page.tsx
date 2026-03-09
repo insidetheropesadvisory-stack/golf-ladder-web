@@ -165,36 +165,32 @@ export default function MatchesPage() {
 
     setDeleting(matchId);
 
-    // Delete related holes first
-    const { error: holesErr } = await supabase
-      .from("holes")
-      .delete()
-      .eq("match_id", matchId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/delete-match", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
+        },
+        body: JSON.stringify({ matchId }),
+      });
 
-    if (holesErr) {
-      console.warn("holes delete error:", holesErr.message);
+      const json = await res.json();
+      setDeleting(null);
+
+      if (!res.ok) {
+        setStatus(json.error || "Failed to delete match");
+        return;
+      }
+
+      setMatches((prev) => prev.filter((m) => m.id !== matchId));
+    } catch (e: any) {
+      setDeleting(null);
+      setStatus(e?.message || "Failed to delete match");
     }
-
-    // Delete the match itself
-    const { data, error } = await supabase
-      .from("matches")
-      .delete()
-      .eq("id", matchId)
-      .select("id");
-
-    setDeleting(null);
-
-    if (error) {
-      setStatus(error.message);
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      setStatus("Could not delete match — you may not have permission.");
-      return;
-    }
-
-    setMatches((prev) => prev.filter((m) => m.id !== matchId));
   }
 
   const { proposed, active, completed } = useMemo(() => {

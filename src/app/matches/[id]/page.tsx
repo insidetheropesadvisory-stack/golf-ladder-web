@@ -286,149 +286,145 @@ export default function MatchScoringPage() {
 
     setDeletingMatch(true);
 
-    const { error: holesErr } = await supabase
-      .from("holes")
-      .delete()
-      .eq("match_id", matchId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/delete-match", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
+        },
+        body: JSON.stringify({ matchId }),
+      });
 
-    if (holesErr) {
-      console.warn("holes delete error:", holesErr.message);
+      const json = await res.json();
+      setDeletingMatch(false);
+
+      if (!res.ok) {
+        setStatus(json.error || "Failed to delete match");
+        return;
+      }
+
+      router.push("/matches");
+    } catch (e: any) {
+      setDeletingMatch(false);
+      setStatus(e?.message || "Failed to delete match");
     }
-
-    const { data, error } = await supabase
-      .from("matches")
-      .delete()
-      .eq("id", matchId)
-      .select("id");
-
-    setDeletingMatch(false);
-
-    if (error) {
-      setStatus(error.message);
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      setStatus("Could not delete match — you may not have permission.");
-      return;
-    }
-
-    router.push("/matches");
   }
 
-  if (!matchId) return <main className="p-8">Missing match id.</main>;
-  if (loading) return <main className="p-8">Loading…</main>;
+  if (!matchId) return <div className="p-4 text-sm text-[var(--muted)]">Missing match id.</div>;
+  if (loading) return <div className="p-4 text-sm text-[var(--muted)]">Loading&hellip;</div>;
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="max-w-3xl space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-sm opacity-70">{match?.course_name ?? "Match"}</div>
-            <h1 className="text-2xl font-semibold">Scorecard</h1>
-            <div className="mt-1 text-sm opacity-60">
-              Hole-by-hole scoring • totals update automatically
-            </div>
-          </div>
-
-          {canDelete && (
-            <button
-              type="button"
-              onClick={deleteMatch}
-              disabled={deletingMatch}
-              className="shrink-0 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-            >
-              {deletingMatch ? "Deleting..." : "Delete match"}
-            </button>
-          )}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border p-4">
-            <div className="text-sm opacity-70">You</div>
-            <div className="text-2xl font-semibold">{myTotal ?? 0}</div>
-            <div className="text-xs opacity-70">{meEmail ?? ""}</div>
-          </div>
-
-          <div className="rounded-xl border p-4">
-            <div className="text-sm opacity-70">{opponentLabel}</div>
-            <div className="text-2xl font-semibold">{oppTotal ?? "—"}</div>
-            <div className="text-xs opacity-70">
-              {match?.opponent_id ? "Opponent can score" : "Opponent not linked yet"}
-            </div>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm text-[var(--muted)]">{match?.course_name ?? "Match"}</div>
+          <h1 className="text-xl font-semibold sm:text-2xl">Scorecard</h1>
+          <div className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
+            Hole-by-hole scoring · totals update automatically
           </div>
         </div>
 
-        <div className="space-y-4 rounded-2xl border p-5">
-          <div className="flex items-center justify-between">
-            <div className="font-semibold">
-              Hole {holeNo} / {TOTAL_HOLES}
-            </div>
-            <div className="text-sm opacity-70">
-              Running total: <span className="font-semibold">{myTotal ?? 0}</span>
-            </div>
-          </div>
-
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <label className="text-sm font-medium">Your strokes</label>
-              <input
-                className="mt-1 w-full rounded-lg border p-2"
-                inputMode="numeric"
-                value={strokesInput}
-                onChange={(e) => setStrokesInput(e.target.value)}
-                placeholder="e.g. 4"
-              />
-              <div className="mt-1 text-xs opacity-70">
-                Save to advance. “Next” is locked until this hole has a score.
-              </div>
-            </div>
-
-            <button
-              className="rounded-lg border px-4 py-2 disabled:opacity-60"
-              onClick={saveHole}
-              disabled={saving}
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <button
-              className="rounded-lg border px-3 py-2 disabled:opacity-60"
-              onClick={goPrev}
-              disabled={holeNo <= 1}
-            >
-              Previous
-            </button>
-
-            <button
-              className="rounded-lg border px-3 py-2 disabled:opacity-60"
-              onClick={goNext}
-              disabled={!myScoresByHole.has(holeNo) || holeNo >= TOTAL_HOLES}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border p-5">
-          <div className="mb-3 font-semibold">Your holes</div>
-          <div className="grid grid-cols-6 gap-2 text-sm sm:grid-cols-9">
-            {Array.from({ length: TOTAL_HOLES }, (_, i) => i + 1).map((h) => {
-              const v = myScoresByHole.get(h);
-              return (
-                <div key={h} className="rounded-lg border p-2 text-center">
-                  <div className="text-xs opacity-60">H{h}</div>
-                  <div className="font-semibold">{v ?? "—"}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {status && <div className="text-sm text-red-600">{status}</div>}
+        {canDelete && (
+          <button
+            type="button"
+            onClick={deleteMatch}
+            disabled={deletingMatch}
+            className="shrink-0 rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+          >
+            {deletingMatch ? "Deleting..." : "Delete"}
+          </button>
+        )}
       </div>
-    </main>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-[var(--border)] p-4">
+          <div className="text-sm text-[var(--muted)]">You</div>
+          <div className="text-2xl font-semibold">{myTotal ?? 0}</div>
+          <div className="text-xs text-[var(--muted)]">{meEmail ?? ""}</div>
+        </div>
+
+        <div className="rounded-xl border border-[var(--border)] p-4">
+          <div className="text-sm text-[var(--muted)]">{opponentLabel}</div>
+          <div className="text-2xl font-semibold">{oppTotal ?? "—"}</div>
+          <div className="text-xs text-[var(--muted)]">
+            {match?.opponent_id ? "Opponent can score" : "Opponent not linked yet"}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 rounded-2xl border border-[var(--border)] p-4 sm:p-5">
+        <div className="flex items-center justify-between">
+          <div className="font-semibold">
+            Hole {holeNo} / {TOTAL_HOLES}
+          </div>
+          <div className="text-sm text-[var(--muted)]">
+            Total: <span className="font-semibold text-[var(--ink)]">{myTotal ?? 0}</span>
+          </div>
+        </div>
+
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <label className="text-sm font-medium">Your strokes</label>
+            <input
+              className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--paper)] px-4 py-3 text-sm outline-none focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
+              inputMode="numeric"
+              value={strokesInput}
+              onChange={(e) => setStrokesInput(e.target.value)}
+              placeholder="e.g. 4"
+            />
+            <div className="mt-1 text-xs text-[var(--muted)]">
+              Save to advance. Next is locked until scored.
+            </div>
+          </div>
+
+          <button
+            className="rounded-xl border border-[var(--border)] bg-[var(--pine)] px-4 py-3 text-sm font-medium text-[var(--paper)] transition hover:-translate-y-[1px] disabled:opacity-60"
+            onClick={saveHole}
+            disabled={saving}
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <button
+            className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium transition hover:bg-[rgba(17,19,18,.05)] disabled:opacity-60"
+            onClick={goPrev}
+            disabled={holeNo <= 1}
+          >
+            Previous
+          </button>
+
+          <button
+            className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium transition hover:bg-[rgba(17,19,18,.05)] disabled:opacity-60"
+            onClick={goNext}
+            disabled={!myScoresByHole.has(holeNo) || holeNo >= TOTAL_HOLES}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--border)] p-4 sm:p-5">
+        <div className="mb-3 font-semibold">Your holes</div>
+        <div className="grid grid-cols-6 gap-1.5 text-sm sm:grid-cols-9 sm:gap-2">
+          {Array.from({ length: TOTAL_HOLES }, (_, i) => i + 1).map((h) => {
+            const v = myScoresByHole.get(h);
+            return (
+              <div key={h} className="rounded-lg border border-[var(--border)] p-1.5 text-center sm:p-2">
+                <div className="text-[10px] text-[var(--muted)] sm:text-xs">H{h}</div>
+                <div className="text-sm font-semibold">{v ?? "—"}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {status && <div className="text-sm text-red-600">{status}</div>}
+    </div>
   );
 }

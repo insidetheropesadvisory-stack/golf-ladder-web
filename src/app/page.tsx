@@ -505,14 +505,14 @@ export default function HomePage() {
   const openMatches: MatchRow[] = [];
 
   return (
-    <main className="min-h-screen bg-[var(--paper)]">
-      <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+    <div>
+      <div className="space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-[11px] tracking-[0.28em] text-[var(--muted)]">
               RECIPROCITY
             </div>
-            <h1 className="mt-2 text-3xl font-serif font-semibold tracking-tight">Home</h1>
+            <h1 className="mt-2 text-2xl font-serif font-semibold tracking-tight sm:text-3xl">Home</h1>
           </div>
 
           <details className="relative">
@@ -846,6 +846,6 @@ export default function HomePage() {
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

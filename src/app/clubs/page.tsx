@@ -327,7 +327,7 @@ export default function ClubsPage() {
       <div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Clubs</h1>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Clubs</h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
               <span>{headline}</span>
               <span className="text-[var(--muted)]">&bull;</span>
@@ -429,8 +429,8 @@ export default function ClubsPage() {
 
                     <div
                       className={cx(
-                        "flex items-center gap-2",
-                        "sm:opacity-0 sm:group-hover:opacity-100 transition"
+                        "flex items-center gap-2 transition",
+                        "md:opacity-0 md:group-hover:opacity-100"
                       )}
                     >
                       <Link

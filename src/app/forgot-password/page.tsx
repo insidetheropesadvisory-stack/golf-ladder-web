@@ -39,8 +39,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[var(--paper)]">
-      <div className="mx-auto w-full max-w-[520px] px-6 py-10">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-[var(--shadow)]">
+      <div className="mx-auto w-full max-w-[520px] px-4 py-6 sm:px-6 sm:py-10">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)] sm:p-6">
           <div className="text-xs tracking-[0.22em] text-[var(--muted)]">
             RESET PASSWORD
           </div>
