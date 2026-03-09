@@ -1,13 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { supabase } from "../../lib/supabase/supabase";
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,12 +39,10 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      window.location.assign("/");
       return;
     }
 
-    // signup
     const { data, error } = await supabase.auth.signUp({
       email: cleanEmail,
       password: cleanPassword,
@@ -59,7 +54,6 @@ export default function LoginPage() {
       return;
     }
 
-    // If confirmations are ON, you won't get a session until they confirm.
     if (!data.session) {
       setStatus("idle");
       setMode("signin");
@@ -67,8 +61,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/");
-    router.refresh();
+    window.location.assign("/");
   }
 
   return (

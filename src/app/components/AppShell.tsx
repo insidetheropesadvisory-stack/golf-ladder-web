@@ -44,6 +44,7 @@ export function AppShell({
   const pageTitle = titleFromPath(pathname);
 
   const [email, setEmail] = useState((userEmail ?? "").trim());
+  const [checkedSession, setCheckedSession] = useState(Boolean(userEmail));
 
   useEffect(() => {
     let mounted = true;
@@ -51,17 +52,12 @@ export function AppShell({
     async function loadUser() {
       const {
         data: { session },
-        error,
       } = await supabase.auth.getSession();
 
       if (!mounted) return;
 
-      if (error) {
-        setEmail("");
-        return;
-      }
-
       setEmail((session?.user?.email ?? "").trim());
+      setCheckedSession(true);
     }
 
     loadUser();
@@ -71,6 +67,7 @@ export function AppShell({
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       setEmail((session?.user?.email ?? "").trim());
+      setCheckedSession(true);
     });
 
     return () => {
@@ -94,7 +91,9 @@ export function AppShell({
 
           <div className="flex items-center gap-3">
             <div className="hidden text-sm opacity-85 md:block">
-              {isAuthed ? (
+              {!checkedSession ? (
+                <span className="opacity-80">Checking session…</span>
+              ) : isAuthed ? (
                 <>
                   Signed in as <span className="opacity-100">{email}</span>
                 </>

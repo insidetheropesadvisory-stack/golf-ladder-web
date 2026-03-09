@@ -18,7 +18,7 @@ export async function createSupabaseServerClient() {
               cookieStore.set(name, value, options);
             });
           } catch {
-            // okay in server component context
+            // This can be ignored in Server Components if proxy.ts is refreshing sessions.
           }
         },
       },

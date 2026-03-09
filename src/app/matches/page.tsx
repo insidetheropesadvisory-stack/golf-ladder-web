@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/supabase";
 
 type AnyRow = Record<string, any>;
@@ -86,100 +86,109 @@ function TopoPattern() {
 export default function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
+  const [signedOut, setSignedOut] = useState(false);
 
   const [me, setMe] = useState<{ id: string; email: string | null } | null>(null);
-
   const [matches, setMatches] = useState<AnyRow[]>([]);
   const [clubs, setClubs] = useState<AnyRow[]>([]);
-
   const [showProposed, setShowProposed] = useState(false);
   const [query, setQuery] = useState("");
-
   const [myHoleCounts, setMyHoleCounts] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        setStatus(null);
+  const loadPage = useCallback(async () => {
+    try {
+      setLoading(true);
+      setStatus(null);
 
-        const {
-          data: { session },
-          error: sessionErr,
-        } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-        if (sessionErr) throw sessionErr;
+      const sessionUser = session?.user ?? null;
 
-        const sessionUser = session?.user ?? null;
-        if (!sessionUser) {
-          setMe(null);
-          setMatches([]);
-          setClubs([]);
-          setMyHoleCounts({});
-          setStatus("Auth session missing");
-          setLoading(false);
-          return;
-        }
-
-        setMe({ id: sessionUser.id, email: sessionUser.email ?? null });
-
-        const { data: matchData, error: matchErr } = await supabase
-          .from("matches")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (matchErr) {
-          setStatus(matchErr.message);
-          setLoading(false);
-          return;
-        }
-
-        const m = (matchData ?? []) as AnyRow[];
-        setMatches(m);
-
-        const { data: clubData, error: clubErr } = await supabase
-          .from("clubs")
-          .select("*")
-          .limit(12);
-
-        if (!clubErr && clubData) {
-          setClubs(clubData as AnyRow[]);
-        } else if (clubErr) {
-          console.warn("clubs load error:", clubErr.message);
-        }
-
-        const ids = m.map((row) => row.id).filter(Boolean);
-
-        if (ids.length > 0) {
-          const { data: holeData, error: holeErr } = await supabase
-            .from("holes")
-            .select("match_id, hole_no, strokes, player_id")
-            .in("match_id", ids)
-            .eq("player_id", sessionUser.id);
-
-          if (!holeErr && holeData) {
-            const counts: Record<string, number> = {};
-            for (const r of holeData as AnyRow[]) {
-              if (r.match_id && typeof r.strokes === "number") {
-                counts[r.match_id] = (counts[r.match_id] ?? 0) + 1;
-              }
-            }
-            setMyHoleCounts(counts);
-          } else if (holeErr) {
-            console.warn("hole progress load error:", holeErr.message);
-          }
-        } else {
-          setMyHoleCounts({});
-        }
-
+      if (!sessionUser) {
+        setSignedOut(true);
+        setMe(null);
+        setMatches([]);
+        setClubs([]);
+        setMyHoleCounts({});
         setLoading(false);
-      } catch (e: any) {
-        console.error(e);
-        setStatus(e?.message ?? "Failed to load matches");
-        setLoading(false);
+        return;
       }
-    })();
+
+      setSignedOut(false);
+      setMe({ id: sessionUser.id, email: sessionUser.email ?? null });
+
+      const { data: matchData, error: matchErr } = await supabase
+        .from("matches")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (matchErr) {
+        setStatus(matchErr.message);
+        setLoading(false);
+        return;
+      }
+
+      const m = (matchData ?? []) as AnyRow[];
+      setMatches(m);
+
+      const { data: clubData, error: clubErr } = await supabase
+        .from("clubs")
+        .select("*")
+        .limit(12);
+
+      if (!clubErr && clubData) {
+        setClubs(clubData as AnyRow[]);
+      } else if (clubErr) {
+        console.warn("clubs load error:", clubErr.message);
+      }
+
+      const ids = m.map((row) => row.id).filter(Boolean);
+
+      if (ids.length > 0) {
+        const { data: holeData, error: holeErr } = await supabase
+          .from("holes")
+          .select("match_id, hole_no, strokes, player_id")
+          .in("match_id", ids)
+          .eq("player_id", sessionUser.id);
+
+        if (!holeErr && holeData) {
+          const counts: Record<string, number> = {};
+          for (const r of holeData as AnyRow[]) {
+            if (r.match_id && typeof r.strokes === "number") {
+              counts[r.match_id] = (counts[r.match_id] ?? 0) + 1;
+            }
+          }
+          setMyHoleCounts(counts);
+        } else if (holeErr) {
+          console.warn("hole progress load error:", holeErr.message);
+        }
+      } else {
+        setMyHoleCounts({});
+      }
+
+      setLoading(false);
+    } catch (e: any) {
+      console.error(e);
+      setStatus(e?.message ?? "Failed to load matches");
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadPage();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadPage();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [loadPage]);
 
   const { proposed, active, completed } = useMemo(() => {
     const proposed: AnyRow[] = [];
@@ -230,6 +239,30 @@ export default function MatchesPage() {
             <div className="h-20 rounded-2xl border bg-white/60" />
           </div>
           <div className="mt-6 h-64 rounded-3xl border bg-white/60" />
+        </div>
+      </main>
+    );
+  }
+
+  if (signedOut) {
+    return (
+      <main className="min-h-screen px-6 py-8">
+        <div className="mx-auto max-w-3xl">
+          <div className="rounded-3xl border bg-white/70 p-8 text-center backdrop-blur">
+            <div className="text-xs font-medium tracking-widest text-black/55">
+              RECIPROCITY
+            </div>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Sign in required</h1>
+            <p className="mt-2 text-sm text-black/60">
+              Sign in to load your matches, clubs, and score progress.
+            </p>
+            <Link
+              href="/login"
+              className="mt-6 inline-flex items-center rounded-xl border bg-emerald-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
+            >
+              Go to login
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -528,7 +561,7 @@ export default function MatchesPage() {
           </div>
         )}
 
-        {status && <div className="text-sm text-red-600">{status}</div>}
+        {status ? <div className="text-sm text-red-600">{status}</div> : null}
       </div>
     </main>
   );
