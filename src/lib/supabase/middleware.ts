@@ -1,22 +1,17 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/**
- * Keeps the Supabase session fresh in Next middleware by reading request cookies
- * and writing any refreshed cookies onto the response.
- *
- * This is what your src/proxy.ts expects to call.
- */
-export async function updateSession(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // If env isn't set yet, don't brick dev — just proceed without auth.
   if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.next();
   }
 
-  let response = NextResponse.next();
+  let response = NextResponse.next({
+    request,
+  });
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -32,8 +27,13 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Touch auth so Supabase can refresh session cookies when needed.
   await supabase.auth.getUser();
 
   return response;
 }
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};
