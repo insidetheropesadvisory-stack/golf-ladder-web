@@ -250,11 +250,7 @@ export default function MatchesPage() {
               href="/login"
               className="mt-6 inline-flex items-center rounded-xl border bg-emerald-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
             >
-              Go to login
-            </Link>
-          </div>
-        </div>
-      </main>
+          
     );
   }
 
