@@ -67,79 +67,84 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-[var(--paper)]">
-      <div className="mx-auto w-full max-w-[520px] px-6 py-10">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-[var(--shadow)]">
-          <div className="text-xs tracking-[0.22em] text-[var(--muted)]">
-            {mode === "signin" ? "SIGN IN" : "CREATE ACCOUNT"}
+    <div className="flex min-h-screen flex-col items-center justify-center px-6">
+      <div className="w-full max-w-[400px]">
+        {/* Brand */}
+        <div className="mb-10 text-center">
+          <div className="text-[11px] tracking-[0.32em] text-[var(--muted)]">
+            RECIPROCITY
+          </div>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--ink)]">
+            {mode === "signin" ? "Welcome back" : "Create your account"}
+          </h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            {mode === "signin"
+              ? "Sign in to continue to your matches."
+              : "Join to start tracking your rounds."}
+          </p>
+        </div>
+
+        {/* Form card */}
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium tracking-[0.18em] text-[var(--muted)]">
+              EMAIL
+            </label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              placeholder="you@club.com"
+              autoComplete="email"
+              className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-4 py-3 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
+            />
           </div>
 
-          <h1 className="mt-2 text-xl font-semibold text-[var(--ink)]">
-            Reciprocity
-          </h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            {mode === "signin"
-              ? "Sign in with your email and password."
-              : "Create an account with email and password."}
-          </p>
-
-          <form onSubmit={onSubmit} className="mt-6 space-y-3">
-            <label className="block text-sm font-medium text-[var(--ink)]">
-              Email
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                type="email"
-                placeholder="you@club.com"
-                className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--paper)] px-4 py-3 text-sm text-[var(--ink)] outline-none focus:ring-2 focus:ring-[rgba(11,59,46,.25)]"
-                autoComplete="email"
-              />
+          <div>
+            <label className="block text-xs font-medium tracking-[0.18em] text-[var(--muted)]">
+              PASSWORD
             </label>
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              placeholder="••••••••"
+              autoComplete={
+                mode === "signin" ? "current-password" : "new-password"
+              }
+              className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-4 py-3 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
+            />
+          </div>
 
-            <label className="block text-sm font-medium text-[var(--ink)]">
-              Password
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                placeholder="••••••••"
-                className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--paper)] px-4 py-3 text-sm text-[var(--ink)] outline-none focus:ring-2 focus:ring-[rgba(11,59,46,.25)]"
-                autoComplete={
-                  mode === "signin" ? "current-password" : "new-password"
-                }
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={status === "working"}
-              className="w-full rounded-full bg-[var(--pine)] px-4 py-3 text-sm font-medium text-[var(--paper)] shadow-[0_10px_26px_rgba(0,0,0,.18)] transition hover:-translate-y-[1px] disabled:opacity-60"
+          {message ? (
+            <div
+              className={
+                status === "error"
+                  ? "rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700"
+                  : "rounded-xl bg-[var(--paper-2)] px-4 py-3 text-sm text-[var(--ink)]"
+              }
             >
-              {status === "working"
-                ? "Working…"
-                : mode === "signin"
-                ? "Sign in"
-                : "Create account"}
-            </button>
+              {message}
+            </div>
+          ) : null}
 
-            {message ? (
-              <div className="text-sm text-[var(--muted)]">{message}</div>
-            ) : null}
+          <button
+            type="submit"
+            disabled={status === "working"}
+            className="w-full rounded-xl bg-[var(--pine)] px-4 py-3 text-sm font-semibold text-[var(--paper)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.18)] disabled:opacity-60"
+          >
+            {status === "working"
+              ? "Working..."
+              : mode === "signin"
+              ? "Sign in"
+              : "Create account"}
+          </button>
+        </form>
 
-            {mode === "signin" ? (
-              <div className="pt-1 text-right">
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-[var(--muted)] underline underline-offset-4 hover:opacity-80"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-            ) : null}
-          </form>
-
-          <div className="mt-5 border-t border-[var(--border)] pt-4 text-sm text-[var(--muted)]">
-            {mode === "signin" ? (
+        {/* Links */}
+        <div className="mt-8 flex items-center justify-between text-sm">
+          {mode === "signin" ? (
+            <>
               <button
                 type="button"
                 onClick={() => {
@@ -147,24 +152,35 @@ export default function LoginPage() {
                   setMessage("");
                   setStatus("idle");
                 }}
-                className="underline underline-offset-4 hover:opacity-80"
+                className="text-[var(--muted)] transition hover:text-[var(--ink)]"
               >
-                Need an account? Create one
+                Create an account
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("signin");
-                  setMessage("");
-                  setStatus("idle");
-                }}
-                className="underline underline-offset-4 hover:opacity-80"
+              <Link
+                href="/forgot-password"
+                className="text-[var(--muted)] transition hover:text-[var(--ink)]"
               >
-                Already have an account? Sign in
-              </button>
-            )}
-          </div>
+                Forgot password?
+              </Link>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signin");
+                setMessage("");
+                setStatus("idle");
+              }}
+              className="text-[var(--muted)] transition hover:text-[var(--ink)]"
+            >
+              Already have an account? Sign in
+            </button>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-16 text-center text-xs text-[var(--muted)]">
+          Private club competition, refined.
         </div>
       </div>
     </div>

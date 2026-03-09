@@ -65,6 +65,15 @@ export function AppShell({
 
   const isAuthed = email.length > 0;
 
+  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout"];
+  const isAuthRoute = authRoutes.some(
+    (r) => pathname === r || pathname.startsWith(r + "/")
+  );
+
+  if (isAuthRoute) {
+    return <div className="min-h-screen bg-[var(--paper)]">{children}</div>;
+  }
+
   return (
     <div className="min-h-screen bg-[var(--paper)]">
       <header className="sticky top-0 z-30 border-b border-[rgba(246,241,231,.18)] bg-[var(--pine)] text-[var(--paper)]">
