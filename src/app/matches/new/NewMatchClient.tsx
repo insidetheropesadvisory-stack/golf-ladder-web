@@ -44,14 +44,25 @@ export default function NewMatchPage() {
     const preset = sp.get("course");
     if (preset) setCourseName(preset);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const user = session?.user ?? null;
+    let handled = false;
+
+    function handleUser(user: { id: string; email?: string } | null | undefined) {
       if (!user) {
         setStatus("You're not signed in.");
         return;
       }
       setMeId(user.id);
       setMeEmail(user.email ?? null);
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handled = true;
+      handleUser(session?.user ?? null);
+    });
+
+    // Immediate session check in case onAuthStateChange hasn't fired yet
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!handled) handleUser(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();

@@ -113,11 +113,23 @@ export default function ProfilePageClient() {
       }
     }
 
+    let handled = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handled = true;
       if (session?.user) {
         load(session.user);
       } else {
         router.push("/login");
+      }
+    });
+
+    // Immediate session check in case onAuthStateChange hasn't fired yet
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!handled && mounted) {
+        if (session?.user) {
+          load(session.user);
+        }
       }
     });
 

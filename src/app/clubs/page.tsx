@@ -193,9 +193,12 @@ export default function ClubsPage() {
   }
 
   useEffect(() => {
+    let handled = false;
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      handled = true;
       if (session?.user) {
         refresh(session.user);
       } else {
@@ -206,6 +209,14 @@ export default function ClubsPage() {
         setLoading(false);
       }
     });
+
+    // Immediate session check in case onAuthStateChange hasn't fired yet
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!handled && session?.user) {
+        refresh(session.user);
+      }
+    });
+
     return () => subscription.unsubscribe();
   }, []);
 

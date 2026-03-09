@@ -369,15 +369,25 @@ export default function HomePage() {
       }
     }
 
+    let handled = false;
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
+      handled = true;
       if (session?.user) {
         run(session.user, session.access_token);
       } else {
         setFatal("Auth session missing");
         setLoading(false);
+      }
+    });
+
+    // Immediate session check in case onAuthStateChange hasn't fired yet
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!handled && mounted && session?.user) {
+        run(session.user, session.access_token);
       }
     });
 

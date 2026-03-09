@@ -75,7 +75,9 @@ export default function MatchScoringPage() {
 
     let unsub: (() => void) | null = null;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    let handled = false;
+
+    function handleSession(session: { user: { id: string; email?: string } } | null) {
       const sessionUser = session?.user ?? null;
 
       if (!sessionUser) {
@@ -141,6 +143,16 @@ export default function MatchScoringPage() {
         setLoading(false);
       }
     })();
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handled = true;
+      handleSession(session);
+    });
+
+    // Immediate session check in case onAuthStateChange hasn't fired yet
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!handled) handleSession(session);
     });
 
     unsub = () => subscription.unsubscribe();

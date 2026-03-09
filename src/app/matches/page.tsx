@@ -160,9 +160,12 @@ export default function MatchesPage() {
   }, []);
 
   useEffect(() => {
+    let handled = false;
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      handled = true;
       if (session?.user) {
         loadPage(session.user);
       } else {
@@ -172,6 +175,13 @@ export default function MatchesPage() {
         setClubs([]);
         setMyHoleCounts({});
         setLoading(false);
+      }
+    });
+
+    // Immediate session check in case onAuthStateChange hasn't fired yet
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!handled && session?.user) {
+        loadPage(session.user);
       }
     });
 
