@@ -78,6 +78,8 @@ export default function MatchScoringPage() {
   const [holeNo, setHoleNo] = useState<number>(1);
   const [strokesInput, setStrokesInput] = useState<string>("");
   const [responding, setResponding] = useState(false);
+  const [showDecline, setShowDecline] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
 
   useEffect(() => {
     if (!matchId) return;
@@ -303,7 +305,11 @@ export default function MatchScoringPage() {
         "Content-Type": "application/json",
         ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
       },
-      body: JSON.stringify({ matchId, action }),
+      body: JSON.stringify({
+        matchId,
+        action,
+        ...(action === "decline" && declineReason ? { reason: declineReason } : {}),
+      }),
     });
     const json = await res.json();
     setResponding(false);
@@ -311,7 +317,11 @@ export default function MatchScoringPage() {
       setStatus(json.error || "Failed to respond");
       return;
     }
-    window.location.reload();
+    if (action === "decline") {
+      router.push("/matches");
+    } else {
+      window.location.reload();
+    }
   }
 
   async function deleteMatch() {
@@ -406,23 +416,57 @@ export default function MatchScoringPage() {
               <li><span className="font-medium text-[var(--muted)]">Round time:</span> {new Date(match.round_time).toLocaleString()}</li>
             )}
           </ul>
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => respondToMatch("accept")}
-              disabled={responding}
-              className="rounded-xl bg-[var(--pine)] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:shadow-none disabled:translate-y-0"
-            >
-              {responding ? "Responding..." : "Accept Challenge"}
-            </button>
-            <button
-              type="button"
-              onClick={() => respondToMatch("decline")}
-              disabled={responding}
-              className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--muted)] transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-60"
-            >
-              Decline
-            </button>
+          <div className="mt-4 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => respondToMatch("accept")}
+                disabled={responding}
+                className="rounded-xl bg-[var(--pine)] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:shadow-none disabled:translate-y-0"
+              >
+                {responding ? "Responding..." : "Accept Challenge"}
+              </button>
+              {!showDecline ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDecline(true)}
+                  disabled={responding}
+                  className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--muted)] transition hover:bg-[var(--paper)] hover:border-red-200 hover:text-red-600 disabled:opacity-60"
+                >
+                  Decline
+                </button>
+              ) : null}
+            </div>
+            {showDecline && (
+              <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 space-y-3">
+                <div className="text-sm font-medium text-red-800">Why are you declining?</div>
+                <textarea
+                  className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-red-300 focus:border-red-300 focus:ring-1 focus:ring-red-200"
+                  rows={2}
+                  placeholder="e.g. Schedule conflict, already have a match that day..."
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => respondToMatch("decline")}
+                    disabled={responding}
+                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {responding ? "Declining..." : "Confirm Decline"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowDecline(false); setDeclineReason(""); }}
+                    disabled={responding}
+                    className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--muted)] transition hover:bg-white disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -44,6 +44,7 @@ export async function POST(request: Request) {
     const matchId =
       typeof body?.matchId === "string" ? body.matchId.trim() : "";
     const action = typeof body?.action === "string" ? body.action.trim() : "";
+    const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
 
     if (!matchId) {
       return NextResponse.json({ error: "Missing matchId" }, { status: 400 });
@@ -124,24 +125,28 @@ export async function POST(request: Request) {
         );
       }
     } else {
-      const { error: updateErr } = await supabaseAdmin
+      // Send notification email BEFORE deleting so we still have match data
+      await sendCreatorNotification(supabaseAdmin, match, action, userEmail, reason);
+
+      // Delete holes then match
+      await supabaseAdmin.from("holes").delete().eq("match_id", matchId);
+      const { error: delErr } = await supabaseAdmin
         .from("matches")
-        .update({
-          terms_status: "denied",
-          terms_denied_by: user.id,
-        })
+        .delete()
         .eq("id", matchId);
 
-      if (updateErr) {
+      if (delErr) {
         return NextResponse.json(
-          { error: updateErr.message },
+          { error: delErr.message },
           { status: 500 }
         );
       }
+
+      return NextResponse.json({ ok: true });
     }
 
-    // Send notification email to the match creator
-    await sendCreatorNotification(supabaseAdmin, match, action, userEmail);
+    // Send notification email to the match creator (accept path)
+    await sendCreatorNotification(supabaseAdmin, match, action, userEmail, reason);
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
@@ -157,7 +162,8 @@ async function sendCreatorNotification(
   supabaseAdmin: any,
   match: any,
   action: "accept" | "decline",
-  opponentEmail: string
+  opponentEmail: string,
+  reason?: string
 ) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.INVITE_FROM_EMAIL || "onboarding@resend.dev";
@@ -187,18 +193,24 @@ async function sendCreatorNotification(
   const statusLabel = accepted ? "accepted" : "declined";
   const statusColor = accepted ? "#16a34a" : "#dc2626";
 
+  const reasonHtml = !accepted && reason
+    ? "  <p style=\"margin-top:12px;padding:12px 16px;background:#fef2f2;border-radius:10px;color:#991b1b;font-size:14px\"><b>Reason:</b> " + reason.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"
+    : "";
+
   const html = [
-    "<div style=\"font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height:1.4\">",
-    "  <h2>Match " + statusLabel + "</h2>",
+    "<div style=\"font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height:1.5; max-width:480px\">",
+    "  <h2 style=\"margin-bottom:4px\">Match " + statusLabel + "</h2>",
+    "  <p style=\"color:#555;margin-top:0\">Private club competition, refined.</p>",
     "  <p><b>Course:</b> " + courseName + "</p>",
     "  <p><b>Opponent:</b> " + opponentEmail + "</p>",
     "  <p style=\"margin-top:12px\">",
-    "    <span style=\"display:inline-block;padding:6px 12px;border-radius:8px;color:#fff;background:" + statusColor + ";font-weight:600\">" + statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1) + "</span>",
+    "    <span style=\"display:inline-block;padding:8px 16px;border-radius:10px;color:#fff;background:" + statusColor + ";font-weight:600\">" + statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1) + "</span>",
     "  </p>",
+    reasonHtml,
     accepted
       ? "  <p style=\"margin-top:16px\">The match is now active. Good luck!</p>"
-      : "  <p style=\"margin-top:16px\">The opponent has declined this match.</p>",
-    "  <p style=\"margin-top:24px;font-size:12px;color:#666\">Golf Ladder</p>",
+      : "  <p style=\"margin-top:16px\">The opponent has declined this match and it has been removed.</p>",
+    "  <p style=\"margin-top:24px;font-size:12px;color:#888\">Reciprocity</p>",
     "</div>",
   ].join("\n");
 
