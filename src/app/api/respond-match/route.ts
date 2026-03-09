@@ -1,0 +1,227 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
+
+export const runtime = "nodejs";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+async function getAuthedUser(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  const bearer =
+    authHeader && authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length).trim()
+      : null;
+
+  if (bearer) {
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await supabaseAuth.auth.getUser(bearer);
+    return { user: data.user, error };
+  }
+
+  const cookieStore = await cookies();
+  const supabaseAuth = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll() {},
+    },
+  });
+
+  const { data, error } = await supabaseAuth.auth.getUser();
+  return { user: data.user, error };
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json().catch(() => ({}))) as any;
+    const matchId =
+      typeof body?.matchId === "string" ? body.matchId.trim() : "";
+    const action = typeof body?.action === "string" ? body.action.trim() : "";
+
+    if (!matchId) {
+      return NextResponse.json({ error: "Missing matchId" }, { status: 400 });
+    }
+
+    if (action !== "accept" && action !== "decline") {
+      return NextResponse.json(
+        { error: "action must be \"accept\" or \"decline\"" },
+        { status: 400 }
+      );
+    }
+
+    const { user, error: userErr } = await getAuthedUser(request);
+
+    if (userErr || !user) {
+      return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    }
+
+    if (!serviceKey) {
+      return NextResponse.json(
+        { error: "Missing SUPABASE_SERVICE_ROLE_KEY" },
+        { status: 500 }
+      );
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    // Fetch match
+    const { data: match, error: matchErr } = await supabaseAdmin
+      .from("matches")
+      .select("id, creator_id, status, terms_status, opponent_email, course_name")
+      .eq("id", matchId)
+      .single();
+
+    if (matchErr || !match) {
+      return NextResponse.json({ error: "Match not found" }, { status: 404 });
+    }
+
+    // Verify match is still in a respondable state
+    const isProposed =
+      match.terms_status === "pending" || match.status === "proposed";
+
+    if (!isProposed) {
+      return NextResponse.json(
+        { error: "This match is no longer pending" },
+        { status: 403 }
+      );
+    }
+
+    // Verify the authenticated user is the opponent
+    const userEmail = (user.email || "").trim().toLowerCase();
+    const opponentEmail = (match.opponent_email || "").trim().toLowerCase();
+
+    if (!userEmail || userEmail !== opponentEmail) {
+      return NextResponse.json(
+        { error: "Only the invited opponent can respond to this match" },
+        { status: 403 }
+      );
+    }
+
+    // Perform the update
+    if (action === "accept") {
+      const { error: updateErr } = await supabaseAdmin
+        .from("matches")
+        .update({
+          terms_status: "accepted",
+          status: "active",
+          opponent_id: user.id,
+        })
+        .eq("id", matchId);
+
+      if (updateErr) {
+        return NextResponse.json(
+          { error: updateErr.message },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { error: updateErr } = await supabaseAdmin
+        .from("matches")
+        .update({
+          terms_status: "denied",
+          terms_denied_by: user.id,
+        })
+        .eq("id", matchId);
+
+      if (updateErr) {
+        return NextResponse.json(
+          { error: updateErr.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Send notification email to the match creator
+    await sendCreatorNotification(supabaseAdmin, match, action, userEmail);
+
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("respond-match error:", e);
+    return NextResponse.json(
+      { error: e?.message ?? "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+async function sendCreatorNotification(
+  supabaseAdmin: any,
+  match: any,
+  action: "accept" | "decline",
+  opponentEmail: string
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.INVITE_FROM_EMAIL || "onboarding@resend.dev";
+
+  if (!apiKey) {
+    console.error("respond-match: Missing RESEND_API_KEY, skipping notification email");
+    return;
+  }
+
+  // Look up creator email via Supabase auth admin
+  const { data: creatorData, error: creatorErr } =
+    await supabaseAdmin.auth.admin.getUserById(match.creator_id);
+
+  if (creatorErr || !creatorData?.user?.email) {
+    console.error("respond-match: Could not look up creator email", creatorErr);
+    return;
+  }
+
+  const creatorEmail = creatorData.user.email;
+  const courseName = match.course_name || "Golf Ladder Match";
+  const accepted = action === "accept";
+
+  const subject = accepted
+    ? "Match accepted: " + courseName
+    : "Match declined: " + courseName;
+
+  const statusLabel = accepted ? "accepted" : "declined";
+  const statusColor = accepted ? "#16a34a" : "#dc2626";
+
+  const html = [
+    "<div style=\"font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height:1.4\">",
+    "  <h2>Match " + statusLabel + "</h2>",
+    "  <p><b>Course:</b> " + courseName + "</p>",
+    "  <p><b>Opponent:</b> " + opponentEmail + "</p>",
+    "  <p style=\"margin-top:12px\">",
+    "    <span style=\"display:inline-block;padding:6px 12px;border-radius:8px;color:#fff;background:" + statusColor + ";font-weight:600\">" + statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1) + "</span>",
+    "  </p>",
+    accepted
+      ? "  <p style=\"margin-top:16px\">The match is now active. Good luck!</p>"
+      : "  <p style=\"margin-top:16px\">The opponent has declined this match.</p>",
+    "  <p style=\"margin-top:24px;font-size:12px;color:#666\">Golf Ladder</p>",
+    "</div>",
+  ].join("\n");
+
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: creatorEmail,
+        subject,
+        html,
+      }),
+    });
+
+    if (!r.ok) {
+      const data = await r.json().catch(() => null);
+      console.error("respond-match: Resend error", r.status, data);
+    }
+  } catch (emailErr) {
+    console.error("respond-match: Failed to send notification email", emailErr);
+  }
+}

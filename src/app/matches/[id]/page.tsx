@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/supabase";
 type MatchRow = {
   id: string;
   creator_id: string;
+  creator_email?: string;
   opponent_id: string | null;
   opponent_email: string;
   course_name: string;
@@ -14,6 +15,7 @@ type MatchRow = {
   terms_status: string | null;
   format: "stroke_play" | "match_play";
   use_handicap: boolean;
+  round_time: string | null;
 };
 
 type HoleRow = {
@@ -75,6 +77,7 @@ export default function MatchScoringPage() {
 
   const [holeNo, setHoleNo] = useState<number>(1);
   const [strokesInput, setStrokesInput] = useState<string>("");
+  const [responding, setResponding] = useState(false);
 
   useEffect(() => {
     if (!matchId) return;
@@ -107,7 +110,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, terms_status, format, use_handicap"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, terms_status, format, use_handicap, round_time"
           )
           .eq("id", matchId)
           .single();
@@ -285,6 +288,32 @@ export default function MatchScoringPage() {
   const isCreator = meId != null && meId === match?.creator_id;
   const canDelete = isProposed && isCreator;
 
+  const isOpponent =
+    isProposed &&
+    meEmail != null &&
+    match?.opponent_email != null &&
+    meEmail.trim().toLowerCase() === match.opponent_email.trim().toLowerCase();
+
+  async function respondToMatch(action: "accept" | "decline") {
+    setResponding(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/respond-match", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ matchId, action }),
+    });
+    const json = await res.json();
+    setResponding(false);
+    if (!res.ok) {
+      setStatus(json.error || "Failed to respond");
+      return;
+    }
+    window.location.reload();
+  }
+
   async function deleteMatch() {
     if (!matchId || !confirm("Delete this proposed match? This cannot be undone.")) return;
 
@@ -359,6 +388,51 @@ export default function MatchScoringPage() {
           </button>
         )}
       </div>
+
+      {/* Opponent: Accept / Decline challenge */}
+      {isOpponent && (
+        <div className="rounded-2xl border-2 border-[var(--pine)]/30 bg-gradient-to-br from-[var(--pine)]/5 to-white p-5 shadow-sm">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--pine)]">
+            Challenge Received
+          </div>
+          <p className="text-sm text-[var(--fg)]">
+            <span className="font-semibold">{match?.creator_email || "The match creator"}</span> has challenged you to a round.
+          </p>
+          <ul className="mt-3 space-y-1 text-sm text-[var(--fg)]">
+            <li><span className="font-medium text-[var(--muted)]">Course:</span> {match?.course_name}</li>
+            <li><span className="font-medium text-[var(--muted)]">Format:</span> {match?.format === "match_play" ? "Match Play" : "Stroke Play"}</li>
+            <li><span className="font-medium text-[var(--muted)]">Handicap:</span> {match?.use_handicap ? "Yes" : "No"}</li>
+            {match?.round_time && (
+              <li><span className="font-medium text-[var(--muted)]">Round time:</span> {new Date(match.round_time).toLocaleString()}</li>
+            )}
+          </ul>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => respondToMatch("accept")}
+              disabled={responding}
+              className="rounded-xl bg-[var(--pine)] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:shadow-none disabled:translate-y-0"
+            >
+              {responding ? "Responding..." : "Accept Challenge"}
+            </button>
+            <button
+              type="button"
+              onClick={() => respondToMatch("decline")}
+              disabled={responding}
+              className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--muted)] transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-60"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Creator: waiting indicator */}
+      {isProposed && isCreator && (
+        <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 px-5 py-4 text-sm text-amber-800">
+          <span className="font-semibold">Waiting for response</span> -- your opponent has not yet accepted or declined this match.
+        </div>
+      )}
 
       {/* Score summary cards */}
       <div className="grid gap-3 sm:grid-cols-2">
