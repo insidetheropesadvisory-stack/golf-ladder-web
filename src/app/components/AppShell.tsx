@@ -49,19 +49,6 @@ export function AppShell({
   useEffect(() => {
     let mounted = true;
 
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!mounted) return;
-
-      setEmail((user?.email ?? "").trim());
-      setCheckedSession(true);
-    }
-
-    loadUser();
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {

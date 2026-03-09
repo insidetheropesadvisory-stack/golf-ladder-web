@@ -177,8 +177,6 @@ export default function MatchesPage() {
   }, []);
 
   useEffect(() => {
-    loadPage();
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {

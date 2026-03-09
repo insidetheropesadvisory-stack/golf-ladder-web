@@ -204,7 +204,12 @@ export default function ClubsPage() {
   }
 
   useEffect(() => {
-    refresh();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      refresh();
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   const ctDirectory = useMemo(() => {

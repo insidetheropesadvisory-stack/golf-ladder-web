@@ -73,31 +73,28 @@ export default function MatchScoringPage() {
   useEffect(() => {
     if (!matchId) return;
 
-    (async () => {
+    let unsub: (() => void) | null = null;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionUser = session?.user ?? null;
+
+      if (!sessionUser) {
+        setMeId(null);
+        setMeEmail(null);
+        setMatch(null);
+        setHoles([]);
+        setStatus("Auth session missing");
+        setLoading(false);
+        return;
+      }
+
+      setMeId(sessionUser.id);
+      setMeEmail(sessionUser.email ?? null);
+
+      (async () => {
       try {
         setLoading(true);
         setStatus(null);
-
-        const {
-          data: { user },
-          error: sessionErr,
-        } = await supabase.auth.getUser();
-
-        if (sessionErr) throw sessionErr;
-
-        const sessionUser = user ?? null;
-        if (!sessionUser) {
-          setMeId(null);
-          setMeEmail(null);
-          setMatch(null);
-          setHoles([]);
-          setStatus("Auth session missing");
-          setLoading(false);
-          return;
-        }
-
-        setMeId(sessionUser.id);
-        setMeEmail(sessionUser.email ?? null);
 
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
@@ -144,6 +141,10 @@ export default function MatchScoringPage() {
         setLoading(false);
       }
     })();
+    });
+
+    unsub = () => subscription.unsubscribe();
+    return () => { unsub?.(); };
   }, [matchId]);
 
   const myScoresByHole = useMemo(() => {

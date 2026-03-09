@@ -272,29 +272,12 @@ export default function HomePage() {
   useEffect(() => {
     let mounted = true;
 
-    async function run() {
+    async function run(sessionUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }, authToken?: string) {
       try {
         if (!mounted) return;
         setLoading(true);
         setFatal(null);
 
-        const {
-          data: { user },
-          error: sessionErr,
-        } = await supabase.auth.getUser();
-
-        if (sessionErr) throw sessionErr;
-
-        const sessionUser = user ?? null;
-        if (!sessionUser) {
-          if (!mounted) return;
-          setFatal("Auth session missing");
-          setLoading(false);
-          return;
-        }
-
-        const { data: { session } } = await supabase.auth.getSession();
-        const authToken = session?.access_token;
         const meta = (sessionUser.user_metadata ?? {}) as Record<string, unknown>;
         const metaName = String(
           meta.display_name ?? meta.name ?? meta.full_name ?? meta.username ?? ""
@@ -386,10 +369,21 @@ export default function HomePage() {
       }
     }
 
-    run();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        run(session.user, session.access_token);
+      } else {
+        setFatal("Auth session missing");
+        setLoading(false);
+      }
+    });
 
     return () => {
       mounted = false;
+      subscription.unsubscribe();
     };
   }, []);
 
