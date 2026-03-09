@@ -99,6 +99,7 @@ export default function ClubsPage() {
   const [dbClubs, setDbClubs] = useState<ClubRow[]>([]);
   const [myClubIds, setMyClubIds] = useState<Set<string>>(new Set());
   const [myClubFees, setMyClubFees] = useState<Record<string, number | null>>({});
+  const [editingFeeClub, setEditingFeeClub] = useState<string | null>(null);
 
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
@@ -453,30 +454,59 @@ export default function ClubsPage() {
                       </div>
 
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-[var(--ink)]">{c.name}</div>
+                        {c.id.startsWith("ct::") ? (
+                          <div className="truncate text-sm font-semibold text-[var(--ink)]">{c.name}</div>
+                        ) : (
+                          <Link
+                            href={`/clubs/${c.id}`}
+                            className="truncate text-sm font-semibold text-[var(--ink)] hover:text-[var(--pine)] transition-colors"
+                          >
+                            {c.name}
+                          </Link>
+                        )}
                         <div className="truncate text-xs text-[var(--muted)]">
                           {loc || (tab === "ct" ? "Connecticut" : "\u2014")}
                         </div>
                         {isMember && (
                           <div className="mt-1 flex items-center gap-1.5">
                             <span className="text-[10px] font-medium text-[var(--muted)]">Guest fee:</span>
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              className="w-16 rounded-md border border-[var(--border)] bg-white/80 px-1.5 py-0.5 text-[11px] outline-none focus:border-[var(--pine)]/40"
-                              placeholder="$0"
-                              value={myClubFees[c.id] != null ? `$${myClubFees[c.id]}` : ""}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/[^0-9.]/g, "");
-                                const num = parseFloat(raw);
-                                if (raw === "" || raw === ".") {
-                                  setMyClubFees((prev) => ({ ...prev, [c.id]: null }));
-                                } else if (!isNaN(num)) {
-                                  setMyClubFees((prev) => ({ ...prev, [c.id]: num }));
-                                }
-                              }}
-                              onBlur={() => updateGuestFee(c.id, myClubFees[c.id] ?? null)}
-                            />
+                            {editingFeeClub === c.id ? (
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                autoFocus
+                                className="w-16 rounded-md border border-[var(--pine)]/40 bg-white px-1.5 py-0.5 text-[11px] outline-none"
+                                placeholder="$0"
+                                value={myClubFees[c.id] != null ? `$${myClubFees[c.id]}` : ""}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                  const num = parseFloat(raw);
+                                  if (raw === "" || raw === ".") {
+                                    setMyClubFees((prev) => ({ ...prev, [c.id]: null }));
+                                  } else if (!isNaN(num)) {
+                                    setMyClubFees((prev) => ({ ...prev, [c.id]: num }));
+                                  }
+                                }}
+                                onBlur={() => {
+                                  updateGuestFee(c.id, myClubFees[c.id] ?? null);
+                                  setEditingFeeClub(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    updateGuestFee(c.id, myClubFees[c.id] ?? null);
+                                    setEditingFeeClub(null);
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setEditingFeeClub(c.id)}
+                                className="rounded-md border border-transparent px-1.5 py-0.5 text-[11px] font-medium text-[var(--ink)] transition hover:border-[var(--border)] hover:bg-white/80"
+                              >
+                                {myClubFees[c.id] != null ? `$${myClubFees[c.id]}` : "Set"}
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
