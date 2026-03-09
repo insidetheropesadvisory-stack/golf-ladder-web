@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 
-export default function ExchangePage() {
+function ExchangeInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -49,5 +49,19 @@ export default function ExchangePage() {
     <div className="flex min-h-screen items-center justify-center bg-[var(--paper)]">
       <div className="text-sm text-[var(--muted)]">Verifying...</div>
     </div>
+  );
+}
+
+export default function ExchangePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[var(--paper)]">
+          <div className="text-sm text-[var(--muted)]">Verifying...</div>
+        </div>
+      }
+    >
+      <ExchangeInner />
+    </Suspense>
   );
 }

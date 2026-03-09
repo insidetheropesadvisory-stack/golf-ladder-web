@@ -47,7 +47,7 @@ export function AppShell({
   const [email, setEmail] = useState((userEmail ?? "").trim());
   const [checkedSession, setCheckedSession] = useState(Boolean(userEmail));
 
-  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout"];
+  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth"];
   const isAuthRoute = authRoutes.some(
     (r) => pathname === r || pathname.startsWith(r + "/")
   );
