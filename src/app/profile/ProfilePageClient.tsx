@@ -275,30 +275,17 @@ export default function ProfilePageClient() {
   const shownAvatar = avatarPreview ?? avatarUrl ?? null;
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-[11px] tracking-[0.28em] text-gray-500">RECIPROCITY</div>
+    <div className="space-y-6">
+        <div>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Profile</h1>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-[var(--muted)]">
               Update your name, handicap, and photo.
               {email ? <span className="ml-2">({email})</span> : null}
             </p>
-          </div>
-
-          <div className="flex gap-3">
-            <Link className="underline" href="/">
-              Home
-            </Link>
-            <button className="underline" onClick={logout} type="button">
-              Logout
-            </button>
-          </div>
         </div>
 
         {showNameRequired ? (
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-[0_10px_28px_rgba(17,19,18,.06)]">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-[var(--shadow)]">
             <div className="text-sm font-semibold">Add your name to create matches</div>
             <div className="mt-2 text-sm text-[var(--muted)]">
               Set a display name, save, and you’ll be sent right back.
@@ -313,20 +300,20 @@ export default function ProfilePageClient() {
         ) : null}
 
         {toast ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-700">
+          <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--ink)]">
             {toast}
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_10px_28px_rgba(17,19,18,.06)]">
+        <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-6 shadow-[var(--shadow)]">
           {loading ? (
-            <div className="text-sm text-gray-600">Loading…</div>
+            <div className="text-sm text-[var(--muted)]">Loading…</div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr]">
               <div className="space-y-3">
-                <div className="text-xs font-medium tracking-wide text-gray-600">PHOTO</div>
+                <div className="text-xs font-medium tracking-[0.22em] text-[var(--muted)]">PHOTO</div>
 
-                <div className="relative h-40 w-40 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+                <div className="relative h-40 w-40 overflow-hidden rounded-2xl border border-[var(--border)] bg-white/60">
                   {shownAvatar ? (
                     <img
                       src={shownAvatar}
@@ -334,7 +321,7 @@ export default function ProfilePageClient() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
+                    <div className="flex h-full w-full items-center justify-center text-sm text-[var(--muted)]">
                       No photo
                     </div>
                   )}
@@ -342,8 +329,8 @@ export default function ProfilePageClient() {
 
                 <label
                   className={cx(
-                    "inline-flex cursor-pointer items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition",
-                    uploading ? "opacity-60" : "hover:bg-gray-50"
+                    "inline-flex cursor-pointer items-center justify-center rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition",
+                    uploading ? "opacity-60" : "hover:bg-white/60"
                   )}
                 >
                   {uploading ? "Uploading…" : "Upload photo"}
@@ -360,16 +347,16 @@ export default function ProfilePageClient() {
                   />
                 </label>
 
-                <div className="text-xs text-gray-500">PNG or JPG, up to 5MB.</div>
+                <div className="text-xs text-[var(--muted)]">PNG or JPG, up to 5MB.</div>
               </div>
 
               <div className="space-y-5">
                 <div>
-                  <div className="text-xs font-medium tracking-wide text-gray-600">
+                  <div className="text-xs font-medium tracking-[0.22em] text-[var(--muted)]">
                     DISPLAY NAME
                   </div>
                   <input
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-gray-400"
+                    className="mt-2 w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none focus:border-[var(--border)]"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="e.g., Ned Roosevelt"
@@ -377,11 +364,11 @@ export default function ProfilePageClient() {
                 </div>
 
                 <div>
-                  <div className="text-xs font-medium tracking-wide text-gray-600">
+                  <div className="text-xs font-medium tracking-[0.22em] text-[var(--muted)]">
                     HANDICAP INDEX
                   </div>
                   <input
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-gray-400"
+                    className="mt-2 w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none focus:border-[var(--border)]"
                     value={handicap}
                     onChange={(e) => setHandicap(e.target.value)}
                     placeholder="e.g., 9.8"
@@ -395,7 +382,7 @@ export default function ProfilePageClient() {
                       "rounded-full px-5 py-2 text-sm font-medium transition",
                       hasChanges && !saving
                         ? "bg-[var(--pine)] text-white hover:-translate-y-[1px]"
-                        : "bg-gray-100 text-gray-400"
+                        : "bg-black/5 text-[var(--muted)]"
                     )}
                     disabled={!hasChanges || saving}
                     onClick={save}
@@ -404,7 +391,7 @@ export default function ProfilePageClient() {
                     {saving ? "Saving…" : "Save changes"}
                   </button>
 
-                  <Link className="text-sm underline text-gray-600" href={next}>
+                  <Link className="text-sm underline text-[var(--muted)]" href={next}>
                     Back
                   </Link>
 
@@ -427,7 +414,6 @@ export default function ProfilePageClient() {
             </div>
           )}
         </div>
-      </div>
-    </main>
+    </div>
   );
 }

@@ -69,8 +69,8 @@ function TabButton({
       className={cx(
         "rounded-xl border px-3 py-2 text-sm font-semibold transition",
         active
-          ? "bg-emerald-950 text-white border-emerald-950"
-          : "bg-white/60 hover:bg-white border-black/10"
+          ? "bg-[var(--pine)] text-white border-[var(--pine)]"
+          : "bg-white/60 hover:bg-white border-[var(--border)]"
       )}
     >
       {children}
@@ -80,41 +80,9 @@ function TabButton({
 
 function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-black/10 bg-black/5 px-2.5 py-1 text-xs font-medium text-black/70">
+    <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-black/5 px-2.5 py-1 text-xs font-medium text-[var(--muted)]">
       {children}
     </span>
-  );
-}
-
-function TopoPattern() {
-  return (
-    <svg className="absolute inset-0 h-full w-full opacity-[0.05]" aria-hidden="true">
-      <defs>
-        <pattern id="topo" width="180" height="180" patternUnits="userSpaceOnUse">
-          <path
-            d="M10,35 C55,10 90,10 135,35 C160,50 175,52 200,35"
-            fill="none"
-            stroke="black"
-            strokeWidth="1"
-          />
-          <path
-            d="M-15,80 C25,55 70,60 110,85 C145,105 175,105 215,80"
-            fill="none"
-            stroke="black"
-            strokeWidth="1"
-          />
-          <path
-            d="M10,125 C55,100 95,108 130,133 C155,150 175,150 205,125"
-            fill="none"
-            stroke="black"
-            strokeWidth="1"
-          />
-          <circle cx="120" cy="50" r="2" fill="black" />
-          <circle cx="60" cy="100" r="2" fill="black" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#topo)" />
-    </svg>
   );
 }
 
@@ -355,238 +323,219 @@ export default function ClubsPage() {
   }, [tab]);
 
   return (
-    <main className="min-h-screen px-6 py-8">
-      <div className="mx-auto max-w-6xl space-y-5">
-        <div className="relative overflow-hidden rounded-3xl border bg-white/65 backdrop-blur">
-          <TopoPattern />
-          <div className="relative p-6 sm:p-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <div className="text-xs font-medium tracking-widest text-black/55">
-                  RECIPROCITY
-                </div>
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight">Clubs</h1>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-black/60">
-                  <span>{headline}</span>
-                  <span className="text-black/30">•</span>
-                  <span>
-                    Showing{" "}
-                    <span className="font-semibold text-black/70">
-                      {filtered.length}
-                    </span>
-                  </span>
-                  {meEmail && (
-                    <>
-                      <span className="text-black/30">•</span>
-                      <span className="text-xs">
-                        Signed in as{" "}
-                        <span className="font-semibold text-black/70">
-                          {meEmail}
-                        </span>
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/matches/new"
-                  className="rounded-xl border bg-emerald-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
-                >
-                  New match
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setShowAdd(true)}
-                  className="rounded-xl border bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white"
-                >
-                  Add club
-                </button>
-              </div>
+    <div className="space-y-5">
+      <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Clubs</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
+              <span>{headline}</span>
+              <span className="text-[var(--muted)]">&bull;</span>
+              <span>
+                Showing{" "}
+                <span className="font-semibold text-[var(--ink)]">
+                  {filtered.length}
+                </span>
+              </span>
             </div>
+          </div>
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2">
-                <TabButton active={tab === "my"} onClick={() => setTab("my")}>
-                  My clubs
-                </TabButton>
-                <TabButton active={tab === "ct"} onClick={() => setTab("ct")}>
-                  CT directory
-                </TabButton>
-                <TabButton active={tab === "all"} onClick={() => setTab("all")}>
-                  All
-                </TabButton>
-
-                {tab !== "my" && <Badge>Browse</Badge>}
-              </div>
-
-              <input
-                className="w-full sm:w-[360px] rounded-2xl border bg-white/70 px-3 py-2 text-sm outline-none focus:bg-white"
-                placeholder="Search by club or town…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/matches/new"
+              className="rounded-xl border border-[var(--pine)] bg-[var(--pine)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--pine)]/90"
+            >
+              New match
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowAdd(true)}
+              className="rounded-xl border border-[var(--border)] bg-white/60 px-3 py-2 text-sm font-semibold hover:bg-white"
+            >
+              Add club
+            </button>
           </div>
         </div>
 
-        <div className="rounded-3xl border bg-white/65 p-4 sm:p-5 backdrop-blur">
-          {loading ? (
-            <div className="p-6 text-sm text-black/60">Loading…</div>
-          ) : filtered.length === 0 ? (
-            <div className="p-6">
-              <div className="text-sm font-semibold">No results</div>
-              <div className="mt-1 text-sm text-black/60">
-                Try a different search, or switch tabs.
-              </div>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <TabButton active={tab === "my"} onClick={() => setTab("my")}>
+              My clubs
+            </TabButton>
+            <TabButton active={tab === "ct"} onClick={() => setTab("ct")}>
+              CT directory
+            </TabButton>
+            <TabButton active={tab === "all"} onClick={() => setTab("all")}>
+              All
+            </TabButton>
+
+            {tab !== "my" && <Badge>Browse</Badge>}
+          </div>
+
+          <input
+            className="w-full sm:w-[360px] rounded-2xl border border-[var(--border)] bg-white/60 px-3 py-2 text-sm outline-none focus:bg-white"
+            placeholder="Search by club or town…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 sm:p-5">
+        {loading ? (
+          <div className="p-6 text-sm text-[var(--muted)]">Loading…</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-6">
+            <div className="text-sm font-semibold">No results</div>
+            <div className="mt-1 text-sm text-[var(--muted)]">
+              Try a different search, or switch tabs.
             </div>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {filtered.map((c) => {
-                const isMember = !c.id.startsWith("ct::") && myClubIds.has(c.id);
-                const crest = initials(c.name);
-                const loc = [c.city, c.state].filter(Boolean).join(", ");
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {filtered.map((c) => {
+              const isMember = !c.id.startsWith("ct::") && myClubIds.has(c.id);
+              const crest = initials(c.name);
+              const loc = [c.city, c.state].filter(Boolean).join(", ");
 
-                return (
-                  <div
-                    key={c.id}
-                    className="group rounded-2xl border bg-white/80 p-4 hover:shadow-sm transition"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative h-10 w-10 overflow-hidden rounded-xl border bg-emerald-950 text-white">
-                          {c.logo_url ? (
-                            <img
-                              src={c.logo_url}
-                              alt={`${c.name} logo`}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="grid h-full w-full place-items-center text-xs font-semibold">
-                              {crest}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold">{c.name}</div>
-                          <div className="truncate text-xs text-black/55">
-                            {loc || (tab === "ct" ? "Connecticut" : "—")}
+              return (
+                <div
+                  key={c.id}
+                  className="group rounded-2xl border border-[var(--border)] bg-white/60 p-4 hover:shadow-sm transition"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--pine)] text-white">
+                        {c.logo_url ? (
+                          <img
+                            src={c.logo_url}
+                            alt={`${c.name} logo`}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="grid h-full w-full place-items-center text-xs font-semibold">
+                            {crest}
                           </div>
-                        </div>
+                        )}
                       </div>
 
-                      <div
-                        className={cx(
-                          "flex items-center gap-2",
-                          "sm:opacity-0 sm:group-hover:opacity-100 transition"
-                        )}
-                      >
-                        <Link
-                          href={`/matches/new?course=${encodeURIComponent(c.name)}`}
-                          className="rounded-xl border bg-white/80 px-3 py-2 text-sm font-semibold hover:bg-white"
-                        >
-                          Create
-                        </Link>
-
-                        {!isMember && (
-                          <button
-                            type="button"
-                            onClick={() => addToMyClubs(c)}
-                            className="rounded-xl border bg-emerald-950 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
-                          >
-                            Add
-                          </button>
-                        )}
-
-                        {isMember && <Badge>Member</Badge>}
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold">{c.name}</div>
+                        <div className="truncate text-xs text-[var(--muted)]">
+                          {loc || (tab === "ct" ? "Connecticut" : "—")}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
-        {status && <div className="text-sm text-red-600">{status}</div>}
+                    <div
+                      className={cx(
+                        "flex items-center gap-2",
+                        "sm:opacity-0 sm:group-hover:opacity-100 transition"
+                      )}
+                    >
+                      <Link
+                        href={`/matches/new?course=${encodeURIComponent(c.name)}`}
+                        className="rounded-xl border border-[var(--border)] bg-white/60 px-3 py-2 text-sm font-semibold hover:bg-white"
+                      >
+                        Create
+                      </Link>
 
-        {showAdd && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
-            <div className="w-full max-w-xl rounded-3xl border bg-white p-6 shadow-xl">
-              <div className="flex items-center justify-between">
-                <div className="text-lg font-semibold">Add a club</div>
-                <button
-                  type="button"
-                  className="rounded-xl border bg-white px-3 py-1.5 text-sm font-semibold hover:bg-black/5"
-                  onClick={() => setShowAdd(false)}
-                >
-                  Close
-                </button>
-              </div>
+                      {!isMember && (
+                        <button
+                          type="button"
+                          onClick={() => addToMyClubs(c)}
+                          className="rounded-xl border border-[var(--pine)] bg-[var(--pine)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--pine)]/90"
+                        >
+                          Add
+                        </button>
+                      )}
 
-              <form onSubmit={createClub} className="mt-4 space-y-3">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Club name</label>
-                  <input
-                    className="w-full rounded-2xl border px-3 py-2 text-sm"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g., TPC River Highlands"
-                    list="ct-clubs"
-                    required
-                  />
-                  <datalist id="ct-clubs">
-                    {CT_CLUBS.map((n) => (
-                      <option key={n} value={n} />
-                    ))}
-                  </datalist>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">City / Town</label>
-                    <input
-                      className="w-full rounded-2xl border px-3 py-2 text-sm"
-                      value={newCity}
-                      onChange={(e) => setNewCity(e.target.value)}
-                      placeholder="Cromwell"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">State</label>
-                    <input
-                      className="w-full rounded-2xl border px-3 py-2 text-sm"
-                      value={newState}
-                      onChange={(e) => setNewState(e.target.value)}
-                      placeholder="CT"
-                    />
+                      {isMember && <Badge>Member</Badge>}
+                    </div>
                   </div>
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Logo URL (optional)</label>
-                  <input
-                    className="w-full rounded-2xl border px-3 py-2 text-sm"
-                    value={newLogoUrl}
-                    onChange={(e) => setNewLogoUrl(e.target.value)}
-                    placeholder="https://…/logo.png"
-                  />
-                  <div className="text-xs text-black/55">
-                    Next step: we’ll replace this with a real upload to Supabase
-                    Storage.
-                  </div>
-                </div>
-
-                <button className="rounded-2xl border bg-emerald-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900">
-                  Create club
-                </button>
-              </form>
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
-    </main>
+
+      {status && <div className="text-sm text-red-600">{status}</div>}
+
+      {showAdd && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="text-lg font-semibold">Add a club</div>
+              <button
+                type="button"
+                className="rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-3 py-1.5 text-sm font-semibold hover:bg-black/5"
+                onClick={() => setShowAdd(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={createClub} className="mt-4 space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Club name</label>
+                <input
+                  className="w-full rounded-2xl border border-[var(--border)] px-3 py-2 text-sm"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g., TPC River Highlands"
+                  list="ct-clubs"
+                  required
+                />
+                <datalist id="ct-clubs">
+                  {CT_CLUBS.map((n) => (
+                    <option key={n} value={n} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">City / Town</label>
+                  <input
+                    className="w-full rounded-2xl border border-[var(--border)] px-3 py-2 text-sm"
+                    value={newCity}
+                    onChange={(e) => setNewCity(e.target.value)}
+                    placeholder="Cromwell"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">State</label>
+                  <input
+                    className="w-full rounded-2xl border border-[var(--border)] px-3 py-2 text-sm"
+                    value={newState}
+                    onChange={(e) => setNewState(e.target.value)}
+                    placeholder="CT"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Logo URL (optional)</label>
+                <input
+                  className="w-full rounded-2xl border border-[var(--border)] px-3 py-2 text-sm"
+                  value={newLogoUrl}
+                  onChange={(e) => setNewLogoUrl(e.target.value)}
+                  placeholder="https://…/logo.png"
+                />
+                <div className="text-xs text-[var(--muted)]">
+                  Next step: we'll replace this with a real upload to Supabase
+                  Storage.
+                </div>
+              </div>
+
+              <button className="rounded-2xl border border-[var(--pine)] bg-[var(--pine)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--pine)]/90">
+                Create club
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
