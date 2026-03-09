@@ -56,6 +56,17 @@ export default function LoginPage() {
       return;
     }
 
+    // Send welcome email (fire-and-forget)
+    try {
+      fetch("/api/send-welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: cleanEmail }),
+      });
+    } catch {
+      // Don't block signup if email fails
+    }
+
     if (!data.session) {
       setStatus("idle");
       setMode("signin");
