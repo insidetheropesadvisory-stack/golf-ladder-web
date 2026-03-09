@@ -54,6 +54,10 @@ function nextUnscoredHole(rows: HoleRow[], playerId: string) {
   return TOTAL_HOLES;
 }
 
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
 export default function MatchScoringPage() {
   const params = useParams();
   const router = useRouter();
@@ -219,7 +223,7 @@ export default function MatchScoringPage() {
 
     const strokes = Number(strokesInput);
     if (!Number.isFinite(strokes) || strokes < 1 || strokes > 20) {
-      setStatus("Enter a valid strokes number (1–20).");
+      setStatus("Enter a valid strokes number (1-20).");
       return;
     }
 
@@ -315,16 +319,32 @@ export default function MatchScoringPage() {
   }
 
   if (!matchId) return <div className="p-4 text-sm text-[var(--muted)]">Missing match id.</div>;
-  if (loading) return <div className="p-4 text-sm text-[var(--muted)]">Loading&hellip;</div>;
+
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <div className="h-20 animate-pulse rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--paper-2)] to-[var(--paper)]" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="h-24 animate-pulse rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--paper-2)] to-[var(--paper)]" style={{ animationDelay: "75ms" }} />
+          <div className="h-24 animate-pulse rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--paper-2)] to-[var(--paper)]" style={{ animationDelay: "150ms" }} />
+        </div>
+        <div className="h-48 animate-pulse rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--paper-2)] to-[var(--paper)]" style={{ animationDelay: "225ms" }} />
+        <div className="h-32 animate-pulse rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--paper-2)] to-[var(--paper)]" style={{ animationDelay: "300ms" }} />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-5 sm:space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm text-[var(--muted)]">{match?.course_name ?? "Match"}</div>
-          <h1 className="text-xl font-semibold sm:text-2xl">Scorecard</h1>
+          <div className="mb-1 inline-flex items-center rounded-full bg-[var(--pine)]/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--pine)]">
+            {match?.course_name ?? "Match"}
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scorecard</h1>
           <div className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
-            Hole-by-hole scoring · totals update automatically
+            Hole-by-hole scoring -- totals update automatically
           </div>
         </div>
 
@@ -333,98 +353,169 @@ export default function MatchScoringPage() {
             type="button"
             onClick={deleteMatch}
             disabled={deletingMatch}
-            className="shrink-0 rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+            className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
           >
             {deletingMatch ? "Deleting..." : "Delete"}
           </button>
         )}
       </div>
 
+      {/* Score summary cards */}
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-[var(--border)] p-4">
-          <div className="text-sm text-[var(--muted)]">You</div>
-          <div className="text-2xl font-semibold">{myTotal ?? 0}</div>
-          <div className="text-xs text-[var(--muted)]">{meEmail ?? ""}</div>
-        </div>
-
-        <div className="rounded-xl border border-[var(--border)] p-4">
-          <div className="text-sm text-[var(--muted)]">{opponentLabel}</div>
-          <div className="text-2xl font-semibold">{oppTotal ?? "—"}</div>
-          <div className="text-xs text-[var(--muted)]">
-            {match?.opponent_id ? "Opponent can score" : "Opponent not linked yet"}
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4 rounded-2xl border border-[var(--border)] p-4 sm:p-5">
-        <div className="flex items-center justify-between">
-          <div className="font-semibold">
-            Hole {holeNo} / {TOTAL_HOLES}
-          </div>
-          <div className="text-sm text-[var(--muted)]">
-            Total: <span className="font-semibold text-[var(--ink)]">{myTotal ?? 0}</span>
-          </div>
-        </div>
-
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <label className="text-sm font-medium">Your strokes</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--paper)] px-4 py-3 text-sm outline-none focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
-              inputMode="numeric"
-              value={strokesInput}
-              onChange={(e) => setStrokesInput(e.target.value)}
-              placeholder="e.g. 4"
-            />
-            <div className="mt-1 text-xs text-[var(--muted)]">
-              Save to advance. Next is locked until scored.
+        <div className="rounded-2xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50/80 to-emerald-50/30 p-5">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">You</div>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+              {myScoresByHole.size}
             </div>
           </div>
-
-          <button
-            className="rounded-xl border border-[var(--border)] bg-[var(--pine)] px-4 py-3 text-sm font-medium text-[var(--paper)] transition hover:-translate-y-[1px] disabled:opacity-60"
-            onClick={saveHole}
-            disabled={saving}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
+          <div className="mt-2 text-4xl font-bold tracking-tight text-emerald-800">{myTotal ?? 0}</div>
+          <div className="mt-1 truncate text-xs text-emerald-600/70">{meEmail ?? ""}</div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <button
-            className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium transition hover:bg-[rgba(17,19,18,.05)] disabled:opacity-60"
-            onClick={goPrev}
-            disabled={holeNo <= 1}
-          >
-            Previous
-          </button>
-
-          <button
-            className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium transition hover:bg-[rgba(17,19,18,.05)] disabled:opacity-60"
-            onClick={goNext}
-            disabled={!myScoresByHole.has(holeNo) || holeNo >= TOTAL_HOLES}
-          >
-            Next
-          </button>
+        <div className="rounded-2xl border border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-slate-50/30 p-5">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Opponent</div>
+          </div>
+          <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">{oppTotal ?? "--"}</div>
+          <div className="mt-1 truncate text-xs text-slate-400">
+            {match?.opponent_id ? opponentLabel : "Not linked yet"}
+          </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[var(--border)] p-4 sm:p-5">
-        <div className="mb-3 font-semibold">Your holes</div>
-        <div className="grid grid-cols-6 gap-1.5 text-sm sm:grid-cols-9 sm:gap-2">
+      {/* Scoring input area */}
+      <div className="overflow-hidden rounded-2xl border-2 border-[var(--pine)]/20 bg-gradient-to-b from-white to-[var(--paper)] shadow-sm">
+        <div className="border-b border-[var(--border)] bg-[var(--pine)]/5 px-5 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--pine)] text-sm font-bold text-white">
+                {holeNo}
+              </span>
+              <div>
+                <div className="text-sm font-bold tracking-tight">Hole {holeNo} of {TOTAL_HOLES}</div>
+                <div className="text-[11px] text-[var(--muted)]">
+                  {myScoresByHole.has(holeNo) ? "Scored" : "Not scored yet"}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Running total</div>
+              <div className="text-lg font-bold text-[var(--pine)]">{myTotal ?? 0}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Your strokes</label>
+              <input
+                className="mt-2 w-full rounded-xl border-2 border-[var(--border)] bg-white px-4 py-3.5 text-center text-2xl font-bold tracking-tight outline-none transition focus:border-[var(--pine)] focus:ring-2 focus:ring-[var(--pine)]/20"
+                inputMode="numeric"
+                value={strokesInput}
+                onChange={(e) => setStrokesInput(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+
+            <button
+              className="rounded-xl bg-[var(--pine)] px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:shadow-none disabled:translate-y-0"
+              onClick={saveHole}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+          <div className="mt-2 text-[11px] text-[var(--muted)]">
+            Save to advance. Next is locked until scored.
+          </div>
+
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <button
+              className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
+              onClick={goPrev}
+              disabled={holeNo <= 1}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M8.5 3L4.5 7L8.5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Previous
+            </button>
+
+            <div className="text-xs font-medium text-[var(--muted)]">
+              {myScoresByHole.size} of {TOTAL_HOLES} scored
+            </div>
+
+            <button
+              className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
+              onClick={goNext}
+              disabled={!myScoresByHole.has(holeNo) || holeNo >= TOTAL_HOLES}
+            >
+              Next
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M5.5 3L9.5 7L5.5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Hole grid */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="text-sm font-bold tracking-tight">Your Holes</div>
+          <div className="text-xs text-[var(--muted)]">{myScoresByHole.size}/{TOTAL_HOLES} complete</div>
+        </div>
+        <div className="grid grid-cols-6 gap-2 sm:grid-cols-9 sm:gap-2.5">
           {Array.from({ length: TOTAL_HOLES }, (_, i) => i + 1).map((h) => {
             const v = myScoresByHole.get(h);
+            const isCurrent = h === holeNo;
+            const isScored = v != null;
             return (
-              <div key={h} className="rounded-lg border border-[var(--border)] p-1.5 text-center sm:p-2">
-                <div className="text-[10px] text-[var(--muted)] sm:text-xs">H{h}</div>
-                <div className="text-sm font-semibold">{v ?? "—"}</div>
-              </div>
+              <button
+                key={h}
+                type="button"
+                onClick={() => {
+                  setHoleNo(h);
+                  const existing = holes.find((r) => r.player_id === meId && r.hole_no === h);
+                  setStrokesInput(existing?.strokes != null ? String(existing.strokes) : "");
+                  setStatus(null);
+                }}
+                className={cx(
+                  "rounded-xl p-2 text-center transition sm:p-2.5",
+                  isCurrent && "ring-2 ring-[var(--pine)] bg-[var(--pine)]/10 border-[var(--pine)]/30 shadow-sm",
+                  !isCurrent && isScored && "border border-emerald-200/60 bg-emerald-50/50 hover:bg-emerald-50",
+                  !isCurrent && !isScored && "border border-[var(--border)] bg-white/60 hover:bg-white",
+                  isCurrent && "border border-[var(--pine)]/30",
+                  !isCurrent && "cursor-pointer"
+                )}
+              >
+                <div className={cx(
+                  "text-[10px] font-medium sm:text-xs",
+                  isCurrent ? "text-[var(--pine)]" : "text-[var(--muted)]"
+                )}>
+                  {h}
+                </div>
+                <div className={cx(
+                  "text-sm font-bold sm:text-base",
+                  isCurrent && "text-[var(--pine)]",
+                  !isCurrent && isScored && "text-emerald-700",
+                  !isCurrent && !isScored && "text-[var(--muted)]"
+                )}>
+                  {v ?? "--"}
+                </div>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {status && <div className="text-sm text-red-600">{status}</div>}
+      {status && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {status}
+        </div>
+      )}
     </div>
   );
 }

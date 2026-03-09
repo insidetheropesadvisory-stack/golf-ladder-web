@@ -67,10 +67,10 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cx(
-        "rounded-xl border px-3 py-2 text-sm font-semibold transition",
+        "rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
         active
-          ? "bg-[var(--pine)] text-white border-[var(--pine)]"
-          : "bg-white/60 hover:bg-white border-[var(--border)]"
+          ? "bg-[var(--pine)] text-white shadow-sm"
+          : "bg-white/80 text-[var(--ink)] hover:bg-white hover:shadow-sm border border-transparent hover:border-[var(--border)]"
       )}
     >
       {children}
@@ -80,7 +80,7 @@ function TabButton({
 
 function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-black/5 px-2.5 py-1 text-xs font-medium text-[var(--muted)]">
+    <span className="inline-flex items-center rounded-full bg-[var(--pine)]/10 px-2.5 py-1 text-xs font-medium text-[var(--pine)]">
       {children}
     </span>
   );
@@ -323,14 +323,14 @@ export default function ClubsPage() {
   }, [tab]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Clubs</h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
               <span>{headline}</span>
-              <span className="text-[var(--muted)]">&bull;</span>
+              <span className="text-[var(--border)]">&middot;</span>
               <span>
                 Showing{" "}
                 <span className="font-semibold text-[var(--ink)]">
@@ -343,22 +343,22 @@ export default function ClubsPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/matches/new"
-              className="rounded-xl border border-[var(--pine)] bg-[var(--pine)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--pine)]/90"
+              className="rounded-full bg-[var(--pine)] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]"
             >
               New match
             </Link>
             <button
               type="button"
               onClick={() => setShowAdd(true)}
-              className="rounded-xl border border-[var(--border)] bg-white/60 px-3 py-2 text-sm font-semibold hover:bg-white"
+              className="rounded-full border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-white hover:shadow-sm"
             >
               Add club
             </button>
           </div>
         </div>
 
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-1.5 rounded-full bg-black/[0.04] p-1">
             <TabButton active={tab === "my"} onClick={() => setTab("my")}>
               My clubs
             </TabButton>
@@ -372,21 +372,33 @@ export default function ClubsPage() {
             {tab !== "my" && <Badge>Browse</Badge>}
           </div>
 
-          <input
-            className="w-full sm:w-[360px] rounded-2xl border border-[var(--border)] bg-white/60 px-3 py-2 text-sm outline-none focus:bg-white"
-            placeholder="Search by club or town…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <div className="relative">
+            <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+            <input
+              className="w-full sm:w-[360px] rounded-full border border-[var(--border)] bg-white/80 pl-10 pr-4 py-2.5 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
+              placeholder="Search by club or town..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 sm:p-5">
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 sm:p-6">
         {loading ? (
-          <div className="p-6 text-sm text-[var(--muted)]">Loading…</div>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-sm text-[var(--muted)]">Loading...</div>
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="p-6">
-            <div className="text-sm font-semibold">No results</div>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-black/[0.04]">
+              <svg className="h-5 w-5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+            </div>
+            <div className="text-sm font-semibold text-[var(--ink)]">No clubs found</div>
             <div className="mt-1 text-sm text-[var(--muted)]">
               Try a different search, or switch tabs.
             </div>
@@ -401,11 +413,11 @@ export default function ClubsPage() {
               return (
                 <div
                   key={c.id}
-                  className="group rounded-2xl border border-[var(--border)] bg-white/60 p-4 hover:shadow-sm transition"
+                  className="group rounded-xl border border-[var(--border)] bg-white/70 p-4 transition-all duration-200 hover:bg-white hover:shadow-sm hover:border-[var(--border)]"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--pine)] text-white">
+                      <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm">
                         {c.logo_url ? (
                           <img
                             src={c.logo_url}
@@ -420,22 +432,22 @@ export default function ClubsPage() {
                       </div>
 
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold">{c.name}</div>
+                        <div className="truncate text-sm font-semibold text-[var(--ink)]">{c.name}</div>
                         <div className="truncate text-xs text-[var(--muted)]">
-                          {loc || (tab === "ct" ? "Connecticut" : "—")}
+                          {loc || (tab === "ct" ? "Connecticut" : "\u2014")}
                         </div>
                       </div>
                     </div>
 
                     <div
                       className={cx(
-                        "flex items-center gap-2 transition",
+                        "flex items-center gap-2 transition-all duration-200",
                         "md:opacity-0 md:group-hover:opacity-100"
                       )}
                     >
                       <Link
                         href={`/matches/new?course=${encodeURIComponent(c.name)}`}
-                        className="rounded-xl border border-[var(--border)] bg-white/60 px-3 py-2 text-sm font-semibold hover:bg-white"
+                        className="rounded-full border border-[var(--border)] bg-white/80 px-3.5 py-1.5 text-xs font-medium transition-all duration-200 hover:bg-white hover:shadow-sm"
                       >
                         Create
                       </Link>
@@ -444,7 +456,7 @@ export default function ClubsPage() {
                         <button
                           type="button"
                           onClick={() => addToMyClubs(c)}
-                          className="rounded-xl border border-[var(--pine)] bg-[var(--pine)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--pine)]/90"
+                          className="rounded-full bg-[var(--pine)] px-3.5 py-1.5 text-xs font-medium text-white transition-all duration-200 hover:shadow-sm hover:-translate-y-[0.5px]"
                         >
                           Add
                         </button>
@@ -460,27 +472,33 @@ export default function ClubsPage() {
         )}
       </div>
 
-      {status && <div className="text-sm text-red-600">{status}</div>}
+      {status && (
+        <div className="rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm text-[var(--ink)] shadow-sm">
+          {status}
+        </div>
+      )}
 
       {showAdd && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowAdd(false); }}>
+          <div className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-2xl">
             <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold">Add a club</div>
+              <div className="text-lg font-semibold tracking-tight">Add a club</div>
               <button
                 type="button"
-                className="rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-3 py-1.5 text-sm font-semibold hover:bg-black/5"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition-colors duration-200 hover:bg-black/5 hover:text-[var(--ink)]"
                 onClick={() => setShowAdd(false)}
               >
-                Close
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <form onSubmit={createClub} className="mt-4 space-y-3">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Club name</label>
+            <form onSubmit={createClub} className="mt-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium tracking-wide text-[var(--muted)]">Club name</label>
                 <input
-                  className="w-full rounded-2xl border border-[var(--border)] px-3 py-2 text-sm"
+                  className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="e.g., TPC River Highlands"
@@ -494,20 +512,20 @@ export default function ClubsPage() {
                 </datalist>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">City / Town</label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium tracking-wide text-[var(--muted)]">City / Town</label>
                   <input
-                    className="w-full rounded-2xl border border-[var(--border)] px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
                     value={newCity}
                     onChange={(e) => setNewCity(e.target.value)}
                     placeholder="Cromwell"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">State</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium tracking-wide text-[var(--muted)]">State</label>
                   <input
-                    className="w-full rounded-2xl border border-[var(--border)] px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
                     value={newState}
                     onChange={(e) => setNewState(e.target.value)}
                     placeholder="CT"
@@ -515,13 +533,13 @@ export default function ClubsPage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Logo URL (optional)</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium tracking-wide text-[var(--muted)]">Logo URL (optional)</label>
                 <input
-                  className="w-full rounded-2xl border border-[var(--border)] px-3 py-2 text-sm"
+                  className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
                   value={newLogoUrl}
                   onChange={(e) => setNewLogoUrl(e.target.value)}
-                  placeholder="https://…/logo.png"
+                  placeholder="https://...logo.png"
                 />
                 <div className="text-xs text-[var(--muted)]">
                   Next step: we'll replace this with a real upload to Supabase
@@ -529,7 +547,7 @@ export default function ClubsPage() {
                 </div>
               </div>
 
-              <button className="rounded-2xl border border-[var(--pine)] bg-[var(--pine)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--pine)]/90">
+              <button className="rounded-full bg-[var(--pine)] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]">
                 Create club
               </button>
             </form>

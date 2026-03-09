@@ -79,9 +79,9 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6">
-      <div className="w-full max-w-[400px]">
+      <div className="w-full max-w-[420px]">
         {/* Brand */}
-        <div className="mb-10 text-center">
+        <div className="mb-8 text-center">
           <div className="text-[11px] tracking-[0.32em] text-[var(--muted)]">
             RECIPROCITY
           </div>
@@ -95,102 +95,113 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Form card */}
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium tracking-[0.18em] text-[var(--muted)]">
-              EMAIL
-            </label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              placeholder="you@club.com"
-              autoComplete="email"
-              className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-4 py-3 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium tracking-[0.18em] text-[var(--muted)]">
-              PASSWORD
-            </label>
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              placeholder="••••••••"
-              autoComplete={
-                mode === "signin" ? "current-password" : "new-password"
-              }
-              className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-4 py-3 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
-            />
-          </div>
-
-          {message ? (
-            <div
-              className={
-                status === "error"
-                  ? "rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700"
-                  : "rounded-xl bg-[var(--paper-2)] px-4 py-3 text-sm text-[var(--ink)]"
-              }
-            >
-              {message}
-            </div>
-          ) : null}
-
+        {/* Mode toggle pill */}
+        <div className="mx-auto mb-8 flex w-fit rounded-full border border-[var(--border)] bg-[var(--paper-2)] p-1">
           <button
-            type="submit"
-            disabled={status === "working"}
-            className="w-full rounded-xl bg-[var(--pine)] px-4 py-3 text-sm font-semibold text-[var(--paper)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.18)] disabled:opacity-60"
+            type="button"
+            onClick={() => {
+              setMode("signin");
+              setMessage("");
+              setStatus("idle");
+            }}
+            className={`rounded-full px-5 py-1.5 text-sm font-medium transition-all ${
+              mode === "signin"
+                ? "bg-[var(--pine)] text-[var(--paper)] shadow-sm"
+                : "text-[var(--muted)] hover:text-[var(--ink)]"
+            }`}
           >
-            {status === "working"
-              ? "Working..."
-              : mode === "signin"
-              ? "Sign in"
-              : "Create account"}
+            Sign in
           </button>
-        </form>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("signup");
+              setMessage("");
+              setStatus("idle");
+            }}
+            className={`rounded-full px-5 py-1.5 text-sm font-medium transition-all ${
+              mode === "signup"
+                ? "bg-[var(--pine)] text-[var(--paper)] shadow-sm"
+                : "text-[var(--muted)] hover:text-[var(--ink)]"
+            }`}
+          >
+            Sign up
+          </button>
+        </div>
 
-        {/* Links */}
-        <div className="mt-8 flex items-center justify-between text-sm">
-          {mode === "signin" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("signup");
-                  setMessage("");
-                  setStatus("idle");
-                }}
-                className="text-[var(--muted)] transition hover:text-[var(--ink)]"
+        {/* Form card */}
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-[0_4px_24px_rgba(0,0,0,.06)] sm:p-8">
+          <form onSubmit={onSubmit} className="space-y-5">
+            <div>
+              <label className="block text-xs font-medium tracking-[0.18em] text-[var(--muted)]">
+                EMAIL
+              </label>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                placeholder="you@club.com"
+                autoComplete="email"
+                className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--paper)] px-4 py-3 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium tracking-[0.18em] text-[var(--muted)]">
+                PASSWORD
+              </label>
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                placeholder="••••••••"
+                autoComplete={
+                  mode === "signin" ? "current-password" : "new-password"
+                }
+                className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--paper)] px-4 py-3 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
+              />
+            </div>
+
+            {message ? (
+              <div
+                className={
+                  status === "error"
+                    ? "rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700"
+                    : "rounded-xl bg-[var(--paper)] px-4 py-3 text-sm text-[var(--ink)]"
+                }
               >
-                Create an account
-              </button>
+                {message}
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={status === "working"}
+              className="w-full rounded-xl bg-[var(--pine)] px-4 py-3 text-sm font-semibold text-[var(--paper)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.18)] disabled:opacity-60"
+            >
+              {status === "working"
+                ? "Working..."
+                : mode === "signin"
+                ? "Sign in"
+                : "Create account"}
+            </button>
+          </form>
+
+          {/* Forgot password link */}
+          {mode === "signin" && (
+            <div className="mt-5 border-t border-[var(--border)] pt-4 text-center">
               <Link
                 href="/forgot-password"
-                className="text-[var(--muted)] transition hover:text-[var(--ink)]"
+                className="text-sm text-[var(--muted)] transition hover:text-[var(--ink)]"
               >
                 Forgot password?
               </Link>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signin");
-                setMessage("");
-                setStatus("idle");
-              }}
-              className="text-[var(--muted)] transition hover:text-[var(--ink)]"
-            >
-              Already have an account? Sign in
-            </button>
+            </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="mt-16 text-center text-xs text-[var(--muted)]">
+        <div className="mt-12 text-center text-xs text-[var(--muted)]">
           Private club competition, refined.
         </div>
       </div>

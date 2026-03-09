@@ -6,9 +6,10 @@
   --paper-2: #fbf8f1;    /* lifted ivory */
   --pine: #0b3b2e;       /* deep green */
   --ink: #111312;        /* near-black */
-  --muted: rgba(17, 19, 18, .62);
-  --border: rgba(17, 19, 18, .10);
-  --shadow: 0 10px 30px rgba(17, 19, 18, .08);
+  --muted: rgba(17, 19, 18, .58);
+  --border: rgba(17, 19, 18, .09);
+  --shadow: 0 8px 28px rgba(17, 19, 18, .07);
+  --shadow-sm: 0 2px 8px rgba(17, 19, 18, .05);
 
   --brass: #b08d57;      /* accent */
 }
@@ -18,10 +19,19 @@ html, body { height: 100%; }
 body{
   background: var(--paper);
   color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle transition on interactive elements */
+a, button, input, select, textarea,
+[role="button"] {
+  transition: all 0.18s ease;
 }
 
 /* Nice focus ring (brass-forward, understated) */
 :focus-visible{
-  outline: 2px solid rgba(176, 141, 87, .42);
-  outline-offset: 2px;
+  outline: 2px solid rgba(176, 141, 87, .36);
+  outline-offset: 3px;
+  border-radius: 4px;
 }

@@ -277,43 +277,54 @@ export default function ProfilePageClient() {
   return (
     <div className="space-y-6">
         <div>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Profile</h1>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Profile</h1>
             <p className="mt-2 text-sm text-[var(--muted)]">
               Update your name, handicap, and photo.
-              {email ? <span className="ml-2">({email})</span> : null}
+              {email ? <span className="ml-1.5 text-[var(--muted)]">({email})</span> : null}
             </p>
         </div>
 
         {showNameRequired ? (
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-[var(--shadow)]">
-            <div className="text-sm font-semibold">Add your name to create matches</div>
-            <div className="mt-2 text-sm text-[var(--muted)]">
-              Set a display name, save, and you’ll be sent right back.
+          <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-100">
+                <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-amber-900">Add your name to create matches</div>
+                <div className="mt-1 text-sm text-amber-700">
+                  Set a display name, save, and you'll be sent right back.
+                </div>
+              </div>
             </div>
           </div>
         ) : null}
 
         {fatal ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {fatal}
           </div>
         ) : null}
 
         {toast ? (
-          <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--ink)]">
+          <div className="rounded-xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 px-4 py-3 text-sm text-[var(--pine)]">
             {toast}
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-6 shadow-[var(--shadow)]">
+        <div className="rounded-2xl border border-[var(--border)] bg-white/70 p-6 shadow-sm">
           {loading ? (
-            <div className="text-sm text-[var(--muted)]">Loading…</div>
+            <div className="flex items-center justify-center py-12">
+              <div className="text-sm text-[var(--muted)]">Loading...</div>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr]">
-              <div className="space-y-3">
-                <div className="text-xs font-medium tracking-[0.22em] text-[var(--muted)]">PHOTO</div>
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-[220px_1fr]">
+              <div className="space-y-4">
+                <div className="text-xs font-medium tracking-[0.15em] text-[var(--muted)] uppercase">Photo</div>
 
-                <div className="relative h-40 w-40 overflow-hidden rounded-2xl border border-[var(--border)] bg-white/60">
+                <div className="relative h-40 w-40 overflow-hidden rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--paper-2)] transition-colors duration-200 hover:border-[var(--pine)]/30">
                   {shownAvatar ? (
                     <img
                       src={shownAvatar}
@@ -321,19 +332,31 @@ export default function ProfilePageClient() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm text-[var(--muted)]">
-                      No photo
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2">
+                      <svg className="h-8 w-8 text-[var(--muted)]/40" fill="none" viewBox="0 0 24 24" strokeWidth="1" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                      </svg>
+                      <span className="text-xs text-[var(--muted)]">No photo</span>
                     </div>
                   )}
                 </div>
 
                 <label
                   className={cx(
-                    "inline-flex cursor-pointer items-center justify-center rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition",
-                    uploading ? "opacity-60" : "hover:bg-white/60"
+                    "inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-all duration-200",
+                    uploading ? "opacity-60 cursor-not-allowed" : "hover:bg-white hover:shadow-sm hover:border-[var(--pine)]/30"
                   )}
                 >
-                  {uploading ? "Uploading…" : "Upload photo"}
+                  {uploading ? (
+                    "Uploading..."
+                  ) : (
+                    <>
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                      </svg>
+                      Upload photo
+                    </>
+                  )}
                   <input
                     type="file"
                     accept="image/*"
@@ -350,25 +373,25 @@ export default function ProfilePageClient() {
                 <div className="text-xs text-[var(--muted)]">PNG or JPG, up to 5MB.</div>
               </div>
 
-              <div className="space-y-5">
-                <div>
-                  <div className="text-xs font-medium tracking-[0.22em] text-[var(--muted)]">
-                    DISPLAY NAME
-                  </div>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium tracking-[0.15em] text-[var(--muted)] uppercase">
+                    Display name
+                  </label>
                   <input
-                    className="mt-2 w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none focus:border-[var(--border)]"
+                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="e.g., Ned Roosevelt"
                   />
                 </div>
 
-                <div>
-                  <div className="text-xs font-medium tracking-[0.22em] text-[var(--muted)]">
-                    HANDICAP INDEX
-                  </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium tracking-[0.15em] text-[var(--muted)] uppercase">
+                    Handicap index
+                  </label>
                   <input
-                    className="mt-2 w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none focus:border-[var(--border)]"
+                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
                     value={handicap}
                     onChange={(e) => setHandicap(e.target.value)}
                     placeholder="e.g., 9.8"
@@ -376,31 +399,31 @@ export default function ProfilePageClient() {
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     className={cx(
-                      "rounded-full px-5 py-2 text-sm font-medium transition",
+                      "rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200",
                       hasChanges && !saving
-                        ? "bg-[var(--pine)] text-white hover:-translate-y-[1px]"
-                        : "bg-black/5 text-[var(--muted)]"
+                        ? "bg-[var(--pine)] text-white shadow-sm hover:shadow-md hover:-translate-y-[1px]"
+                        : "bg-black/[0.04] text-[var(--muted)] cursor-not-allowed"
                     )}
                     disabled={!hasChanges || saving}
                     onClick={save}
                     type="button"
                   >
-                    {saving ? "Saving…" : "Save changes"}
+                    {saving ? "Saving..." : "Save changes"}
                   </button>
 
-                  <Link className="text-sm underline text-[var(--muted)]" href={next}>
+                  <Link className="rounded-full px-4 py-2.5 text-sm text-[var(--muted)] transition-all duration-200 hover:bg-black/[0.04] hover:text-[var(--ink)]" href={next}>
                     Back
                   </Link>
 
                   {showNameRequired && next !== "/" && hasName ? (
                     <Link
                       href={next}
-                      className="rounded-full border border-[var(--border)] bg-white/60 px-4 py-2 text-sm font-medium hover:bg-white/80"
+                      className="rounded-full border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-white hover:shadow-sm"
                     >
-                      Continue →
+                      Continue &rarr;
                     </Link>
                   ) : null}
                 </div>

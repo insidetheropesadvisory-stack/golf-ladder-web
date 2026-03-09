@@ -8,10 +8,10 @@ import { supabase } from "@/lib/supabase/supabase";
 type NavItem = { label: string; href: string; icon: string };
 
 const NAV: NavItem[] = [
-  { label: "Home", href: "/", icon: "H" },
-  { label: "Matches", href: "/matches", icon: "M" },
-  { label: "Clubs", href: "/clubs", icon: "C" },
-  { label: "Profile", href: "/profile", icon: "P" },
+  { label: "Home", href: "/", icon: "home" },
+  { label: "Matches", href: "/matches", icon: "matches" },
+  { label: "Clubs", href: "/clubs", icon: "clubs" },
+  { label: "Profile", href: "/profile", icon: "profile" },
 ];
 
 function cx(...classes: Array<string | false | undefined | null>) {
@@ -25,6 +25,59 @@ function titleFromPath(pathname: string) {
   if (pathname.startsWith("/clubs")) return "Clubs";
   if (pathname.startsWith("/profile")) return "Profile";
   return "Home";
+}
+
+function NavIcon({ name, size = 18 }: { name: string; size?: number }) {
+  const s = size;
+  switch (name) {
+    case "home":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+          <polyline points="9 21 9 14 15 14 15 21" />
+        </svg>
+      );
+    case "matches":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 7 7 7 7" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 17 7 17 7" />
+          <path d="M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.24 7 20v2" />
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.24 17 20v2" />
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
+      );
+    case "clubs":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+          <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+          <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+          <path d="M10 6h4" />
+          <path d="M10 10h4" />
+          <path d="M10 14h4" />
+          <path d="M10 18h4" />
+        </svg>
+      );
+    case "profile":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M20 21a8 8 0 1 0-16 0" />
+        </svg>
+      );
+    case "logout":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+      );
+    default:
+      return null;
+  }
 }
 
 export function AppShell({
@@ -94,23 +147,24 @@ export function AppShell({
   return (
     <div className="min-h-screen bg-[var(--paper)]">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-[rgba(246,241,231,.18)] bg-[var(--pine)] text-[var(--paper)]">
+      <header className="sticky top-0 z-30 border-b border-[rgba(246,241,231,.14)] bg-[var(--pine)] text-[var(--paper)] shadow-[0_1px_3px_rgba(0,0,0,.12)]">
         <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center justify-between px-4 sm:px-6">
           <div className="flex items-baseline gap-3">
-            <Link href="/" className="text-[11px] tracking-[0.28em] opacity-90">
+            <Link href="/" className="text-[11px] font-medium tracking-[0.3em] opacity-90 hover:opacity-100">
               RECIPROCITY
             </Link>
-            <div className="hidden text-sm opacity-80 sm:block">/ {pageTitle}</div>
+            <span className="hidden text-[13px] opacity-40 sm:inline">/</span>
+            <span className="hidden text-[13px] font-medium opacity-70 sm:inline">{pageTitle}</span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden text-sm opacity-85 md:block">
+            <div className="hidden text-[13px] opacity-80 md:block">
               {isAuthed ? (
                 <>
-                  Signed in as <span className="opacity-100">{email}</span>
+                  Signed in as <span className="font-medium opacity-100">{email}</span>
                 </>
               ) : (
-                <span className="opacity-80">Not signed in</span>
+                <span className="opacity-70">Not signed in</span>
               )}
             </div>
 
@@ -118,14 +172,14 @@ export function AppShell({
               <>
                 <Link
                   href={newMatchHref}
-                  className="rounded-full bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--pine)] shadow-[0_6px_18px_rgba(0,0,0,.18)] transition hover:-translate-y-[1px] sm:px-4 sm:py-2 sm:text-sm"
+                  className="rounded-full bg-[var(--paper)] px-3 py-1.5 text-xs font-semibold text-[var(--pine)] shadow-[var(--shadow-sm)] transition hover:-translate-y-[1px] hover:shadow-[var(--shadow)] sm:px-4 sm:py-2 sm:text-sm"
                 >
                   New match
                 </Link>
 
                 <Link
                   href={logoutHref}
-                  className="hidden rounded-full border border-[rgba(246,241,231,.28)] px-4 py-2 text-sm font-medium text-[var(--paper)] transition hover:bg-[rgba(246,241,231,.10)] sm:inline-flex"
+                  className="hidden rounded-full border border-[rgba(246,241,231,.22)] px-4 py-2 text-sm font-medium text-[var(--paper)] transition hover:border-[rgba(246,241,231,.40)] hover:bg-[rgba(246,241,231,.08)] sm:inline-flex"
                 >
                   Logout
                 </Link>
@@ -133,7 +187,7 @@ export function AppShell({
             ) : (
               <Link
                 href={loginHref}
-                className="rounded-full bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--pine)] shadow-[0_6px_18px_rgba(0,0,0,.18)] sm:px-4 sm:py-2 sm:text-sm"
+                className="rounded-full bg-[var(--paper)] px-3 py-1.5 text-xs font-semibold text-[var(--pine)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow)] sm:px-4 sm:py-2 sm:text-sm"
               >
                 Sign in
               </Link>
@@ -147,10 +201,10 @@ export function AppShell({
         {/* Desktop sidebar — hidden on mobile */}
         <aside className="hidden h-fit rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)] md:block">
           <div className="mb-4">
-            <div className="text-xs tracking-[0.22em] text-[var(--muted)]">MENU</div>
+            <div className="text-[10px] font-medium tracking-[0.24em] text-[var(--muted)]">MENU</div>
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-0.5">
             {NAV.map((item) => {
               const active =
                 pathname === item.href ||
@@ -161,17 +215,20 @@ export function AppShell({
                   key={item.href}
                   href={item.href}
                   className={cx(
-                    "flex items-center justify-between rounded-xl px-3 py-2 text-sm transition",
+                    "flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition",
                     active
-                      ? "bg-[rgba(11,59,46,.10)] text-[var(--pine)]"
-                      : "text-[var(--ink)] hover:bg-[rgba(17,19,18,.05)]"
+                      ? "bg-[rgba(11,59,46,.08)] font-medium text-[var(--pine)]"
+                      : "text-[var(--ink)] hover:bg-[rgba(17,19,18,.04)]"
                   )}
                 >
-                  <span className="font-medium">{item.label}</span>
+                  <div className="flex items-center gap-2.5">
+                    <NavIcon name={item.icon} size={16} />
+                    <span>{item.label}</span>
+                  </div>
                   <span
                     className={cx(
-                      "h-2 w-2 rounded-full",
-                      active ? "bg-[var(--pine)]" : "bg-transparent"
+                      "h-1.5 w-1.5 rounded-full transition-opacity",
+                      active ? "bg-[var(--pine)] opacity-100" : "opacity-0"
                     )}
                   />
                 </Link>
@@ -200,7 +257,7 @@ export function AppShell({
       </div>
 
       {/* Mobile bottom tab bar — visible only on small screens */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--paper-2)] pb-[env(safe-area-inset-bottom)] md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--paper-2)] shadow-[0_-2px_12px_rgba(17,19,18,.06)] pb-[env(safe-area-inset-bottom)] md:hidden">
         <div className="mx-auto flex max-w-md items-stretch">
           {NAV.map((item) => {
             const active =
@@ -212,21 +269,21 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 className={cx(
-                  "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition",
+                  "flex flex-1 flex-col items-center gap-1 py-3 text-[10px] font-medium transition",
                   active
                     ? "text-[var(--pine)]"
-                    : "text-[var(--muted)]"
+                    : "text-[var(--muted)] active:text-[var(--ink)]"
                 )}
               >
                 <span
                   className={cx(
-                    "flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold",
+                    "flex h-8 w-8 items-center justify-center rounded-xl transition",
                     active
-                      ? "bg-[rgba(11,59,46,.12)] text-[var(--pine)]"
+                      ? "bg-[rgba(11,59,46,.10)] text-[var(--pine)]"
                       : "text-[var(--muted)]"
                   )}
                 >
-                  {item.icon}
+                  <NavIcon name={item.icon} size={20} />
                 </span>
                 {item.label}
               </Link>
@@ -237,10 +294,10 @@ export function AppShell({
           {isAuthed && (
             <Link
               href={logoutHref}
-              className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-[var(--muted)] transition"
+              className="flex flex-1 flex-col items-center gap-1 py-3 text-[10px] font-medium text-[var(--muted)] transition active:text-[var(--ink)]"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold">
-                X
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl">
+                <NavIcon name="logout" size={20} />
               </span>
               Logout
             </Link>
@@ -249,7 +306,7 @@ export function AppShell({
       </nav>
 
       {/* Spacer so content isn't hidden behind bottom tab bar on mobile */}
-      <div className="h-16 md:hidden" />
+      <div className="h-20 md:hidden" />
     </div>
   );
 }

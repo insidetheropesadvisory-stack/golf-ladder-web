@@ -33,16 +33,16 @@ function Badge({
   tone?: "neutral" | "active" | "proposed" | "done";
 }) {
   const tones: Record<string, string> = {
-    neutral: "bg-black/5 text-[var(--ink)] border-[var(--border)]",
-    active: "bg-emerald-900/10 text-emerald-900 border-emerald-900/20",
-    proposed: "bg-amber-900/10 text-amber-900 border-amber-900/20",
-    done: "bg-slate-900/10 text-slate-900 border-slate-900/20",
+    neutral: "bg-gray-100 text-gray-600 border-gray-200/60",
+    active: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
+    proposed: "bg-amber-50 text-amber-700 border-amber-200/60",
+    done: "bg-slate-100 text-slate-600 border-slate-200/60",
   };
 
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
         tones[tone]
       )}
     >
@@ -224,9 +224,9 @@ export default function MatchesPage() {
 
   const stats = useMemo(
     () => [
-      { label: "Active", value: active.length },
-      { label: "Proposed", value: proposed.length },
-      { label: "Completed", value: completed.length },
+      { label: "Active", value: active.length, color: "from-emerald-500/10 to-emerald-500/5 border-emerald-200/40", accent: "text-emerald-700" },
+      { label: "Proposed", value: proposed.length, color: "from-amber-500/10 to-amber-500/5 border-amber-200/40", accent: "text-amber-700" },
+      { label: "Completed", value: completed.length, color: "from-slate-500/10 to-slate-500/5 border-slate-200/40", accent: "text-slate-600" },
     ],
     [active.length, proposed.length, completed.length]
   );
@@ -234,30 +234,44 @@ export default function MatchesPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-20 rounded-2xl border border-[var(--border)] bg-[var(--paper-2)]" />
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="h-20 rounded-2xl border border-[var(--border)] bg-[var(--paper-2)]" />
-          <div className="h-20 rounded-2xl border border-[var(--border)] bg-[var(--paper-2)]" />
-          <div className="h-20 rounded-2xl border border-[var(--border)] bg-[var(--paper-2)]" />
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--paper-2)] to-[var(--paper)]" />
+          ))}
         </div>
-        <div className="h-64 rounded-2xl border border-[var(--border)] bg-[var(--paper-2)]" />
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-20 animate-pulse rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--paper-2)] to-[var(--paper)]"
+              style={{ animationDelay: `${i * 150}ms` }}
+            />
+          ))}
+        </div>
       </div>
     );
   }
 
   if (signedOut) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-8 text-center">
-          <h1 className="text-xl font-semibold tracking-tight">
-            Sign in required
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-gradient-to-b from-white to-[var(--paper)] p-10 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--pine)]/10">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--pine)]">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+          </div>
+          <h1 className="text-lg font-semibold tracking-tight">
+            Sign in to continue
           </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Sign in to load your matches, clubs, and score progress.
+            View your matches, clubs, and scoring progress.
           </p>
           <Link
             href="/login"
-            className="mt-6 inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--pine)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--pine)]/90"
+            className="mt-6 inline-flex items-center rounded-xl bg-[var(--pine)] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px"
           >
             Sign in
           </Link>
@@ -272,12 +286,17 @@ export default function MatchesPage() {
         {stats.map((s) => (
           <div
             key={s.label}
-            className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4"
+            className={cx(
+              "rounded-2xl border bg-gradient-to-br p-5 transition-shadow hover:shadow-sm",
+              s.color
+            )}
           >
-            <div className="text-xs font-medium tracking-widest text-[var(--muted)]">
-              {s.label.toUpperCase()}
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+              {s.label}
             </div>
-            <div className="mt-1 text-2xl font-semibold">{s.value}</div>
+            <div className={cx("mt-1.5 text-3xl font-bold tracking-tight", s.accent)}>
+              {s.value}
+            </div>
           </div>
         ))}
       </div>
@@ -285,15 +304,15 @@ export default function MatchesPage() {
       {active.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">Active</div>
+            <div className="text-sm font-semibold tracking-tight">Active Matches</div>
             <Badge tone="active">{active.length}</Badge>
           </div>
 
           {active.length > 4 && (
             <div className="mt-3">
               <input
-                className="w-full rounded-2xl border border-[var(--border)] bg-white/60 px-3 py-2 text-sm outline-none focus:bg-white"
-                placeholder="Search active matches…"
+                className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm outline-none placeholder:text-[var(--muted)]/60 focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)] transition"
+                placeholder="Search active matches..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -307,20 +326,31 @@ export default function MatchesPage() {
                 <Link
                   key={m.id}
                   href={`/matches/${m.id}`}
-                  className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 hover:shadow-sm"
+                  className="group rounded-2xl border border-[var(--border)] bg-white/70 p-4 transition hover:border-emerald-200 hover:shadow-md"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold tracking-tight group-hover:text-emerald-800 transition-colors">
                         {m.course_name ?? "Course"}
                       </div>
-                      <div className="text-xs text-[var(--muted)]">
-                        vs {emailToName(String(m.opponent_email ?? ""))}
-                        {" · "}{formatLabel(m.format)}
-                        {holesPlayed > 0 && ` · ${holesPlayed}/18 holes`}
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
+                        <span>vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                        <span className="text-[var(--border)]">/</span>
+                        <span>{formatLabel(m.format)}</span>
+                        {holesPlayed > 0 && (
+                          <>
+                            <span className="text-[var(--border)]">/</span>
+                            <span className="font-medium text-emerald-700">{holesPlayed}/18 holes</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <Badge tone="active">Active</Badge>
+                    <div className="shrink-0 flex items-center gap-2">
+                      <Badge tone="active">Active</Badge>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-[var(--muted)] opacity-0 transition group-hover:opacity-100">
+                        <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
                   </div>
                 </Link>
               );
@@ -332,7 +362,7 @@ export default function MatchesPage() {
       {proposed.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">Proposed</div>
+            <div className="text-sm font-semibold tracking-tight">Proposed</div>
             <Badge tone="proposed">{proposed.length}</Badge>
           </div>
           <div className="mt-4 grid gap-3">
@@ -341,17 +371,18 @@ export default function MatchesPage() {
               return (
                 <div
                   key={m.id}
-                  className="flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-white/60 p-4 hover:shadow-sm"
+                  className="group flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-white/70 p-4 transition hover:border-amber-200 hover:shadow-md"
                 >
                   <Link href={`/matches/${m.id}`} className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold">
+                        <div className="truncate text-sm font-semibold tracking-tight">
                           {m.course_name ?? "Course"}
                         </div>
-                        <div className="text-xs text-[var(--muted)]">
-                          vs {emailToName(String(m.opponent_email ?? ""))}
-                          {" · "}{formatLabel(m.format)}
+                        <div className="mt-0.5 flex items-center gap-x-2 text-xs text-[var(--muted)]">
+                          <span>vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                          <span className="text-[var(--border)]">/</span>
+                          <span>{formatLabel(m.format)}</span>
                         </div>
                       </div>
                       <Badge tone="proposed">Proposed</Badge>
@@ -362,7 +393,7 @@ export default function MatchesPage() {
                       type="button"
                       onClick={() => deleteMatch(m.id)}
                       disabled={deleting === m.id}
-                      className="shrink-0 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                      className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50"
                     >
                       {deleting === m.id ? "..." : "Delete"}
                     </button>
@@ -377,7 +408,7 @@ export default function MatchesPage() {
       {completed.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">Completed</div>
+            <div className="text-sm font-semibold tracking-tight">Completed</div>
             <Badge tone="done">{completed.length}</Badge>
           </div>
           <div className="mt-4 grid gap-3">
@@ -385,18 +416,23 @@ export default function MatchesPage() {
               <Link
                 key={m.id}
                 href={`/matches/${m.id}`}
-                className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 hover:shadow-sm"
+                className="group rounded-2xl border border-[var(--border)] bg-white/70 p-4 transition hover:shadow-md"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">
+                    <div className="truncate text-sm font-semibold tracking-tight">
                       {m.course_name ?? "Course"}
                     </div>
-                    <div className="text-xs text-[var(--muted)]">
+                    <div className="mt-0.5 text-xs text-[var(--muted)]">
                       vs {emailToName(String(m.opponent_email ?? ""))}
                     </div>
                   </div>
-                  <Badge tone="done">Done</Badge>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <Badge tone="done">Done</Badge>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-[var(--muted)] opacity-0 transition group-hover:opacity-100">
+                      <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
                 </div>
               </Link>
             ))}
@@ -405,21 +441,34 @@ export default function MatchesPage() {
       )}
 
       {matches.length === 0 && !status && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-8 text-center">
-          <div className="text-sm font-semibold">No matches yet</div>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Create your first match to get started.
-          </p>
-          <Link
-            href="/matches/new"
-            className="mt-4 inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--pine)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--pine)]/90"
-          >
-            New match
-          </Link>
+        <div className="flex min-h-[30vh] items-center justify-center">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-gradient-to-b from-white to-[var(--paper)] p-10 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="16" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+              </svg>
+            </div>
+            <div className="text-base font-semibold tracking-tight">No matches yet</div>
+            <p className="mt-1.5 text-sm text-[var(--muted)]">
+              Create your first match to get started.
+            </p>
+            <Link
+              href="/matches/new"
+              className="mt-6 inline-flex items-center rounded-xl bg-[var(--pine)] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px"
+            >
+              New match
+            </Link>
+          </div>
         </div>
       )}
 
-      {status ? <div className="text-sm text-red-600">{status}</div> : null}
+      {status ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {status}
+        </div>
+      ) : null}
     </div>
   );
   }
