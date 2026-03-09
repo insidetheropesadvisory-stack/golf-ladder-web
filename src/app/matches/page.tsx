@@ -292,6 +292,98 @@ export default function MatchesPage() {
           </div>
         </div>
   
+        <div className="grid gap-4 sm:grid-cols-3">
+          {stats.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl border bg-white/65 p-4 backdrop-blur"
+            >
+              <div className="text-xs font-medium tracking-widest text-black/55">
+                {s.label.toUpperCase()}
+              </div>
+              <div className="mt-1 text-2xl font-semibold">{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {active.length > 0 && (
+          <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Active</div>
+              <Badge tone="active">{active.length}</Badge>
+            </div>
+
+            {active.length > 4 && (
+              <div className="mt-3">
+                <input
+                  className="w-full rounded-2xl border bg-white/70 px-3 py-2 text-sm outline-none focus:bg-white"
+                  placeholder="Search active matches…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="mt-4 grid gap-3">
+              {filteredActive.map((m) => {
+                const holesPlayed = myHoleCounts[m.id] ?? 0;
+                return (
+                  <Link
+                    key={m.id}
+                    href={`/matches/${m.id}`}
+                    className="rounded-2xl border bg-white/80 p-4 hover:shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold">
+                          {m.course_name ?? "Course"}
+                        </div>
+                        <div className="text-xs text-black/55">
+                          vs {emailToName(String(m.opponent_email ?? ""))}
+                          {" · "}{formatLabel(m.format)}
+                          {holesPlayed > 0 && ` · ${holesPlayed}/18 holes`}
+                        </div>
+                      </div>
+                      <Badge tone="active">Active</Badge>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {proposed.length > 0 && (
+          <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Proposed</div>
+              <Badge tone="proposed">{proposed.length}</Badge>
+            </div>
+            <div className="mt-4 grid gap-3">
+              {proposed.map((m) => (
+                <Link
+                  key={m.id}
+                  href={`/matches/${m.id}`}
+                  className="rounded-2xl border bg-white/80 p-4 hover:shadow-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">
+                        {m.course_name ?? "Course"}
+                      </div>
+                      <div className="text-xs text-black/55">
+                        vs {emailToName(String(m.opponent_email ?? ""))}
+                        {" · "}{formatLabel(m.format)}
+                      </div>
+                    </div>
+                    <Badge tone="proposed">Proposed</Badge>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {completed.length > 0 && (
           <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
             <div className="flex items-center justify-between">
@@ -321,7 +413,22 @@ export default function MatchesPage() {
             </div>
           </div>
         )}
-  
+
+        {matches.length === 0 && !status && (
+          <div className="rounded-3xl border bg-white/65 p-8 text-center backdrop-blur">
+            <div className="text-sm font-semibold">No matches yet</div>
+            <p className="mt-1 text-sm text-black/60">
+              Create your first match to get started.
+            </p>
+            <Link
+              href="/matches/new"
+              className="mt-4 inline-flex items-center rounded-xl border bg-emerald-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
+            >
+              New match
+            </Link>
+          </div>
+        )}
+
         {status ? <div className="text-sm text-red-600">{status}</div> : null}
       </div>
     </main>
