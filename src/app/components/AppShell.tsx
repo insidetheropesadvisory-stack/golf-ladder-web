@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/supabase";
 
@@ -41,10 +41,16 @@ export function AppShell({
   newMatchHref?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const pageTitle = titleFromPath(pathname);
 
   const [email, setEmail] = useState((userEmail ?? "").trim());
   const [checkedSession, setCheckedSession] = useState(Boolean(userEmail));
+
+  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout"];
+  const isAuthRoute = authRoutes.some(
+    (r) => pathname === r || pathname.startsWith(r + "/")
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -53,25 +59,39 @@ export function AppShell({
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-      setEmail((session?.user?.email ?? "").trim());
+      const userEmail = (session?.user?.email ?? "").trim();
+      setEmail(userEmail);
       setCheckedSession(true);
+
+      // Redirect unauthenticated users to login
+      if (!session?.user && !isAuthRoute) {
+        router.replace("/login");
+      }
+    });
+
+    // Also check immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      if (!session?.user && !isAuthRoute) {
+        router.replace("/login");
+      }
     });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [isAuthRoute, router]);
 
   const isAuthed = email.length > 0;
 
-  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout"];
-  const isAuthRoute = authRoutes.some(
-    (r) => pathname === r || pathname.startsWith(r + "/")
-  );
-
   if (isAuthRoute) {
     return <div className="min-h-screen bg-[var(--paper)]">{children}</div>;
+  }
+
+  // Show nothing until we've checked the session (avoids flash of app chrome)
+  if (!checkedSession) {
+    return <div className="min-h-screen bg-[var(--paper)]" />;
   }
 
   return (
