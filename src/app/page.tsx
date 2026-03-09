@@ -322,9 +322,18 @@ export default function HomePage() {
         );
 
         if (ids.length > 0) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          
+          const accessToken = session?.access_token;
+          
           const res = await fetch("/api/players/lookup", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
             body: JSON.stringify({ ids }),
           });
           const json = await res.json().catch(() => ({}));

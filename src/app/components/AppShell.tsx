@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/lib/supabase/supabase";
 
 type NavItem = { label: string; href: string };
 
@@ -42,12 +43,38 @@ export function AppShell({
   const pathname = usePathname();
   const pageTitle = titleFromPath(pathname);
 
-  const email = (userEmail ?? "").trim();
+  const [email, setEmail] = useState((userEmail ?? "").trim());
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!mounted) return;
+      setEmail((user?.email ?? "").trim());
+    }
+
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setEmail((session?.user?.email ?? "").trim());
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const isAuthed = email.length > 0;
 
   return (
     <div className="min-h-screen bg-[var(--paper)]">
-      {/* Header (different color; letters same as main page color) */}
       <header className="sticky top-0 z-30 border-b border-[rgba(246,241,231,.18)] bg-[var(--pine)] text-[var(--paper)]">
         <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center justify-between px-6">
           <div className="flex items-baseline gap-4">
@@ -96,9 +123,7 @@ export function AppShell({
         </div>
       </header>
 
-      {/* Body */}
       <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-6 px-6 py-6 md:grid-cols-[240px_1fr]">
-        {/* Sidebar */}
         <aside className="h-fit rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)]">
           <div className="mb-4">
             <div className="text-xs tracking-[0.22em] text-[var(--muted)]">
@@ -142,13 +167,11 @@ export function AppShell({
           </div>
         </aside>
 
-        {/* Main */}
         <main className="min-w-0">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-[var(--shadow)]">
             {children}
           </div>
 
-          {/* Center aligned footer */}
           <footer className="mt-6 text-center text-xs text-[var(--muted)]">
             © {new Date().getFullYear()} Reciprocity • Private club competition, refined
           </footer>
