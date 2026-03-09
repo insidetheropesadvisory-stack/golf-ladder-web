@@ -242,7 +242,9 @@ export default function MatchesPage() {
             <div className="text-xs font-medium tracking-widest text-black/55">
               RECIPROCITY
             </div>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Sign in required</h1>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+              Sign in required
+            </h1>
             <p className="mt-2 text-sm text-black/60">
               Sign in to load your matches, clubs, and score progress.
             </p>
@@ -250,10 +252,14 @@ export default function MatchesPage() {
               href="/login"
               className="mt-6 inline-flex items-center rounded-xl border bg-emerald-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
             >
-          
+              Sign in
+            </Link>
+          </div>
+        </div>
+      </main>
     );
   }
-
+  
   return (
     <main className="min-h-screen px-6 py-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -265,258 +271,17 @@ export default function MatchesPage() {
                 <div className="text-xs font-medium tracking-widest text-black/55">
                   RECIPROCITY
                 </div>
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight">Matches</h1>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+                  Matches
+                </h1>
                 <p className="mt-1 text-sm text-black/60">
-                  Clean score entry, club-first organization, and a proper old-money
-                  finish.
+                  Clean score entry, club-first organization, and a proper old-money feel.
                 </p>
               </div>
-
-              <div className="flex items-center gap-3">
-                <div className="hidden text-xs text-black/50 sm:block">
-                  Signed in as{" "}
-                  <span className="font-medium text-black/70">{me?.email ?? ""}</span>
-                </div>
-                <Link
-                  href="/matches/new"
-                  className="inline-flex items-center rounded-xl border bg-emerald-950 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-900"
-                >
-                  New match
-                </Link>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {stats.map((s) => (
-                <div key={s.label} className="rounded-2xl border bg-white/70 p-4">
-                  <div className="text-xs text-black/55">{s.label}</div>
-                  <div className="mt-1 text-2xl font-semibold">{s.value}</div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
-
-        <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold">Your clubs</div>
-              <div className="text-xs text-black/55">
-                A clean, visual “club crest” rail. (If you’re not loading memberships
-                yet, this still looks great.)
-              </div>
-            </div>
-            <Link
-              href="/clubs"
-              className="text-sm font-semibold text-emerald-950 hover:underline"
-            >
-              View clubs
-            </Link>
-          </div>
-
-          <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-            {(clubs?.length
-              ? clubs
-              : [
-                  { id: "placeholder-1", name: "Pine Valley (demo)" },
-                  { id: "placeholder-2", name: "Shinnecock (demo)" },
-                  { id: "placeholder-3", name: "NGLA (demo)" },
-                ]
-            ).map((c: AnyRow) => {
-              const name = String(c.name ?? c.club_name ?? "Club");
-              const crest = initials(name);
-
-              return (
-                <div
-                  key={String(c.id)}
-                  className="min-w-[220px] rounded-2xl border bg-white/80 p-4 hover:shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-11 w-11 place-items-center rounded-xl border bg-emerald-950 font-semibold text-white">
-                      {crest}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold">{name}</div>
-                      <div className="text-xs text-black/55">
-                        {c.location ?? c.city ?? "Private Club"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2 text-xs text-black/60">
-                    <span className="rounded-full border bg-black/5 px-2 py-1">
-                      Members
-                    </span>
-                    <span className="font-medium">{c.member_count ?? "—"}</span>
-                    <span className="ml-auto rounded-full border bg-black/5 px-2 py-1">
-                      Create match
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              className={cx(
-                "rounded-xl border px-3 py-2 text-sm font-semibold",
-                "bg-white/65 hover:bg-white/80"
-              )}
-              onClick={() => setShowProposed((v) => !v)}
-            >
-              Proposed <span className="text-black/50">({proposed.length})</span>
-            </button>
-
-            <Badge tone="active">Active</Badge>
-            <Badge tone="done">Completed</Badge>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative w-full sm:w-[320px]">
-              <input
-                className="w-full rounded-xl border bg-white/65 px-3 py-2 text-sm outline-none focus:bg-white"
-                placeholder="Search by opponent, course, status…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {showProposed && (
-          <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">Proposed matches</div>
-              <Badge tone="proposed">{proposed.length} pending</Badge>
-            </div>
-
-            <div className="mt-4 grid gap-3">
-              {proposed.length === 0 ? (
-                <div className="rounded-2xl border bg-white/70 p-4 text-sm text-black/60">
-                  No proposals right now.
-                </div>
-              ) : (
-                proposed.map((m) => (
-                  <Link
-                    key={m.id}
-                    href={`/matches/${m.id}`}
-                    className="group rounded-2xl border bg-white/80 p-4 hover:shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold">
-                          {m.course_name ?? "Course TBD"}{" "}
-                          <span className="text-black/40">•</span>{" "}
-                          <span className="text-black/70">
-                            {emailToName(String(m.opponent_email ?? ""))}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-xs text-black/55">
-                          {formatLabel(m.format)} • {m.use_handicap ? "Net" : "Gross"} •
-                          Terms: {String(m.terms_status ?? "pending")}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Badge tone="proposed">Proposed</Badge>
-                        <span className="text-sm text-black/40 group-hover:text-black/60">
-                          ›
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold">Active matches</div>
-              <div className="text-xs text-black/55">
-                Clean cards. Fast scanning. Progress visible.
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {filteredActive.length === 0 ? (
-              <div className="rounded-2xl border bg-white/70 p-6 md:col-span-2">
-                <div className="text-sm font-semibold">No matches found</div>
-                <div className="mt-1 text-sm text-black/60">
-                  Try clearing search, or start a new match.
-                </div>
-                <Link
-                  href="/matches/new"
-                  className="mt-4 inline-flex items-center rounded-xl border bg-emerald-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
-                >
-                  New match
-                </Link>
-              </div>
-            ) : (
-              filteredActive.map((m) => {
-                const oppEmail = String(m.opponent_email ?? "");
-                const oppName = emailToName(oppEmail);
-                const progress = myHoleCounts[String(m.id)] ?? 0;
-
-                return (
-                  <Link
-                    key={m.id}
-                    href={`/matches/${m.id}`}
-                    className="group rounded-3xl border bg-white/80 p-5 hover:shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-base font-semibold">
-                          {m.course_name ?? "Course TBD"}
-                        </div>
-                        <div className="mt-1 text-sm text-black/60">
-                          vs <span className="font-medium text-black/75">{oppName}</span>{" "}
-                          <span className="text-black/35">({oppEmail})</span>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <Badge tone="active">
-                            {String(m.status ?? "active").toUpperCase()}
-                          </Badge>
-                          <span className="rounded-full border bg-black/5 px-2.5 py-1 text-xs font-medium text-black/65">
-                            {formatLabel(m.format)}
-                          </span>
-                          <span className="rounded-full border bg-black/5 px-2.5 py-1 text-xs font-medium text-black/65">
-                            {m.use_handicap ? "Net" : "Gross"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <div className="text-right text-xs text-black/55">
-                          <div className="font-semibold text-black/75">{progress}/18</div>
-                          <div>holes entered</div>
-                        </div>
-                        <span className="text-sm text-black/40 group-hover:text-black/60">
-                          ›
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 h-2 w-full overflow-hidden rounded-full border bg-black/5">
-                      <div
-                        className="h-full rounded-full bg-emerald-950"
-                        style={{ width: `${Math.min(100, (progress / 18) * 100)}%` }}
-                      />
-                    </div>
-                  </Link>
-                );
-              })
-            )}
-          </div>
-        </div>
-
+  
         {completed.length > 0 && (
           <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
             <div className="flex items-center justify-between">
@@ -546,9 +311,9 @@ export default function MatchesPage() {
             </div>
           </div>
         )}
-
+  
         {status ? <div className="text-sm text-red-600">{status}</div> : null}
       </div>
     </main>
   );
-}
+  }
