@@ -38,22 +38,42 @@ function Badge({
     proposed: "bg-amber-900/10 text-amber-900 border-amber-900/20",
     done: "bg-slate-900/10 text-slate-900 border-slate-900/20",
   };
+
   return (
-    <span className={cx("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium", tones[tone])}>
+    <span
+      className={cx(
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
+        tones[tone]
+      )}
+    >
       {children}
     </span>
   );
 }
 
 function TopoPattern() {
-  // tiny inline SVG “course map / topo” vibe (lightweight, no images)
   return (
     <svg className="absolute inset-0 h-full w-full opacity-[0.08]" aria-hidden="true">
       <defs>
         <pattern id="topo" width="160" height="160" patternUnits="userSpaceOnUse">
-          <path d="M10,30 C40,10 70,10 100,30 C130,50 150,50 170,30" fill="none" stroke="black" strokeWidth="1" />
-          <path d="M-10,70 C20,50 60,55 90,75 C120,95 150,95 180,70" fill="none" stroke="black" strokeWidth="1" />
-          <path d="M10,110 C45,90 70,95 95,115 C120,135 150,135 170,110" fill="none" stroke="black" strokeWidth="1" />
+          <path
+            d="M10,30 C40,10 70,10 100,30 C130,50 150,50 170,30"
+            fill="none"
+            stroke="black"
+            strokeWidth="1"
+          />
+          <path
+            d="M-10,70 C20,50 60,55 90,75 C120,95 150,95 180,70"
+            fill="none"
+            stroke="black"
+            strokeWidth="1"
+          />
+          <path
+            d="M10,110 C45,90 70,95 95,115 C120,135 150,135 170,110"
+            fill="none"
+            stroke="black"
+            strokeWidth="1"
+          />
           <circle cx="120" cy="45" r="2" fill="black" />
           <circle cx="55" cy="95" r="2" fill="black" />
         </pattern>
@@ -75,68 +95,89 @@ export default function MatchesPage() {
   const [showProposed, setShowProposed] = useState(false);
   const [query, setQuery] = useState("");
 
-  // progress: how many holes YOU have entered per match
   const [myHoleCounts, setMyHoleCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     (async () => {
-      setLoading(true);
-      setStatus(null);
+      try {
+        setLoading(true);
+        setStatus(null);
 
-      const { data: userData, error: userErr } = await supabase.auth.getUser();
-      if (userErr) {
-        setStatus(userErr.message);
-        setLoading(false);
-        return;
-      }
-      const user = userData.user;
-      if (!user) {
-        setStatus("You're not signed in.");
-        setLoading(false);
-        return;
-      }
-      setMe({ id: user.id, email: user.email ?? null });
+        const {
+          data: { session },
+          error: sessionErr,
+        } = await supabase.auth.getSession();
 
-      // Fetch matches (keep select("*") for schema flexibility during MVP)
-      const { data: matchData, error: matchErr } = await supabase
-        .from("matches")
-        .select("*")
-        .order("created_at", { ascending: false });
+        if (sessionErr) throw sessionErr;
 
-      if (matchErr) {
-        setStatus(matchErr.message);
-        setLoading(false);
-        return;
-      }
-
-      const m = (matchData ?? []) as AnyRow[];
-      setMatches(m);
-
-      // Optional: clubs rail (if you have clubs table)
-      const { data: clubData, error: clubErr } = await supabase.from("clubs").select("*").limit(12);
-      if (!clubErr && clubData) setClubs(clubData as AnyRow[]);
-
-      // Hole progress for current user
-      const ids = m.map((row) => row.id).filter(Boolean);
-      if (ids.length) {
-        const { data: holeData, error: holeErr } = await supabase
-          .from("holes")
-          .select("match_id, hole_no, strokes, player_id")
-          .in("match_id", ids)
-          .eq("player_id", user.id);
-
-        if (!holeErr && holeData) {
-          const counts: Record<string, number> = {};
-          for (const r of holeData as AnyRow[]) {
-            if (r.match_id && typeof r.strokes === "number") {
-              counts[r.match_id] = (counts[r.match_id] ?? 0) + 1;
-            }
-          }
-          setMyHoleCounts(counts);
+        const sessionUser = session?.user ?? null;
+        if (!sessionUser) {
+          setMe(null);
+          setMatches([]);
+          setClubs([]);
+          setMyHoleCounts({});
+          setStatus("Auth session missing");
+          setLoading(false);
+          return;
         }
-      }
 
-      setLoading(false);
+        setMe({ id: sessionUser.id, email: sessionUser.email ?? null });
+
+        const { data: matchData, error: matchErr } = await supabase
+          .from("matches")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (matchErr) {
+          setStatus(matchErr.message);
+          setLoading(false);
+          return;
+        }
+
+        const m = (matchData ?? []) as AnyRow[];
+        setMatches(m);
+
+        const { data: clubData, error: clubErr } = await supabase
+          .from("clubs")
+          .select("*")
+          .limit(12);
+
+        if (!clubErr && clubData) {
+          setClubs(clubData as AnyRow[]);
+        } else if (clubErr) {
+          console.warn("clubs load error:", clubErr.message);
+        }
+
+        const ids = m.map((row) => row.id).filter(Boolean);
+
+        if (ids.length > 0) {
+          const { data: holeData, error: holeErr } = await supabase
+            .from("holes")
+            .select("match_id, hole_no, strokes, player_id")
+            .in("match_id", ids)
+            .eq("player_id", sessionUser.id);
+
+          if (!holeErr && holeData) {
+            const counts: Record<string, number> = {};
+            for (const r of holeData as AnyRow[]) {
+              if (r.match_id && typeof r.strokes === "number") {
+                counts[r.match_id] = (counts[r.match_id] ?? 0) + 1;
+              }
+            }
+            setMyHoleCounts(counts);
+          } else if (holeErr) {
+            console.warn("hole progress load error:", holeErr.message);
+          }
+        } else {
+          setMyHoleCounts({});
+        }
+
+        setLoading(false);
+      } catch (e: any) {
+        console.error(e);
+        setStatus(e?.message ?? "Failed to load matches");
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -197,22 +238,25 @@ export default function MatchesPage() {
   return (
     <main className="min-h-screen px-6 py-8">
       <div className="mx-auto max-w-6xl space-y-6">
-        {/* HERO */}
         <div className="relative overflow-hidden rounded-3xl border bg-white/65 backdrop-blur">
           <TopoPattern />
           <div className="relative p-6 sm:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <div className="text-xs font-medium tracking-widest text-black/55">RECIPROCITY</div>
+                <div className="text-xs font-medium tracking-widest text-black/55">
+                  RECIPROCITY
+                </div>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight">Matches</h1>
                 <p className="mt-1 text-sm text-black/60">
-                  Clean score entry, club-first organization, and a proper old-money finish.
+                  Clean score entry, club-first organization, and a proper old-money
+                  finish.
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="hidden sm:block text-xs text-black/50">
-                  Signed in as <span className="font-medium text-black/70">{me?.email ?? ""}</span>
+                <div className="hidden text-xs text-black/50 sm:block">
+                  Signed in as{" "}
+                  <span className="font-medium text-black/70">{me?.email ?? ""}</span>
                 </div>
                 <Link
                   href="/matches/new"
@@ -223,7 +267,6 @@ export default function MatchesPage() {
               </div>
             </div>
 
-            {/* STAT ROW */}
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               {stats.map((s) => (
                 <div key={s.label} className="rounded-2xl border bg-white/70 p-4">
@@ -235,55 +278,67 @@ export default function MatchesPage() {
           </div>
         </div>
 
-        {/* CLUBS RAIL (visual + Pine Valley vibe) */}
         <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-semibold">Your clubs</div>
               <div className="text-xs text-black/55">
-                A clean, visual “club crest” rail. (If you’re not loading memberships yet, this still looks great.)
+                A clean, visual “club crest” rail. (If you’re not loading memberships
+                yet, this still looks great.)
               </div>
             </div>
-            <Link href="/clubs" className="text-sm font-semibold text-emerald-950 hover:underline">
+            <Link
+              href="/clubs"
+              className="text-sm font-semibold text-emerald-950 hover:underline"
+            >
               View clubs
             </Link>
           </div>
 
           <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-            {(clubs?.length ? clubs : [{ id: "placeholder-1", name: "Pine Valley (demo)" }, { id: "placeholder-2", name: "Shinnecock (demo)" }, { id: "placeholder-3", name: "NGLA (demo)" }]).map(
-              (c: AnyRow) => {
-                const name = String(c.name ?? c.club_name ?? "Club");
-                const crest = initials(name);
-                return (
-                  <div
-                    key={String(c.id)}
-                    className="min-w-[220px] rounded-2xl border bg-white/80 p-4 hover:shadow-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-11 w-11 place-items-center rounded-xl border bg-emerald-950 text-white font-semibold">
-                        {crest}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold">{name}</div>
-                        <div className="text-xs text-black/55">
-                          {c.location ?? c.city ?? "Private Club"}
-                        </div>
-                      </div>
-                    </div>
+            {(clubs?.length
+              ? clubs
+              : [
+                  { id: "placeholder-1", name: "Pine Valley (demo)" },
+                  { id: "placeholder-2", name: "Shinnecock (demo)" },
+                  { id: "placeholder-3", name: "NGLA (demo)" },
+                ]
+            ).map((c: AnyRow) => {
+              const name = String(c.name ?? c.club_name ?? "Club");
+              const crest = initials(name);
 
-                    <div className="mt-3 flex items-center gap-2 text-xs text-black/60">
-                      <span className="rounded-full border bg-black/5 px-2 py-1">Members</span>
-                      <span className="font-medium">{c.member_count ?? "—"}</span>
-                      <span className="ml-auto rounded-full border bg-black/5 px-2 py-1">Create match</span>
+              return (
+                <div
+                  key={String(c.id)}
+                  className="min-w-[220px] rounded-2xl border bg-white/80 p-4 hover:shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-11 w-11 place-items-center rounded-xl border bg-emerald-950 font-semibold text-white">
+                      {crest}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">{name}</div>
+                      <div className="text-xs text-black/55">
+                        {c.location ?? c.city ?? "Private Club"}
+                      </div>
                     </div>
                   </div>
-                );
-              }
-            )}
+
+                  <div className="mt-3 flex items-center gap-2 text-xs text-black/60">
+                    <span className="rounded-full border bg-black/5 px-2 py-1">
+                      Members
+                    </span>
+                    <span className="font-medium">{c.member_count ?? "—"}</span>
+                    <span className="ml-auto rounded-full border bg-black/5 px-2 py-1">
+                      Create match
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* TOOLBAR */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <button
@@ -312,7 +367,6 @@ export default function MatchesPage() {
           </div>
         </div>
 
-        {/* PROPOSED COLLAPSIBLE */}
         {showProposed && (
           <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
             <div className="flex items-center justify-between">
@@ -337,17 +391,21 @@ export default function MatchesPage() {
                         <div className="truncate text-sm font-semibold">
                           {m.course_name ?? "Course TBD"}{" "}
                           <span className="text-black/40">•</span>{" "}
-                          <span className="text-black/70">{emailToName(String(m.opponent_email ?? ""))}</span>
+                          <span className="text-black/70">
+                            {emailToName(String(m.opponent_email ?? ""))}
+                          </span>
                         </div>
                         <div className="mt-1 text-xs text-black/55">
-                          {formatLabel(m.format)} • {m.use_handicap ? "Net" : "Gross"} • Terms:{" "}
-                          {String(m.terms_status ?? "pending")}
+                          {formatLabel(m.format)} • {m.use_handicap ? "Net" : "Gross"} •
+                          Terms: {String(m.terms_status ?? "pending")}
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <Badge tone="proposed">Proposed</Badge>
-                        <span className="text-sm text-black/40 group-hover:text-black/60">›</span>
+                        <span className="text-sm text-black/40 group-hover:text-black/60">
+                          ›
+                        </span>
                       </div>
                     </div>
                   </Link>
@@ -357,18 +415,19 @@ export default function MatchesPage() {
           </div>
         )}
 
-        {/* ACTIVE MATCH GRID */}
         <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-semibold">Active matches</div>
-              <div className="text-xs text-black/55">Clean cards. Fast scanning. Progress visible.</div>
+              <div className="text-xs text-black/55">
+                Clean cards. Fast scanning. Progress visible.
+              </div>
             </div>
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {filteredActive.length === 0 ? (
-              <div className="md:col-span-2 rounded-2xl border bg-white/70 p-6">
+              <div className="rounded-2xl border bg-white/70 p-6 md:col-span-2">
                 <div className="text-sm font-semibold">No matches found</div>
                 <div className="mt-1 text-sm text-black/60">
                   Try clearing search, or start a new match.
@@ -394,14 +453,18 @@ export default function MatchesPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-base font-semibold">{m.course_name ?? "Course TBD"}</div>
+                        <div className="truncate text-base font-semibold">
+                          {m.course_name ?? "Course TBD"}
+                        </div>
                         <div className="mt-1 text-sm text-black/60">
                           vs <span className="font-medium text-black/75">{oppName}</span>{" "}
                           <span className="text-black/35">({oppEmail})</span>
                         </div>
 
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <Badge tone="active">{String(m.status ?? "active").toUpperCase()}</Badge>
+                          <Badge tone="active">
+                            {String(m.status ?? "active").toUpperCase()}
+                          </Badge>
                           <span className="rounded-full border bg-black/5 px-2.5 py-1 text-xs font-medium text-black/65">
                             {formatLabel(m.format)}
                           </span>
@@ -412,15 +475,16 @@ export default function MatchesPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <div className="text-xs text-black/55 text-right">
+                        <div className="text-right text-xs text-black/55">
                           <div className="font-semibold text-black/75">{progress}/18</div>
                           <div>holes entered</div>
                         </div>
-                        <span className="text-sm text-black/40 group-hover:text-black/60">›</span>
+                        <span className="text-sm text-black/40 group-hover:text-black/60">
+                          ›
+                        </span>
                       </div>
                     </div>
 
-                    {/* progress bar */}
                     <div className="mt-4 h-2 w-full overflow-hidden rounded-full border bg-black/5">
                       <div
                         className="h-full rounded-full bg-emerald-950"
@@ -434,7 +498,6 @@ export default function MatchesPage() {
           </div>
         </div>
 
-        {/* COMPLETED (optional list) */}
         {completed.length > 0 && (
           <div className="rounded-3xl border bg-white/65 p-5 backdrop-blur">
             <div className="flex items-center justify-between">
@@ -450,7 +513,9 @@ export default function MatchesPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold">{m.course_name ?? "Course"}</div>
+                      <div className="truncate text-sm font-semibold">
+                        {m.course_name ?? "Course"}
+                      </div>
                       <div className="text-xs text-black/55">
                         vs {emailToName(String(m.opponent_email ?? ""))}
                       </div>

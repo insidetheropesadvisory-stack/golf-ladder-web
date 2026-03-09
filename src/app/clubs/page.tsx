@@ -29,6 +29,7 @@ function normalizeClubRow(row: any): ClubRow | null {
   const id = String(row.id ?? "");
   const name = String(row.name ?? row.club_name ?? "");
   if (!id || !name) return null;
+
   return {
     id,
     name,
@@ -41,12 +42,14 @@ function normalizeClubRow(row: any): ClubRow | null {
 function dedupeByName(list: ClubRow[]) {
   const seen = new Set<string>();
   const out: ClubRow[] = [];
+
   for (const c of list) {
     const k = c.name.trim().toLowerCase();
     if (seen.has(k)) continue;
     seen.add(k);
     out.push(c);
   }
+
   return out;
 }
 
@@ -65,7 +68,9 @@ function TabButton({
       onClick={onClick}
       className={cx(
         "rounded-xl border px-3 py-2 text-sm font-semibold transition",
-        active ? "bg-emerald-950 text-white border-emerald-950" : "bg-white/60 hover:bg-white border-black/10"
+        active
+          ? "bg-emerald-950 text-white border-emerald-950"
+          : "bg-white/60 hover:bg-white border-black/10"
       )}
     >
       {children}
@@ -82,14 +87,28 @@ function Badge({ children }: { children: React.ReactNode }) {
 }
 
 function TopoPattern() {
-  // Keep it subtle: only in the hero, very low opacity
   return (
     <svg className="absolute inset-0 h-full w-full opacity-[0.05]" aria-hidden="true">
       <defs>
         <pattern id="topo" width="180" height="180" patternUnits="userSpaceOnUse">
-          <path d="M10,35 C55,10 90,10 135,35 C160,50 175,52 200,35" fill="none" stroke="black" strokeWidth="1" />
-          <path d="M-15,80 C25,55 70,60 110,85 C145,105 175,105 215,80" fill="none" stroke="black" strokeWidth="1" />
-          <path d="M10,125 C55,100 95,108 130,133 C155,150 175,150 205,125" fill="none" stroke="black" strokeWidth="1" />
+          <path
+            d="M10,35 C55,10 90,10 135,35 C160,50 175,52 200,35"
+            fill="none"
+            stroke="black"
+            strokeWidth="1"
+          />
+          <path
+            d="M-15,80 C25,55 70,60 110,85 C145,105 175,105 215,80"
+            fill="none"
+            stroke="black"
+            strokeWidth="1"
+          />
+          <path
+            d="M10,125 C55,100 95,108 130,133 C155,150 175,150 205,125"
+            fill="none"
+            stroke="black"
+            strokeWidth="1"
+          />
           <circle cx="120" cy="50" r="2" fill="black" />
           <circle cx="60" cy="100" r="2" fill="black" />
         </pattern>
@@ -119,65 +138,80 @@ export default function ClubsPage() {
   const [newLogoUrl, setNewLogoUrl] = useState("");
 
   async function refresh() {
-    setLoading(true);
-    setStatus(null);
+    try {
+      setLoading(true);
+      setStatus(null);
 
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr) {
-      setStatus(userErr.message);
+      const {
+        data: { session },
+        error: sessionErr,
+      } = await supabase.auth.getSession();
+
+      if (sessionErr) throw sessionErr;
+
+      const sessionUser = session?.user ?? null;
+
+      if (!sessionUser) {
+        setMeId(null);
+        setMeEmail(null);
+        setMyClubIds(new Set());
+        setDbClubs([]);
+        setStatus("Auth session missing");
+        setLoading(false);
+        return;
+      }
+
+      setMeId(sessionUser.id);
+      setMeEmail(sessionUser.email ?? null);
+
+      // memberships (my clubs)
+      const mem = await supabase
+        .from("club_memberships")
+        .select("club_id")
+        .eq("user_id", sessionUser.id);
+
+      if (!mem.error && Array.isArray(mem.data)) {
+        setMyClubIds(new Set(mem.data.map((r: any) => String(r.club_id))));
+      } else if (mem.error) {
+        setStatus(mem.error.message);
+      }
+
+      // clubs directory
+      const clubsRes = await supabase
+        .from("clubs")
+        .select("id, name, city, state, logo_url")
+        .order("name", { ascending: true })
+        .limit(1200);
+
+      if (clubsRes.error) {
+        setStatus(clubsRes.error.message);
+        setDbClubs([]);
+        setLoading(false);
+        return;
+      }
+
+      const rows = (clubsRes.data ?? [])
+        .map(normalizeClubRow)
+        .filter(Boolean) as ClubRow[];
+
+      setDbClubs(rows);
       setLoading(false);
-      return;
-    }
-    const user = userData.user;
-    if (!user) {
-      setStatus("You're not signed in.");
+    } catch (e: any) {
+      console.error(e);
+      setStatus(e?.message ?? "Failed to load clubs");
       setLoading(false);
-      return;
     }
-
-    setMeId(user.id);
-    setMeEmail(user.email ?? null);
-
-    // memberships (my clubs)
-    const mem = await supabase
-      .from("club_memberships")
-      .select("club_id")
-      .eq("user_id", user.id);
-
-    if (!mem.error && Array.isArray(mem.data)) {
-      setMyClubIds(new Set(mem.data.map((r: any) => String(r.club_id))));
-    } else if (mem.error) {
-      // not fatal
-      setStatus(mem.error.message);
-    }
-
-    // clubs directory
-    const clubsRes = await supabase
-      .from("clubs")
-      .select("id, name, city, state, logo_url")
-      .order("name", { ascending: true })
-      .limit(1200);
-
-    if (clubsRes.error) {
-      setStatus(clubsRes.error.message);
-      setDbClubs([]);
-      setLoading(false);
-      return;
-    }
-
-    const rows = (clubsRes.data ?? []).map(normalizeClubRow).filter(Boolean) as ClubRow[];
-    setDbClubs(rows);
-
-    setLoading(false);
   }
 
   useEffect(() => {
     refresh();
   }, []);
 
-  // Build CT directory list (merge CT_CLUBS + any DB clubs that are CT)
   const ctDirectory = useMemo(() => {
-    const ctFromDb = dbClubs.filter((c) => String(c.state ?? "").toUpperCase() === "CT");
+    const ctFromDb = dbClubs.filter(
+      (c) => String(c.state ?? "").toUpperCase() === "CT"
+    );
+
     const ctFromList: ClubRow[] = CT_CLUBS.map((name) => ({
       id: `ct::${name}`,
       name,
@@ -185,10 +219,16 @@ export default function ClubsPage() {
       state: "CT",
       logo_url: null,
     }));
-    return dedupeByName([...ctFromDb, ...ctFromList]).sort((a, b) => a.name.localeCompare(b.name));
+
+    return dedupeByName([...ctFromDb, ...ctFromList]).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
   }, [dbClubs]);
 
-  const myClubs = useMemo(() => dbClubs.filter((c) => myClubIds.has(c.id)), [dbClubs, myClubIds]);
+  const myClubs = useMemo(
+    () => dbClubs.filter((c) => myClubIds.has(c.id)),
+    [dbClubs, myClubIds]
+  );
 
   const activeList = useMemo(() => {
     if (tab === "my") return myClubs;
@@ -208,7 +248,6 @@ export default function ClubsPage() {
   }, [activeList, query]);
 
   async function ensureClubId(club: ClubRow): Promise<string | null> {
-    // If placeholder (ct::), create it in DB first
     if (!club.id.startsWith("ct::")) return club.id;
 
     const { data, error } = await supabase
@@ -231,12 +270,18 @@ export default function ClubsPage() {
   }
 
   async function addToMyClubs(club: ClubRow) {
-    if (!meId) return;
+    if (!meId) {
+      setStatus("Auth session missing");
+      return;
+    }
 
     const realId = await ensureClubId(club);
     if (!realId) return;
 
-    const res = await supabase.from("club_memberships").insert({ user_id: meId, club_id: realId });
+    const res = await supabase
+      .from("club_memberships")
+      .insert({ user_id: meId, club_id: realId });
+
     if (res.error) {
       setStatus(res.error.message);
       return;
@@ -274,7 +319,9 @@ export default function ClubsPage() {
     }
 
     if (meId) {
-      await supabase.from("club_memberships").insert({ user_id: meId, club_id: data.id });
+      await supabase
+        .from("club_memberships")
+        .insert({ user_id: meId, club_id: data.id });
     }
 
     setShowAdd(false);
@@ -297,25 +344,32 @@ export default function ClubsPage() {
   return (
     <main className="min-h-screen px-6 py-8">
       <div className="mx-auto max-w-6xl space-y-5">
-        {/* HERO (quiet, premium) */}
         <div className="relative overflow-hidden rounded-3xl border bg-white/65 backdrop-blur">
           <TopoPattern />
           <div className="relative p-6 sm:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <div className="text-xs font-medium tracking-widest text-black/55">RECIPROCITY</div>
+                <div className="text-xs font-medium tracking-widest text-black/55">
+                  RECIPROCITY
+                </div>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight">Clubs</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-black/60">
                   <span>{headline}</span>
                   <span className="text-black/30">•</span>
                   <span>
-                    Showing <span className="font-semibold text-black/70">{filtered.length}</span>
+                    Showing{" "}
+                    <span className="font-semibold text-black/70">
+                      {filtered.length}
+                    </span>
                   </span>
                   {meEmail && (
                     <>
                       <span className="text-black/30">•</span>
                       <span className="text-xs">
-                        Signed in as <span className="font-semibold text-black/70">{meEmail}</span>
+                        Signed in as{" "}
+                        <span className="font-semibold text-black/70">
+                          {meEmail}
+                        </span>
                       </span>
                     </>
                   )}
@@ -339,11 +393,10 @@ export default function ClubsPage() {
               </div>
             </div>
 
-            {/* Tabs + Search */}
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <TabButton active={tab === "my"} onClick={() => setTab("my")}>
-                  My clubs <span className="text-white/70">{tab === "my" ? "" : ""}</span>
+                  My clubs
                 </TabButton>
                 <TabButton active={tab === "ct"} onClick={() => setTab("ct")}>
                   CT directory
@@ -365,7 +418,6 @@ export default function ClubsPage() {
           </div>
         </div>
 
-        {/* CONTENT */}
         <div className="rounded-3xl border bg-white/65 p-4 sm:p-5 backdrop-blur">
           {loading ? (
             <div className="p-6 text-sm text-black/60">Loading…</div>
@@ -389,7 +441,6 @@ export default function ClubsPage() {
                     className="group rounded-2xl border bg-white/80 p-4 hover:shadow-sm transition"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      {/* Left: avatar + text */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative h-10 w-10 overflow-hidden rounded-xl border bg-emerald-950 text-white">
                           {c.logo_url ? (
@@ -413,7 +464,6 @@ export default function ClubsPage() {
                         </div>
                       </div>
 
-                      {/* Right: quiet actions (hover on desktop, visible on mobile) */}
                       <div
                         className={cx(
                           "flex items-center gap-2",
@@ -449,7 +499,6 @@ export default function ClubsPage() {
 
         {status && <div className="text-sm text-red-600">{status}</div>}
 
-        {/* Add club modal */}
         {showAdd && (
           <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
             <div className="w-full max-w-xl rounded-3xl border bg-white p-6 shadow-xl">
@@ -512,7 +561,8 @@ export default function ClubsPage() {
                     placeholder="https://…/logo.png"
                   />
                   <div className="text-xs text-black/55">
-                    Next step: we’ll replace this with a real upload to Supabase Storage.
+                    Next step: we’ll replace this with a real upload to Supabase
+                    Storage.
                   </div>
                 </div>
 

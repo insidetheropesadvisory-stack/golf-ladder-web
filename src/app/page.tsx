@@ -73,16 +73,19 @@ function deriveBucket(r: MatchRow): MatchStatus {
   if (ts === "accepted") return "active";
   if (ts === "pending" || ts === "denied") return "proposal";
   const s = String(r.status ?? "").toLowerCase();
-  if (["proposed", "proposal", "pending", "invite", "invited"].includes(s))
+  if (["proposed", "proposal", "pending", "invite", "invited"].includes(s)) {
     return "proposal";
-  if (["complete", "completed", "final", "finished", "closed"].includes(s))
+  }
+  if (["complete", "completed", "final", "finished", "closed"].includes(s)) {
     return "completed";
+  }
   return "active";
 }
 
 function needsMyAction(r: MatchRow, meId: string) {
   if (r.completed) return false;
   const ts = String(r.terms_status ?? "").toLowerCase();
+
   if (ts === "denied") return r.creator_id === meId;
 
   if (ts === "pending") {
@@ -97,6 +100,7 @@ function whenLabel(row: MatchRow, meId: string) {
   if (!row.round_time) {
     return needsMyAction(row, meId) ? "Pick a time" : "Awaiting time";
   }
+
   try {
     return new Date(row.round_time).toLocaleString();
   } catch {
@@ -111,23 +115,30 @@ function statusChip(row: MatchRow, meId: string) {
   if (bucket === "completed") return { label: "Final", tone: "quiet" as const };
   if (bucket === "active") return { label: "Active", tone: "active" as const };
 
-  if (ts === "denied")
+  if (ts === "denied") {
     return {
       label: meId === row.creator_id ? "Update terms" : "Waiting",
       tone: "warn" as const,
     };
-  if (needsMyAction(row, meId))
+  }
+
+  if (needsMyAction(row, meId)) {
     return { label: "Needs your response", tone: "warn" as const };
+  }
+
   return { label: "Waiting", tone: "quiet" as const };
 }
 
 function primaryCta(row: MatchRow, meId: string) {
   const bucket = deriveBucket(row);
+
   if (bucket === "completed") return "View result";
 
   if (bucket === "active") {
-    if (!row.round_time)
+    if (!row.round_time) {
       return needsMyAction(row, meId) ? "Pick a time" : "View details";
+    }
+
     const t = new Date(row.round_time).getTime();
     const now = Date.now();
     if (Number.isFinite(t) && t < now - 2 * 60 * 60 * 1000) return "Enter score";
@@ -137,17 +148,32 @@ function primaryCta(row: MatchRow, meId: string) {
   return needsMyAction(row, meId) ? "Review" : "Open";
 }
 
-function Pill({ tone, label }: { tone: "active" | "warn" | "quiet"; label: string }) {
+function Pill({
+  tone,
+  label,
+}: {
+  tone: "active" | "warn" | "quiet";
+  label: string;
+}) {
   const cls =
     tone === "active"
       ? "bg-[rgba(11,59,46,.12)] text-[var(--pine)]"
       : tone === "warn"
       ? "bg-[rgba(180,140,60,.16)] text-[rgba(120,82,18,.95)]"
       : "bg-[rgba(17,19,18,.06)] text-[rgba(17,19,18,.70)]";
+
   return <span className={cx("rounded-full px-3 py-1 text-xs font-medium", cls)}>{label}</span>;
 }
 
-function Avatar({ name, url, size = 40 }: { name: string; url?: string | null; size?: number }) {
+function Avatar({
+  name,
+  url,
+  size = 40,
+}: {
+  name: string;
+  url?: string | null;
+  size?: number;
+}) {
   return (
     <div
       className="overflow-hidden rounded-xl border border-[var(--border)] bg-white/60"
@@ -237,7 +263,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (focus && focusRef.current) {
-      setTimeout(() => focusRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+      setTimeout(() => {
+        focusRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
     }
   }, [focus]);
 
@@ -246,55 +274,60 @@ export default function HomePage() {
 
     async function run() {
       try {
+        if (!mounted) return;
         setLoading(true);
         setFatal(null);
 
-        let user: any | null = null;
+        const {
+          data: { session },
+          error: sessionErr,
+        } = await supabase.auth.getSession();
 
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData?.session?.user) user = sessionData.session.user;
+        if (sessionErr) throw sessionErr;
 
-        if (!user) {
-          const { data: auth } = await supabase.auth.getUser();
-          user = auth?.user ?? null;
-        }
-
-        if (!user) {
+        const sessionUser = session?.user ?? null;
+        if (!sessionUser) {
           if (!mounted) return;
-          window.location.href = "/login";
+          setFatal("Auth session missing");
+          setLoading(false);
           return;
         }
 
-        const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
-        const metaName = String(meta.display_name ?? meta.name ?? meta.full_name ?? meta.username ?? "").trim();
-        const metaHcp = toNumberOrNull((meta as any).handicap_index);
+        const authToken = session?.access_token;
+        const meta = (sessionUser.user_metadata ?? {}) as Record<string, unknown>;
+        const metaName = String(
+          meta.display_name ?? meta.name ?? meta.full_name ?? meta.username ?? ""
+        ).trim();
+        const sessionMetaHcp = toNumberOrNull((meta as any).handicap_index);
 
-        setMeId(user.id);
+        if (!mounted) return;
+        setMeId(sessionUser.id);
 
         const { data: prof, error: profErr } = await supabase
           .from("profiles")
           .select("id, display_name, handicap_index, avatar_url")
-          .eq("id", user.id)
+          .eq("id", sessionUser.id)
           .maybeSingle();
 
         if (profErr) console.warn("profiles fetch warning:", profErr);
 
         const nameRaw = String((prof as any)?.display_name ?? "").trim();
         const displayName = nameRaw || metaName || "Player";
-        const handicap = toNumberOrNull((prof as any)?.handicap_index) ?? metaHcp;
+        const handicap = toNumberOrNull((prof as any)?.handicap_index) ?? sessionMetaHcp;
 
+        if (!mounted) return;
         setMe({
-          id: user.id,
+          id: sessionUser.id,
           displayName,
           handicap,
           avatarUrl: (prof as any)?.avatar_url ?? null,
           hasName: Boolean(nameRaw || metaName),
         });
 
-        const email = (user.email ?? "").trim();
+        const email = (sessionUser.email ?? "").trim();
         const orClause = [
-          `creator_id.eq.${user.id}`,
-          `opponent_id.eq.${user.id}`,
+          `creator_id.eq.${sessionUser.id}`,
+          `opponent_id.eq.${sessionUser.id}`,
           email ? `opponent_email.ilike.${email}` : null,
         ]
           .filter(Boolean)
@@ -311,33 +344,35 @@ export default function HomePage() {
         if (mErr) throw new Error(mErr.message);
 
         const matchRows = (m ?? []) as MatchRow[];
+
+        if (!mounted) return;
         setRows(matchRows);
 
         const ids = Array.from(
           new Set(
             matchRows
               .flatMap((r) => [r.creator_id, r.opponent_id].filter(Boolean) as string[])
-              .filter((id) => id && id !== user.id)
+              .filter((id) => id && id !== sessionUser.id)
           )
         );
 
         if (ids.length > 0) {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          
-          const accessToken = session?.access_token;
-          
           const res = await fetch("/api/players/lookup", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
             },
             body: JSON.stringify({ ids }),
           });
+
           const json = await res.json().catch(() => ({}));
-          if (res.ok && json?.players) setPlayers(json.players as Record<string, PlayerLite>);
+
+          if (res.ok && json?.players && mounted) {
+            setPlayers(json.players as Record<string, PlayerLite>);
+          }
+        } else if (mounted) {
+          setPlayers({});
         }
 
         if (!mounted) return;
@@ -351,6 +386,7 @@ export default function HomePage() {
     }
 
     run();
+
     return () => {
       mounted = false;
     };
@@ -422,6 +458,7 @@ export default function HomePage() {
         const tb = b.round_time ? new Date(b.round_time).getTime() : Number.POSITIVE_INFINITY;
         return ta - tb;
       }
+
       if (sort === "newest") {
         const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
         const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -446,7 +483,9 @@ export default function HomePage() {
   }, [filtered, meId, sort]);
 
   const canCreateMatch = Boolean(me.hasName);
-  const newMatchHref = canCreateMatch ? "/matches/new" : "/profile?next=/matches/new&reason=name_required";
+  const newMatchHref = canCreateMatch
+    ? "/matches/new"
+    : "/profile?next=/matches/new&reason=name_required";
 
   const focusedList = useMemo(() => {
     if (!meId) return [];
@@ -456,39 +495,44 @@ export default function HomePage() {
     return [];
   }, [focus, buckets, meId]);
 
-  // Open matches (pool direction) — MVP stub
   const [openClub, setOpenClub] = useState<string>("all");
   const [openWindow, setOpenWindow] = useState<"7" | "14" | "30">("14");
   const openMatches: MatchRow[] = [];
 
   return (
     <main className="min-h-screen bg-[var(--paper)]">
-      <div className="mx-auto max-w-6xl px-6 py-8 space-y-6">
-        {/* Top bar */}
+      <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-[11px] tracking-[0.28em] text-[var(--muted)]">RECIPROCITY</div>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight font-serif">Home</h1>
+            <div className="text-[11px] tracking-[0.28em] text-[var(--muted)]">
+              RECIPROCITY
+            </div>
+            <h1 className="mt-2 text-3xl font-serif font-semibold tracking-tight">Home</h1>
           </div>
 
-          {/* Duplicate in-page "New match" removed — keep global header actions */}
           <details className="relative">
             <summary className="list-none cursor-pointer">
               <Avatar name={me.displayName ?? "Player"} url={me.avatarUrl} size={44} />
             </summary>
 
-            <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-[var(--border)] bg-white shadow-[0_16px_40px_rgba(17,19,18,.12)] overflow-hidden">
-              <div className="px-4 py-3 border-b border-[var(--border)]">
-                <div className="text-sm font-semibold truncate">{me.displayName ?? "Player"}</div>
+            <div className="absolute right-0 mt-2 w-52 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-[0_16px_40px_rgba(17,19,18,.12)]">
+              <div className="border-b border-[var(--border)] px-4 py-3">
+                <div className="truncate text-sm font-semibold">{me.displayName ?? "Player"}</div>
                 <div className="text-xs text-[var(--muted)]">
                   {me.handicap != null ? `HCP: ${me.handicap}` : "No handicap set"}
                 </div>
               </div>
               <div className="p-2">
-                <Link className="block rounded-xl px-3 py-2 text-sm hover:bg-black/5" href="/profile">
+                <Link
+                  className="block rounded-xl px-3 py-2 text-sm hover:bg-black/5"
+                  href="/profile"
+                >
                   Profile
                 </Link>
-                <Link className="block rounded-xl px-3 py-2 text-sm hover:bg-black/5" href="/logout">
+                <Link
+                  className="block rounded-xl px-3 py-2 text-sm hover:bg-black/5"
+                  href="/logout"
+                >
                   Sign out
                 </Link>
               </div>
@@ -496,15 +540,15 @@ export default function HomePage() {
           </details>
         </div>
 
-        {/* Finish setup */}
         {!canCreateMatch ? (
           <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-6">
             <div className="text-sm font-semibold">Finish setup</div>
             <div className="mt-2 text-sm text-[var(--muted)]">
-              Add your display name so opponents see who they’re playing. Then you can create matches.
+              Add your display name so opponents see who they’re playing. Then you can
+              create matches.
             </div>
             <div className="mt-4">
-              <Link className="underline text-sm" href={newMatchHref}>
+              <Link className="text-sm underline" href={newMatchHref}>
                 Go to Profile →
               </Link>
             </div>
@@ -512,12 +556,17 @@ export default function HomePage() {
         ) : null}
 
         {fatal ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{fatal}</div>
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {fatal}
+          </div>
         ) : null}
 
-        {/* Stat tiles (plaque style, no "Click to view") */}
         {(() => {
-          const tiles: ReadonlyArray<{ label: string; value: number; key: Exclude<Focus, null> }> = [
+          const tiles: ReadonlyArray<{
+            label: string;
+            value: number;
+            key: Exclude<Focus, null>;
+          }> = [
             { label: "Needs action", value: buckets.actionNeeded.length, key: "needs" },
             { label: "Active", value: buckets.active.length, key: "active" },
             { label: "Proposed", value: buckets.proposed.length, key: "proposed" },
@@ -534,7 +583,7 @@ export default function HomePage() {
                     type="button"
                     onClick={() => setFocus((cur) => (cur === t.key ? null : t.key))}
                     className={cx(
-                      "group text-left rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-[var(--shadow)] transition",
+                      "group rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 text-left shadow-[var(--shadow)] transition",
                       active
                         ? "ring-1 ring-[rgba(176,141,87,.55)]"
                         : "hover:-translate-y-[1px] hover:shadow-[0_14px_40px_rgba(17,19,18,.10)]"
@@ -542,7 +591,7 @@ export default function HomePage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-xs tracking-[0.22em] text-[var(--muted)] uppercase">
+                        <div className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">
                           {t.label}
                         </div>
                         <div className="mt-2 text-3xl font-semibold tabular-nums text-[var(--ink)]">
@@ -567,16 +616,22 @@ export default function HomePage() {
           );
         })()}
 
-        {/* Focused list */}
         {focus ? (
-          <div ref={focusRef} className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 space-y-4">
+          <div
+            ref={focusRef}
+            className="space-y-4 rounded-2xl border border-[var(--border)] bg-white/60 p-4"
+          >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold font-serif">
-                {focus === "needs" ? "Needs action" : focus === "active" ? "Active" : "Proposed"}
+              <h2 className="text-lg font-serif font-semibold">
+                {focus === "needs"
+                  ? "Needs action"
+                  : focus === "active"
+                  ? "Active"
+                  : "Proposed"}
               </h2>
               <button
                 type="button"
-                className="text-sm underline text-[var(--muted)]"
+                className="text-sm text-[var(--muted)] underline"
                 onClick={() => setFocus(null)}
               >
                 Clear
@@ -595,12 +650,13 @@ export default function HomePage() {
           </div>
         ) : null}
 
-        {/* Open matches preview */}
         <section className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold font-serif">Open matches near you</h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">Pool model preview (coming soon).</p>
+              <h2 className="text-lg font-serif font-semibold">Open matches near you</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Pool model preview (coming soon).
+              </p>
             </div>
 
             <button
@@ -638,7 +694,7 @@ export default function HomePage() {
                 <option value="30">Next 30 days</option>
               </select>
 
-              <span className="text-xs text-[var(--muted)] ml-1">
+              <span className="ml-1 text-xs text-[var(--muted)]">
                 ({openClub}, {openWindow}d)
               </span>
             </div>
@@ -654,15 +710,16 @@ export default function HomePage() {
                   </div>
                 </>
               ) : openMatches.length === 0 ? (
-                <div className="text-sm text-[var(--muted)]">No open matches yet. Pool is coming soon.</div>
+                <div className="text-sm text-[var(--muted)]">
+                  No open matches yet. Pool is coming soon.
+                </div>
               ) : null}
             </div>
           </div>
         </section>
 
-        {/* Next up */}
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold font-serif">Next up</h2>
+          <h2 className="text-lg font-serif font-semibold">Next up</h2>
 
           {loading ? (
             <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-5 text-sm text-[var(--muted)]">
@@ -681,9 +738,8 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* Needs action */}
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold font-serif">Needs action</h2>
+          <h2 className="text-lg font-serif font-semibold">Needs action</h2>
 
           {loading ? null : buckets.actionNeeded.length === 0 ? (
             <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-5 text-sm text-[var(--muted)]">
@@ -698,11 +754,10 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* Filters */}
         <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <input
-              className="w-full md:w-72 rounded-xl border border-[var(--border)] bg-white/70 px-3 py-2 text-sm outline-none"
+              className="w-full rounded-xl border border-[var(--border)] bg-white/70 px-3 py-2 text-sm outline-none md:w-72"
               placeholder="Search opponent or course…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -745,12 +800,11 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Proposed */}
         <section className="space-y-3">
           <details className="rounded-2xl border border-[var(--border)] bg-white/60 p-4">
-            <summary className="cursor-pointer list-none flex items-center justify-between">
+            <summary className="flex cursor-pointer list-none items-center justify-between">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold font-serif">Proposed</h2>
+                <h2 className="text-lg font-serif font-semibold">Proposed</h2>
                 <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs text-[var(--muted)]">
                   {buckets.proposed.length}
                 </span>
@@ -772,9 +826,8 @@ export default function HomePage() {
           </details>
         </section>
 
-        {/* Recent results */}
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold font-serif">Recent results</h2>
+          <h2 className="text-lg font-serif font-semibold">Recent results</h2>
           {buckets.completed.length === 0 ? (
             <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-5 text-sm text-[var(--muted)]">
               No completed matches yet.

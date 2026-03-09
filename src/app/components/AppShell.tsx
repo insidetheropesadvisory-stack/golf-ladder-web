@@ -50,11 +50,18 @@ export function AppShell({
 
     async function loadUser() {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
 
       if (!mounted) return;
-      setEmail((user?.email ?? "").trim());
+
+      if (error) {
+        setEmail("");
+        return;
+      }
+
+      setEmail((session?.user?.email ?? "").trim());
     }
 
     loadUser();
@@ -62,6 +69,7 @@ export function AppShell({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       setEmail((session?.user?.email ?? "").trim());
     });
 
@@ -173,7 +181,8 @@ export function AppShell({
           </div>
 
           <footer className="mt-6 text-center text-xs text-[var(--muted)]">
-            © {new Date().getFullYear()} Reciprocity • Private club competition, refined
+            © {new Date().getFullYear()} Reciprocity • Private club competition,
+            refined
           </footer>
         </main>
       </div>
