@@ -18,6 +18,7 @@ export default function NewMatchPage() {
   const [roundDate, setRoundDate] = useState("");
   const [roundTime, setRoundTime] = useState("");
 
+  const [guestFee, setGuestFee] = useState<number | null>(null);
   const [format, setFormat] = useState<"stroke_play" | "match_play">("stroke_play");
   const [useHandicap, setUseHandicap] = useState(false);
 
@@ -128,6 +129,7 @@ export default function NewMatchPage() {
           courseName: course,
           roundTime: roundTimeISO,
           hostEmail: meEmail,
+          guestFee: guestFee,
         }),
       });
     } catch {
@@ -168,7 +170,16 @@ export default function NewMatchPage() {
         </div>
 
         {meId ? (
-          <ClubPicker value={courseName} onChange={setCourseName} userId={meId} />
+          <div>
+            <ClubPicker value={courseName} onChange={setCourseName} onGuestFeeChange={setGuestFee} userId={meId} />
+            {guestFee != null && (
+              <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50/50 px-3 py-2 text-sm">
+                <span className="text-emerald-700 font-medium">Guest fee:</span>
+                <span className="font-semibold text-emerald-800">${guestFee}</span>
+                <span className="text-xs text-emerald-600/70">per round</span>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="rounded-xl border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
             Loading clubs...

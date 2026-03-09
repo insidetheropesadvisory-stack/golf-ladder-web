@@ -11,6 +11,7 @@ type Club = {
   state?: string | null;
   logo_url?: string | null;
   source: "my" | "db" | "ct";
+  guest_fee?: number | null;
 };
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -51,13 +52,13 @@ function dedupeByName(list: Club[]) {
 }
 
 async function fetchMyClubs(userId: string): Promise<Club[]> {
-  const a1 = await supabase.from("club_memberships").select("club_id, clubs(*)").eq("user_id", userId);
+  const a1 = await supabase.from("club_memberships").select("club_id, guest_fee, clubs(*)").eq("user_id", userId);
   if (!a1.error && Array.isArray(a1.data)) {
     const out: Club[] = [];
     for (const r of a1.data as any[]) {
       const clubRow = r.clubs ?? null;
       const c = normalizeClubRow(clubRow);
-      if (c) out.push({ ...c, source: "my" });
+      if (c) out.push({ ...c, source: "my", guest_fee: (r as any).guest_fee ?? null });
     }
     if (out.length) return dedupeByName(out);
   }
@@ -67,11 +68,13 @@ async function fetchMyClubs(userId: string): Promise<Club[]> {
 export function ClubPicker({
   value,
   onChange,
+  onGuestFeeChange,
   userId,
   placeholder = "Search clubs…",
 }: {
   value: string;
   onChange: (next: string) => void;
+  onGuestFeeChange?: (fee: number | null) => void;
   userId: string;
   placeholder?: string;
 }) {
@@ -174,12 +177,13 @@ export function ClubPicker({
     return { mine, ct, other };
   }, [filtered]);
 
-  function pick(name: string) {
+  function pick(name: string, guestFee?: number | null) {
     const n = name.trim();
     if (!n) return;
     onChange(n);
     setQuery(n);
     setOpen(false);
+    onGuestFeeChange?.(guestFee ?? null);
   }
 
   return (
@@ -243,7 +247,7 @@ export function ClubPicker({
                 {grouped.mine.length > 0 && (
                   <Section title="My clubs">
                     {grouped.mine.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name)} />
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, c.guest_fee)} />
                     ))}
                   </Section>
                 )}
@@ -251,7 +255,7 @@ export function ClubPicker({
                 {grouped.ct.length > 0 && (
                   <Section title="Connecticut">
                     {grouped.ct.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name)} />
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null)} />
                     ))}
                   </Section>
                 )}
@@ -259,7 +263,7 @@ export function ClubPicker({
                 {grouped.other.length > 0 && (
                   <Section title="Other">
                     {grouped.other.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name)} />
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null)} />
                     ))}
                   </Section>
                 )}
@@ -316,8 +320,15 @@ function ClubRow({ club, onPick }: { club: Club; onPick: () => void }) {
           <div className="truncate text-xs text-black/55">{loc || (club.source === "ct" ? "CT club list" : "Club")}</div>
         </div>
 
-        <div className="ml-auto text-xs text-black/45">
-          {club.source === "my" ? "Member" : club.source === "db" ? "Directory" : "CT"}
+        <div className="ml-auto shrink-0 text-right">
+          <div className="text-xs text-black/45">
+            {club.source === "my" ? "Member" : club.source === "db" ? "Directory" : "CT"}
+          </div>
+          {club.source === "my" && club.guest_fee != null && (
+            <div className="text-[10px] font-medium text-emerald-700">
+              Guest: ${club.guest_fee}
+            </div>
+          )}
         </div>
       </div>
     </button>

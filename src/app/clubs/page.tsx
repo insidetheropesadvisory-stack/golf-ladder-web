@@ -98,6 +98,7 @@ export default function ClubsPage() {
 
   const [dbClubs, setDbClubs] = useState<ClubRow[]>([]);
   const [myClubIds, setMyClubIds] = useState<Set<string>>(new Set());
+  const [myClubFees, setMyClubFees] = useState<Record<string, number | null>>({});
 
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
@@ -121,14 +122,19 @@ export default function ClubsPage() {
         setMeEmail(uemail ?? null);
       }
 
-      // memberships (my clubs)
+      // memberships (my clubs) with guest_fee
       const mem = await supabase
         .from("club_memberships")
-        .select("club_id")
+        .select("club_id, guest_fee")
         .eq("user_id", uid);
 
       if (!mem.error && Array.isArray(mem.data)) {
         setMyClubIds(new Set(mem.data.map((r: any) => String(r.club_id))));
+        const fees: Record<string, number | null> = {};
+        for (const r of mem.data as any[]) {
+          fees[String(r.club_id)] = r.guest_fee ?? null;
+        }
+        setMyClubFees(fees);
       } else if (mem.error) {
         setStatus(mem.error.message);
       }
@@ -248,6 +254,21 @@ export default function ClubsPage() {
     }
 
     return data.id as string;
+  }
+
+  async function updateGuestFee(clubId: string, fee: number | null) {
+    if (!meId) return;
+    const { error } = await supabase
+      .from("club_memberships")
+      .update({ guest_fee: fee })
+      .eq("user_id", meId)
+      .eq("club_id", clubId);
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+    setMyClubFees((prev) => ({ ...prev, [clubId]: fee }));
   }
 
   async function addToMyClubs(club: ClubRow) {
@@ -436,6 +457,28 @@ export default function ClubsPage() {
                         <div className="truncate text-xs text-[var(--muted)]">
                           {loc || (tab === "ct" ? "Connecticut" : "\u2014")}
                         </div>
+                        {isMember && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="text-[10px] font-medium text-[var(--muted)]">Guest fee:</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              className="w-16 rounded-md border border-[var(--border)] bg-white/80 px-1.5 py-0.5 text-[11px] outline-none focus:border-[var(--pine)]/40"
+                              placeholder="$0"
+                              value={myClubFees[c.id] != null ? `$${myClubFees[c.id]}` : ""}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                const num = parseFloat(raw);
+                                if (raw === "" || raw === ".") {
+                                  setMyClubFees((prev) => ({ ...prev, [c.id]: null }));
+                                } else if (!isNaN(num)) {
+                                  setMyClubFees((prev) => ({ ...prev, [c.id]: num }));
+                                }
+                              }}
+                              onBlur={() => updateGuestFee(c.id, myClubFees[c.id] ?? null)}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 

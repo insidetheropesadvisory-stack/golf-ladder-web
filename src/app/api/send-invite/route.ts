@@ -22,7 +22,7 @@ function normalizeRecipient(to: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { to, matchUrl, courseName, roundTime, hostEmail } = body;
+    const { to, matchUrl, courseName, roundTime, hostEmail, guestFee } = body;
 
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.INVITE_FROM_EMAIL || "onboarding@resend.dev";
@@ -45,12 +45,14 @@ export async function POST(req: Request) {
 
     const subject = `You’ve been challenged: ${courseName || "Golf Ladder Match"}`;
     const whenLine = roundTime ? `Round time: ${roundTime}` : `Round time: (not set)`;
+    const feeLine = guestFee != null ? `<p><b>Guest fee:</b> $${guestFee}</p>` : "";
 
     const html = `
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height:1.4">
         <h2>You’ve been challenged 🏌️</h2>
         <p><b>Course:</b> ${courseName || "-"}</p>
         <p><b>${whenLine}</b></p>
+        ${feeLine}
         <p><b>From:</b> ${hostEmail || "Golf Ladder"}</p>
         <p style="margin-top:16px">
           <a href="${matchUrl}" style="display:inline-block;padding:10px 14px;border:1px solid #111;border-radius:10px;text-decoration:none;color:#111">
