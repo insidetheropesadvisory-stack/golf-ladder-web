@@ -68,22 +68,10 @@ export default function ProfilePageClient() {
   useEffect(() => {
     let mounted = true;
 
-    async function load() {
+    async function load(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
       try {
         setLoading(true);
         setFatal(null);
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError) throw userError;
-
-        if (!user) {
-          window.location.href = "/login";
-          return;
-        }
 
         if (!mounted) return;
 
@@ -125,12 +113,19 @@ export default function ProfilePageClient() {
       }
     }
 
-    load();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        load(session.user);
+      } else {
+        router.push("/login");
+      }
+    });
 
     return () => {
       mounted = false;
+      subscription.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     return () => {
@@ -155,13 +150,7 @@ export default function ProfilePageClient() {
         throw new Error("Please upload an image under 5MB.");
       }
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-      if (!user) throw new Error("You must be signed in to upload a profile photo.");
+      if (!userId) throw new Error("You must be signed in to upload a profile photo.");
 
       if (avatarPreview && avatarPreview.startsWith("blob:")) {
         URL.revokeObjectURL(avatarPreview);
@@ -171,7 +160,7 @@ export default function ProfilePageClient() {
       setAvatarPreview(previewUrl);
 
       const ext = getFileExt(file.name);
-      const filePath = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const filePath = `${userId}/avatar-${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
       .from("avatars")

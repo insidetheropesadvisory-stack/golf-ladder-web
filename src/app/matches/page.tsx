@@ -95,27 +95,10 @@ export default function MatchesPage() {
   const [query, setQuery] = useState("");
   const [myHoleCounts, setMyHoleCounts] = useState<Record<string, number>>({});
 
-  const loadPage = useCallback(async () => {
+  const loadPage = useCallback(async (sessionUser: { id: string; email?: string | null }) => {
     try {
       setLoading(true);
       setStatus(null);
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      const sessionUser = user ?? null;
-
-      if (!sessionUser) {
-        setSignedOut(true);
-        setMe(null);
-        setMatches([]);
-        setClubs([]);
-        setMyHoleCounts({});
-        setLoading(false);
-        return;
-      }
-
       setSignedOut(false);
       setMe({ id: sessionUser.id, email: sessionUser.email ?? null });
 
@@ -179,8 +162,17 @@ export default function MatchesPage() {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      loadPage();
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        loadPage(session.user);
+      } else {
+        setSignedOut(true);
+        setMe(null);
+        setMatches([]);
+        setClubs([]);
+        setMyHoleCounts({});
+        setLoading(false);
+      }
     });
 
     return () => {

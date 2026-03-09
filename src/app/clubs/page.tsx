@@ -137,38 +137,27 @@ export default function ClubsPage() {
   const [newState, setNewState] = useState("CT");
   const [newLogoUrl, setNewLogoUrl] = useState("");
 
-  async function refresh() {
+  async function refresh(sessionUser?: { id: string; email?: string | null }) {
     try {
       setLoading(true);
       setStatus(null);
 
-      const {
-        data: { user },
-        error: sessionErr,
-      } = await supabase.auth.getUser();
+      // When called from onAuthStateChange we get sessionUser; when called after
+      // an action the user is already set in state — read it from meId.
+      const uid = sessionUser?.id ?? meId;
+      const uemail = sessionUser?.email ?? meEmail;
+      if (!uid) { setLoading(false); return; }
 
-      if (sessionErr) throw sessionErr;
-
-      const sessionUser = user ?? null;
-
-      if (!sessionUser) {
-        setMeId(null);
-        setMeEmail(null);
-        setMyClubIds(new Set());
-        setDbClubs([]);
-        setStatus("Auth session missing");
-        setLoading(false);
-        return;
+      if (sessionUser) {
+        setMeId(uid);
+        setMeEmail(uemail ?? null);
       }
-
-      setMeId(sessionUser.id);
-      setMeEmail(sessionUser.email ?? null);
 
       // memberships (my clubs)
       const mem = await supabase
         .from("club_memberships")
         .select("club_id")
-        .eq("user_id", sessionUser.id);
+        .eq("user_id", uid);
 
       if (!mem.error && Array.isArray(mem.data)) {
         setMyClubIds(new Set(mem.data.map((r: any) => String(r.club_id))));
@@ -206,8 +195,16 @@ export default function ClubsPage() {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      refresh();
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        refresh(session.user);
+      } else {
+        setMeId(null);
+        setMeEmail(null);
+        setMyClubIds(new Set());
+        setDbClubs([]);
+        setLoading(false);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);

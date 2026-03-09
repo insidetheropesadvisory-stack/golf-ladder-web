@@ -39,21 +39,22 @@ export default function NewMatchPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Load user + prefill from /clubs “Create match” link: /matches/new?course=...
+  // Load user + prefill from /clubs "Create match" link: /matches/new?course=...
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
+    const preset = sp.get("course");
+    if (preset) setCourseName(preset);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user ?? null;
       if (!user) {
         setStatus("You're not signed in.");
         return;
       }
       setMeId(user.id);
       setMeEmail(user.email ?? null);
+    });
 
-      const preset = sp.get("course");
-      if (preset) setCourseName(preset);
-    })();
+    return () => subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -62,17 +63,14 @@ export default function NewMatchPage() {
     setStatus(null);
     setLoading(true);
 
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) {
+    if (!meId || !meEmail) {
       setStatus("You're not signed in.");
       setLoading(false);
       return;
     }
 
     const opp = opponentEmail.trim().toLowerCase();
-    const me = (user.email ?? "").trim().toLowerCase();
+    const me = meEmail.trim().toLowerCase();
     const course = courseName.trim();
 
     if (!opp) {
@@ -96,7 +94,7 @@ export default function NewMatchPage() {
     const { data, error } = await supabase
       .from("matches")
       .insert({
-        creator_id: user.id,
+        creator_id: meId,
         opponent_email: opp,
         course_name: course,
         status: "proposed",
@@ -104,7 +102,7 @@ export default function NewMatchPage() {
         format,
         use_handicap: useHandicap,
         terms_status: "pending",
-        terms_last_proposed_by: user.id,
+        terms_last_proposed_by: meId,
         terms_last_proposed_at: new Date().toISOString(),
       })
       .select("id")
