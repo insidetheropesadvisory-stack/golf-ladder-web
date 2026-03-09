@@ -5,13 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/supabase";
 
-type NavItem = { label: string; href: string };
+type NavItem = { label: string; href: string; icon: string };
 
 const NAV: NavItem[] = [
-  { label: "Home", href: "/" },
-  { label: "Matches", href: "/matches" },
-  { label: "Clubs", href: "/clubs" },
-  { label: "Profile", href: "/profile" },
+  { label: "Home", href: "/", icon: "H" },
+  { label: "Matches", href: "/matches", icon: "M" },
+  { label: "Clubs", href: "/clubs", icon: "C" },
+  { label: "Profile", href: "/profile", icon: "P" },
 ];
 
 function cx(...classes: Array<string | false | undefined | null>) {
@@ -63,13 +63,11 @@ export function AppShell({
       setEmail(userEmail);
       setCheckedSession(true);
 
-      // Redirect unauthenticated users to login
       if (!session?.user && !isAuthRoute) {
         router.replace("/login");
       }
     });
 
-    // Also check immediately
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       if (!session?.user && !isAuthRoute) {
@@ -89,27 +87,25 @@ export function AppShell({
     return <div className="min-h-screen bg-[var(--paper)]">{children}</div>;
   }
 
-  // Show nothing until we've checked the session (avoids flash of app chrome)
   if (!checkedSession) {
     return <div className="min-h-screen bg-[var(--paper)]" />;
   }
 
   return (
     <div className="min-h-screen bg-[var(--paper)]">
+      {/* Header */}
       <header className="sticky top-0 z-30 border-b border-[rgba(246,241,231,.18)] bg-[var(--pine)] text-[var(--paper)]">
-        <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center justify-between px-6">
-          <div className="flex items-baseline gap-4">
-            <div className="text-[11px] tracking-[0.28em] opacity-90">
+        <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center justify-between px-4 sm:px-6">
+          <div className="flex items-baseline gap-3">
+            <Link href="/" className="text-[11px] tracking-[0.28em] opacity-90">
               RECIPROCITY
-            </div>
-            <div className="hidden text-sm opacity-80 md:block">/ {pageTitle}</div>
+            </Link>
+            <div className="hidden text-sm opacity-80 sm:block">/ {pageTitle}</div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden text-sm opacity-85 md:block">
-              {!checkedSession ? (
-                <span className="opacity-80">Checking session…</span>
-              ) : isAuthed ? (
+              {isAuthed ? (
                 <>
                   Signed in as <span className="opacity-100">{email}</span>
                 </>
@@ -122,14 +118,14 @@ export function AppShell({
               <>
                 <Link
                   href={newMatchHref}
-                  className="rounded-full bg-[var(--paper)] px-4 py-2 text-sm font-medium text-[var(--pine)] shadow-[0_6px_18px_rgba(0,0,0,.18)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.22)]"
+                  className="rounded-full bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--pine)] shadow-[0_6px_18px_rgba(0,0,0,.18)] transition hover:-translate-y-[1px] sm:px-4 sm:py-2 sm:text-sm"
                 >
                   New match
                 </Link>
 
                 <Link
                   href={logoutHref}
-                  className="rounded-full border border-[rgba(246,241,231,.28)] px-4 py-2 text-sm font-medium text-[var(--paper)] transition hover:bg-[rgba(246,241,231,.10)]"
+                  className="hidden rounded-full border border-[rgba(246,241,231,.28)] px-4 py-2 text-sm font-medium text-[var(--paper)] transition hover:bg-[rgba(246,241,231,.10)] sm:inline-flex"
                 >
                   Logout
                 </Link>
@@ -137,7 +133,7 @@ export function AppShell({
             ) : (
               <Link
                 href={loginHref}
-                className="rounded-full bg-[var(--paper)] px-4 py-2 text-sm font-medium text-[var(--pine)] shadow-[0_6px_18px_rgba(0,0,0,.18)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.22)]"
+                className="rounded-full bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--pine)] shadow-[0_6px_18px_rgba(0,0,0,.18)] sm:px-4 sm:py-2 sm:text-sm"
               >
                 Sign in
               </Link>
@@ -146,12 +142,12 @@ export function AppShell({
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-6 px-6 py-6 md:grid-cols-[240px_1fr]">
-        <aside className="h-fit rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)]">
+      {/* Main layout */}
+      <div className="mx-auto w-full max-w-[1200px] gap-6 px-4 py-4 sm:px-6 sm:py-6 md:grid md:grid-cols-[240px_1fr]">
+        {/* Desktop sidebar — hidden on mobile */}
+        <aside className="hidden h-fit rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)] md:block">
           <div className="mb-4">
-            <div className="text-xs tracking-[0.22em] text-[var(--muted)]">
-              MENU
-            </div>
+            <div className="text-xs tracking-[0.22em] text-[var(--muted)]">MENU</div>
           </div>
 
           <nav className="space-y-1">
@@ -190,17 +186,70 @@ export function AppShell({
           </div>
         </aside>
 
+        {/* Content area */}
         <main className="min-w-0">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-[var(--shadow)]">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)] sm:p-6">
             {children}
           </div>
 
-          <footer className="mt-6 text-center text-xs text-[var(--muted)]">
-            © {new Date().getFullYear()} Reciprocity • Private club competition,
-            refined
+          <footer className="mt-6 hidden text-center text-xs text-[var(--muted)] md:block">
+            &copy; {new Date().getFullYear()} Reciprocity &bull; Private club
+            competition, refined
           </footer>
         </main>
       </div>
+
+      {/* Mobile bottom tab bar — visible only on small screens */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--paper-2)] pb-[env(safe-area-inset-bottom)] md:hidden">
+        <div className="mx-auto flex max-w-md items-stretch">
+          {NAV.map((item) => {
+            const active =
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(item.href));
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cx(
+                  "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition",
+                  active
+                    ? "text-[var(--pine)]"
+                    : "text-[var(--muted)]"
+                )}
+              >
+                <span
+                  className={cx(
+                    "flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold",
+                    active
+                      ? "bg-[rgba(11,59,46,.12)] text-[var(--pine)]"
+                      : "text-[var(--muted)]"
+                  )}
+                >
+                  {item.icon}
+                </span>
+                {item.label}
+              </Link>
+            );
+          })}
+
+          {/* Logout in tab bar for mobile */}
+          {isAuthed && (
+            <Link
+              href={logoutHref}
+              className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-[var(--muted)] transition"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold">
+                X
+              </span>
+              Logout
+            </Link>
+          )}
+        </div>
+      </nav>
+
+      {/* Spacer so content isn't hidden behind bottom tab bar on mobile */}
+      <div className="h-16 md:hidden" />
     </div>
   );
 }

@@ -164,13 +164,33 @@ export default function MatchesPage() {
     if (!confirm("Delete this proposed match?")) return;
 
     setDeleting(matchId);
-    // Delete related holes first, then the match
-    await supabase.from("holes").delete().eq("match_id", matchId);
-    const { error } = await supabase.from("matches").delete().eq("id", matchId);
+
+    // Delete related holes first
+    const { error: holesErr } = await supabase
+      .from("holes")
+      .delete()
+      .eq("match_id", matchId);
+
+    if (holesErr) {
+      console.warn("holes delete error:", holesErr.message);
+    }
+
+    // Delete the match itself
+    const { data, error } = await supabase
+      .from("matches")
+      .delete()
+      .eq("id", matchId)
+      .select("id");
+
     setDeleting(null);
 
     if (error) {
       setStatus(error.message);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setStatus("Could not delete match — you may not have permission.");
       return;
     }
 

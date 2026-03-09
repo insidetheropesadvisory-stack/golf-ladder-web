@@ -285,12 +285,31 @@ export default function MatchScoringPage() {
     if (!matchId || !confirm("Delete this proposed match? This cannot be undone.")) return;
 
     setDeletingMatch(true);
-    await supabase.from("holes").delete().eq("match_id", matchId);
-    const { error } = await supabase.from("matches").delete().eq("id", matchId);
+
+    const { error: holesErr } = await supabase
+      .from("holes")
+      .delete()
+      .eq("match_id", matchId);
+
+    if (holesErr) {
+      console.warn("holes delete error:", holesErr.message);
+    }
+
+    const { data, error } = await supabase
+      .from("matches")
+      .delete()
+      .eq("id", matchId)
+      .select("id");
+
     setDeletingMatch(false);
 
     if (error) {
       setStatus(error.message);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setStatus("Could not delete match — you may not have permission.");
       return;
     }
 
