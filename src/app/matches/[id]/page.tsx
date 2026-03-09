@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 
 type MatchRow = {
@@ -11,6 +11,7 @@ type MatchRow = {
   opponent_email: string;
   course_name: string;
   status: string;
+  terms_status: string | null;
   format: "stroke_play" | "match_play";
   use_handicap: boolean;
 };
@@ -55,6 +56,7 @@ function nextUnscoredHole(rows: HoleRow[], playerId: string) {
 
 export default function MatchScoringPage() {
   const params = useParams();
+  const router = useRouter();
   const matchId = toStringParam((params as any)?.id ?? (params as any)?.matchId);
 
   const [loading, setLoading] = useState(true);
@@ -101,7 +103,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, format, use_handicap"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, terms_status, format, use_handicap"
           )
           .eq("id", matchId)
           .single();
@@ -272,18 +274,54 @@ export default function MatchScoringPage() {
     }
   }
 
+  const [deletingMatch, setDeletingMatch] = useState(false);
+
+  const isProposed =
+    match?.status === "proposed" || match?.terms_status === "pending";
+  const isCreator = meId != null && meId === match?.creator_id;
+  const canDelete = isProposed && isCreator;
+
+  async function deleteMatch() {
+    if (!matchId || !confirm("Delete this proposed match? This cannot be undone.")) return;
+
+    setDeletingMatch(true);
+    await supabase.from("holes").delete().eq("match_id", matchId);
+    const { error } = await supabase.from("matches").delete().eq("id", matchId);
+    setDeletingMatch(false);
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    router.push("/matches");
+  }
+
   if (!matchId) return <main className="p-8">Missing match id.</main>;
   if (loading) return <main className="p-8">Loading…</main>;
 
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-3xl space-y-6">
-        <div>
-          <div className="text-sm opacity-70">{match?.course_name ?? "Match"}</div>
-          <h1 className="text-2xl font-semibold">Scorecard</h1>
-          <div className="mt-1 text-sm opacity-60">
-            Hole-by-hole scoring • totals update automatically
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-sm opacity-70">{match?.course_name ?? "Match"}</div>
+            <h1 className="text-2xl font-semibold">Scorecard</h1>
+            <div className="mt-1 text-sm opacity-60">
+              Hole-by-hole scoring • totals update automatically
+            </div>
           </div>
+
+          {canDelete && (
+            <button
+              type="button"
+              onClick={deleteMatch}
+              disabled={deletingMatch}
+              className="shrink-0 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+            >
+              {deletingMatch ? "Deleting..." : "Delete match"}
+            </button>
+          )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

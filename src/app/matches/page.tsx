@@ -158,6 +158,25 @@ export default function MatchesPage() {
     };
   }, [loadPage]);
 
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  async function deleteMatch(matchId: string) {
+    if (!confirm("Delete this proposed match?")) return;
+
+    setDeleting(matchId);
+    // Delete related holes first, then the match
+    await supabase.from("holes").delete().eq("match_id", matchId);
+    const { error } = await supabase.from("matches").delete().eq("id", matchId);
+    setDeleting(null);
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    setMatches((prev) => prev.filter((m) => m.id !== matchId));
+  }
+
   const { proposed, active, completed } = useMemo(() => {
     const proposed: AnyRow[] = [];
     const completed: AnyRow[] = [];
@@ -301,26 +320,40 @@ export default function MatchesPage() {
             <Badge tone="proposed">{proposed.length}</Badge>
           </div>
           <div className="mt-4 grid gap-3">
-            {proposed.map((m) => (
-              <Link
-                key={m.id}
-                href={`/matches/${m.id}`}
-                className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 hover:shadow-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">
-                      {m.course_name ?? "Course"}
+            {proposed.map((m) => {
+              const isCreator = me?.id === m.creator_id;
+              return (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-white/60 p-4 hover:shadow-sm"
+                >
+                  <Link href={`/matches/${m.id}`} className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold">
+                          {m.course_name ?? "Course"}
+                        </div>
+                        <div className="text-xs text-[var(--muted)]">
+                          vs {emailToName(String(m.opponent_email ?? ""))}
+                          {" · "}{formatLabel(m.format)}
+                        </div>
+                      </div>
+                      <Badge tone="proposed">Proposed</Badge>
                     </div>
-                    <div className="text-xs text-[var(--muted)]">
-                      vs {emailToName(String(m.opponent_email ?? ""))}
-                      {" · "}{formatLabel(m.format)}
-                    </div>
-                  </div>
-                  <Badge tone="proposed">Proposed</Badge>
+                  </Link>
+                  {isCreator && (
+                    <button
+                      type="button"
+                      onClick={() => deleteMatch(m.id)}
+                      disabled={deleting === m.id}
+                      className="shrink-0 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {deleting === m.id ? "..." : "Delete"}
+                    </button>
+                  )}
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
