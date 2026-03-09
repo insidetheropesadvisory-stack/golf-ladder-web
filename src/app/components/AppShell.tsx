@@ -51,12 +51,12 @@ export function AppShell({
 
     async function loadUser() {
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
+        data: { user },
+      } = await supabase.auth.getUser();
 
       if (!mounted) return;
 
-      setEmail((session?.user?.email ?? "").trim());
+      setEmail((user?.email ?? "").trim());
       setCheckedSession(true);
     }
 

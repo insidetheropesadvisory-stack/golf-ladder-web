@@ -279,13 +279,13 @@ export default function HomePage() {
         setFatal(null);
 
         const {
-          data: { session },
+          data: { user },
           error: sessionErr,
-        } = await supabase.auth.getSession();
+        } = await supabase.auth.getUser();
 
         if (sessionErr) throw sessionErr;
 
-        const sessionUser = session?.user ?? null;
+        const sessionUser = user ?? null;
         if (!sessionUser) {
           if (!mounted) return;
           setFatal("Auth session missing");
@@ -293,6 +293,7 @@ export default function HomePage() {
           return;
         }
 
+        const { data: { session } } = await supabase.auth.getSession();
         const authToken = session?.access_token;
         const meta = (sessionUser.user_metadata ?? {}) as Record<string, unknown>;
         const metaName = String(

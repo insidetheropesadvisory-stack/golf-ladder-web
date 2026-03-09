@@ -79,13 +79,13 @@ export default function MatchScoringPage() {
         setStatus(null);
 
         const {
-          data: { session },
+          data: { user },
           error: sessionErr,
-        } = await supabase.auth.getSession();
+        } = await supabase.auth.getUser();
 
         if (sessionErr) throw sessionErr;
 
-        const sessionUser = session?.user ?? null;
+        const sessionUser = user ?? null;
         if (!sessionUser) {
           setMeId(null);
           setMeEmail(null);

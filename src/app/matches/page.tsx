@@ -101,10 +101,10 @@ export default function MatchesPage() {
       setStatus(null);
 
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      const sessionUser = session?.user ?? null;
+      const sessionUser = user ?? null;
 
       if (!sessionUser) {
         setSignedOut(true);
