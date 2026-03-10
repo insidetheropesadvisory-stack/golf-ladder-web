@@ -61,6 +61,7 @@ export default function MatchesPage() {
   const [clubs, setClubs] = useState<AnyRow[]>([]);
   const [showProposed, setShowProposed] = useState(false);
   const [query, setQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "proposed" | "completed">("all");
   const [myHoleCounts, setMyHoleCounts] = useState<Record<string, number>>({});
 
   const loadPage = useCallback(async (sessionUser: { id: string; email?: string | null }) => {
@@ -193,43 +194,40 @@ export default function MatchesPage() {
     }
   }
 
+  function matchBucket(m: AnyRow): "active" | "proposed" | "completed" {
+    if (Boolean(m.completed) || m.status === "completed") return "completed";
+    if (m.status === "proposed" || m.terms_status === "pending") return "proposed";
+    return "active";
+  }
+
+  function matchText(m: AnyRow) {
+    return [
+      m.opponent_email ?? "",
+      m.course_name ?? "",
+      m.round_time ? new Date(m.round_time).toLocaleDateString() : "",
+    ].join(" ").toLowerCase();
+  }
+
   const { proposed, active, completed } = useMemo(() => {
     const proposed: AnyRow[] = [];
     const completed: AnyRow[] = [];
     const active: AnyRow[] = [];
 
-    for (const m of matches) {
-      const isCompleted = Boolean(m.completed) || m.status === "completed";
-      const isProposed = m.status === "proposed" || m.terms_status === "pending";
+    const q = query.trim().toLowerCase();
 
-      if (isCompleted) completed.push(m);
-      else if (isProposed) proposed.push(m);
+    for (const m of matches) {
+      // Text filter
+      if (q && !matchText(m).includes(q)) continue;
+
+      const bucket = matchBucket(m);
+      if (bucket === "completed") completed.push(m);
+      else if (bucket === "proposed") proposed.push(m);
       else active.push(m);
     }
 
     return { proposed, active, completed };
-  }, [matches]);
+  }, [matches, query]);
 
-  const filteredActive = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return active;
-
-    return active.filter((m) => {
-      const opponent = String(m.opponent_email ?? "").toLowerCase();
-      const course = String(m.course_name ?? "").toLowerCase();
-      const status = String(m.status ?? "").toLowerCase();
-      return opponent.includes(q) || course.includes(q) || status.includes(q);
-    });
-  }, [active, query]);
-
-  const stats = useMemo(
-    () => [
-      { label: "Active", value: active.length, color: "from-emerald-500/10 to-emerald-500/5 border-emerald-200/40", accent: "text-emerald-700" },
-      { label: "Proposed", value: proposed.length, color: "from-amber-500/10 to-amber-500/5 border-amber-200/40", accent: "text-amber-700" },
-      { label: "Completed", value: completed.length, color: "from-slate-500/10 to-slate-500/5 border-slate-200/40", accent: "text-slate-600" },
-    ],
-    [active.length, proposed.length, completed.length]
-  );
 
   if (loading) {
     return (
@@ -280,47 +278,55 @@ export default function MatchesPage() {
     );
   }
 
+  const showActive = filterStatus === "all" || filterStatus === "active";
+  const showProposedSection = filterStatus === "all" || filterStatus === "proposed";
+  const showCompleted = filterStatus === "all" || filterStatus === "completed";
+
+  const filterTabs: { key: typeof filterStatus; label: string; count: number }[] = [
+    { key: "all", label: "All", count: active.length + proposed.length + completed.length },
+    { key: "active", label: "Active", count: active.length },
+    { key: "proposed", label: "Proposed", count: proposed.length },
+    { key: "completed", label: "Completed", count: completed.length },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className={cx(
-              "rounded-2xl border bg-gradient-to-br p-5 transition-shadow hover:shadow-sm",
-              s.color
-            )}
-          >
-            <div className="text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)]">
-              {s.label}
-            </div>
-            <div className={cx("mt-1.5 text-3xl font-bold tracking-tight", s.accent)}>
-              {s.value}
-            </div>
-          </div>
-        ))}
+      {/* Search + filter bar */}
+      <div className="space-y-3">
+        <input
+          className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm outline-none placeholder:text-[var(--muted)]/60 focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)] transition"
+          placeholder="Search by opponent, course, or date..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div className="flex gap-1.5">
+          {filterTabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setFilterStatus(t.key)}
+              className={cx(
+                "rounded-full px-3 py-1.5 text-xs font-medium transition",
+                filterStatus === t.key
+                  ? "bg-[var(--pine)] text-white"
+                  : "bg-black/[0.04] text-[var(--muted)] hover:bg-black/[0.07]"
+              )}
+            >
+              {t.label} ({t.count})
+            </button>
+          ))}
+        </div>
       </div>
 
-      {active.length > 0 && (
+      {showActive && active.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold tracking-tight">Active Matches</div>
             <Badge tone="active">{active.length}</Badge>
           </div>
 
-          {active.length > 4 && (
-            <div className="mt-3">
-              <input
-                className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm outline-none placeholder:text-[var(--muted)]/60 focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)] transition"
-                placeholder="Search active matches..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-          )}
-
           <div className="mt-4 grid gap-3">
-            {filteredActive.map((m) => {
+            {active.map((m) => {
               const holesPlayed = myHoleCounts[m.id] ?? 0;
               return (
                 <Link
@@ -359,7 +365,7 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {proposed.length > 0 && (
+      {showProposedSection && proposed.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold tracking-tight">Proposed</div>
@@ -405,14 +411,14 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {completed.length > 0 && (
+      {showCompleted && completed.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold tracking-tight">Completed</div>
             <Badge tone="done">{completed.length}</Badge>
           </div>
           <div className="mt-4 grid gap-3">
-            {completed.slice(0, 6).map((m) => (
+            {(filterStatus === "completed" ? completed : completed.slice(0, 6)).map((m) => (
               <Link
                 key={m.id}
                 href={`/matches/${m.id}`}
@@ -423,8 +429,14 @@ export default function MatchesPage() {
                     <div className="truncate text-sm font-semibold tracking-tight">
                       {m.course_name ?? "Course"}
                     </div>
-                    <div className="mt-0.5 text-xs text-[var(--muted)]">
-                      vs {emailToName(String(m.opponent_email ?? ""))}
+                    <div className="mt-0.5 flex items-center gap-x-2 text-xs text-[var(--muted)]">
+                      <span>vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                      {m.round_time && (
+                        <>
+                          <span className="text-[var(--border)]">/</span>
+                          <span>{new Date(m.round_time).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
