@@ -159,6 +159,7 @@ export default function MatchScoringPage() {
 
   const [holeNo, setHoleNo] = useState<number>(1);
   const [strokesInput, setStrokesInput] = useState<string>("");
+  const [strokeToast, setStrokeToast] = useState<string | null>(null);
   const [responding, setResponding] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
@@ -395,6 +396,8 @@ export default function MatchScoringPage() {
       return;
     }
 
+    setStrokeToast(null);
+
     setSaving(true);
 
     const { data, error } = await supabase
@@ -419,6 +422,22 @@ export default function MatchScoringPage() {
     }
 
     const saved = (data ?? []) as HoleRow[];
+
+    // Score reaction toast
+    if (strokes === 1) {
+      setStrokeToast("A hole-in-one?! Screenshot it or it didn't happen.");
+    } else if (strokes === 2) {
+      setStrokeToast("An eagle or better — playing inspired golf out there.");
+    } else if (strokes >= 10 && strokes <= 12) {
+      setStrokeToast("Respect the honesty. Consider picking up at double bogey next time.");
+    } else if (strokes > 12) {
+      setStrokeToast("That's a tough hole. Maybe take a breakfast ball on the next one.");
+    } else {
+      setStrokeToast(null);
+    }
+    if (strokes >= 10 || strokes <= 2) {
+      setTimeout(() => setStrokeToast(null), 4000);
+    }
 
     setHoles((prev) => {
       const next = [...prev];
@@ -1096,6 +1115,11 @@ export default function MatchScoringPage() {
                 {saving ? "Saving..." : "Save"}
               </button>
             </div>
+            {strokeToast && (
+              <div className="mt-2 rounded-lg bg-amber-50/80 border border-amber-200/60 px-3 py-2 text-xs text-amber-800 animate-in fade-in">
+                {strokeToast}
+              </div>
+            )}
             <div className="mt-2 text-[11px] text-[var(--muted)]">
               Save to advance. Next is locked until scored.
             </div>
