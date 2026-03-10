@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
+import { CT_CLUBS } from "@/lib/data/ctClubs";
 
 type ClubRow = {
   id: string;
@@ -10,16 +11,6 @@ type ClubRow = {
   city: string | null;
   state: string | null;
   logo_url: string | null;
-};
-
-type ApiCourse = {
-  id: number;
-  club_name: string;
-  course_name: string;
-  city: string | null;
-  state: string | null;
-  country: string | null;
-  address: string | null;
 };
 
 function initials(name: string) {
@@ -39,9 +30,6 @@ export default function ClubsPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [addQuery, setAddQuery] = useState("");
-  const [apiResults, setApiResults] = useState<ApiCourse[]>([]);
-  const [searching, setSearching] = useState(false);
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function refresh(sessionUser?: { id: string; email?: string | null }) {
     try {
@@ -163,20 +151,14 @@ export default function ClubsPage() {
     setMyClubFees((prev) => ({ ...prev, [clubId]: fee }));
   }
 
-  function searchApi(q: string) {
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    const trimmed = q.trim();
-    if (trimmed.length < 2) { setApiResults([]); setSearching(false); return; }
-    setSearching(true);
-    searchTimer.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/golf-courses?q=${encodeURIComponent(trimmed)}&limit=10`);
-        const json = await res.json();
-        setApiResults(json.courses ?? []);
-      } catch { setApiResults([]); }
-      setSearching(false);
-    }, 350);
-  }
+  const suggestions = useMemo(() => {
+    const q = addQuery.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const myNames = new Set(myClubs.map((c) => c.name.toLowerCase()));
+    return CT_CLUBS.filter(
+      (name) => name.toLowerCase().includes(q) && !myNames.has(name.toLowerCase())
+    ).slice(0, 8);
+  }, [addQuery, myClubs]);
 
   return (
     <div className="space-y-6">
@@ -298,14 +280,14 @@ export default function ClubsPage() {
 
       {/* Add club modal */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowAdd(false); setAddQuery(""); setApiResults([]); } }}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowAdd(false); setAddQuery(""); } }}>
           <div className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div className="text-lg font-semibold">Add a club</div>
               <button
                 type="button"
                 className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:bg-black/5"
-                onClick={() => { setShowAdd(false); setAddQuery(""); setApiResults([]); }}
+                onClick={() => { setShowAdd(false); setAddQuery(""); }}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -316,8 +298,8 @@ export default function ClubsPage() {
             <input
               className="w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
               value={addQuery}
-              onChange={(e) => { setAddQuery(e.target.value); searchApi(e.target.value); }}
-              placeholder="Search golf courses across the US..."
+              onChange={(e) => setAddQuery(e.target.value)}
+              placeholder="Search CT golf clubs..."
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && addQuery.trim()) addClub(addQuery);
@@ -325,25 +307,18 @@ export default function ClubsPage() {
             />
 
             <div className="mt-3 max-h-[280px] overflow-auto space-y-1">
-              {searching && (
-                <div className="px-3 py-2.5 text-xs text-[var(--muted)]">Searching...</div>
-              )}
-              {!searching && apiResults.map((c) => {
-                const loc = [c.city, c.state].filter(Boolean).join(", ");
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => addClub(c.club_name)}
-                    className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
-                  >
-                    <div className="text-sm font-medium">{c.club_name}</div>
-                    {loc && <div className="text-xs text-[var(--muted)]">{loc}</div>}
-                  </button>
-                );
-              })}
-              {!searching && addQuery.trim().length >= 2 && apiResults.length === 0 && (
-                <div className="px-3 py-2.5 text-xs text-[var(--muted)]">No courses found.</div>
+              {suggestions.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => addClub(name)}
+                  className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium transition hover:bg-[var(--pine)]/5"
+                >
+                  {name}
+                </button>
+              ))}
+              {addQuery.trim().length >= 2 && suggestions.length === 0 && (
+                <div className="px-3 py-2.5 text-xs text-[var(--muted)]">No matching clubs found.</div>
               )}
               {addQuery.trim() && (
                 <button
