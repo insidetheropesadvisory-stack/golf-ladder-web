@@ -44,6 +44,7 @@ export default function InvitePage() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [isCreator, setIsCreator] = useState(false);
   const [alreadyClaimed, setAlreadyClaimed] = useState(false);
+  const [clubId, setClubId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -72,6 +73,18 @@ export default function InvitePage() {
 
         const m = matchData as MatchInfo;
         setMatch(m);
+
+        // Look up club for linking
+        if (m.course_name) {
+          supabase
+            .from("clubs")
+            .select("id")
+            .ilike("name", m.course_name)
+            .maybeSingle()
+            .then(({ data: clubData }) => {
+              if (clubData?.id) setClubId(clubData.id);
+            });
+        }
 
         if (m.creator_id === session.user.id) {
           setIsCreator(true);
@@ -296,9 +309,18 @@ export default function InvitePage() {
                   <span className="text-xs font-medium text-[var(--muted)]">
                     Course
                   </span>
-                  <span className="text-sm font-semibold text-[var(--ink)]">
-                    {match?.course_name}
-                  </span>
+                  {clubId ? (
+                    <Link
+                      href={`/clubs/${clubId}`}
+                      className="text-sm font-semibold text-[var(--pine)] underline decoration-[var(--pine)]/30 transition hover:decoration-[var(--pine)]"
+                    >
+                      {match?.course_name}
+                    </Link>
+                  ) : (
+                    <span className="text-sm font-semibold text-[var(--ink)]">
+                      {match?.course_name}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[var(--muted)]">

@@ -192,6 +192,7 @@ export default function MatchScoringPage() {
   const [meEmail, setMeEmail] = useState<string | null>(null);
 
   const [match, setMatch] = useState<MatchRow | null>(null);
+  const [clubId, setClubId] = useState<string | null>(null);
   const [holes, setHoles] = useState<HoleRow[]>([]);
 
   const [holeNo, setHoleNo] = useState<number>(1);
@@ -250,6 +251,18 @@ export default function MatchScoringPage() {
         }
 
         setMatch(matchData as MatchRow);
+
+        // Look up club by course name for linking
+        if (matchData.course_name) {
+          supabase
+            .from("clubs")
+            .select("id")
+            .ilike("name", matchData.course_name)
+            .maybeSingle()
+            .then(({ data: clubData }) => {
+              if (clubData?.id) setClubId(clubData.id);
+            });
+        }
 
         const { data: holeData, error: holeErr } = await supabase
           .from("holes")
@@ -870,9 +883,21 @@ export default function MatchScoringPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="mb-1 inline-flex items-center rounded-full bg-[var(--pine)]/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--pine)]">
-            {match?.course_name ?? "Match"}
-          </div>
+          {clubId ? (
+            <Link
+              href={`/clubs/${clubId}`}
+              className="mb-1 inline-flex items-center gap-1 rounded-full bg-[var(--pine)]/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--pine)] transition hover:bg-[var(--pine)]/20"
+            >
+              {match?.course_name ?? "Match"}
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </Link>
+          ) : (
+            <div className="mb-1 inline-flex items-center rounded-full bg-[var(--pine)]/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--pine)]">
+              {match?.course_name ?? "Match"}
+            </div>
+          )}
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scorecard</h1>
           <div className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
             Hole-by-hole scoring -- totals update automatically
@@ -930,7 +955,7 @@ export default function MatchScoringPage() {
             <span className="font-semibold">{match?.creator_email || "The match creator"}</span> has challenged you to a round.
           </p>
           <ul className="mt-3 space-y-1 text-sm text-[var(--fg)]">
-            <li><span className="font-medium text-[var(--muted)]">Course:</span> {match?.course_name}</li>
+            <li><span className="font-medium text-[var(--muted)]">Course:</span> {clubId ? <Link href={`/clubs/${clubId}`} className="font-semibold text-[var(--pine)] underline">{match?.course_name}</Link> : match?.course_name}</li>
             <li><span className="font-medium text-[var(--muted)]">Format:</span> {match?.format === "match_play" ? "Match Play" : "Stroke Play"}</li>
             <li><span className="font-medium text-[var(--muted)]">Handicap:</span> {match?.use_handicap ? "Yes" : "No"}</li>
             {match?.round_time && (

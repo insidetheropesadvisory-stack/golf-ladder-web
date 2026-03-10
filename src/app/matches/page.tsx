@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx, initials, emailToName } from "@/lib/utils";
 
@@ -38,6 +39,21 @@ function Badge({
   );
 }
 
+function ClubName({ name, clubMap }: { name: string; clubMap: Record<string, string> }) {
+  const router = useRouter();
+  const cid = clubMap[name.toLowerCase()];
+  if (!cid) return <>{name}</>;
+  return (
+    <span
+      role="link"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/clubs/${cid}`); }}
+      className="underline decoration-[var(--pine)]/30 hover:decoration-[var(--pine)] hover:text-[var(--pine)] cursor-pointer transition"
+    >
+      {name}
+    </span>
+  );
+}
+
 export default function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
@@ -50,6 +66,7 @@ export default function MatchesPage() {
   const [query, setQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "proposed" | "completed">("all");
   const [myHoleCounts, setMyHoleCounts] = useState<Record<string, number>>({});
+  const [clubMap, setClubMap] = useState<Record<string, string>>({});
 
   const loadPage = useCallback(async (sessionUser: { id: string; email?: string | null }) => {
     try {
@@ -79,6 +96,11 @@ export default function MatchesPage() {
 
       if (!clubErr && clubData) {
         setClubs(clubData as AnyRow[]);
+        const map: Record<string, string> = {};
+        for (const c of clubData) {
+          if (c.name && c.id) map[String(c.name).toLowerCase()] = c.id;
+        }
+        setClubMap(map);
       } else if (clubErr) {
         console.warn("clubs load error:", clubErr.message);
       }
@@ -324,7 +346,7 @@ export default function MatchesPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold tracking-tight group-hover:text-emerald-800 transition-colors">
-                        {m.course_name ?? "Course"}
+                        <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
                         <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
@@ -370,7 +392,7 @@ export default function MatchesPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold tracking-tight">
-                        {m.course_name ?? "Course"}
+                        <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
                         <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
@@ -415,7 +437,7 @@ export default function MatchesPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold tracking-tight">
-                      {m.course_name ?? "Course"}
+                      <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
                       <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { initials } from "@/lib/utils";
 
@@ -87,11 +88,14 @@ function MatchCard({
   row,
   meId,
   opponent,
+  clubMap,
 }: {
   row: MatchRow;
   meId: string;
   opponent: { name: string; avatarUrl: string | null };
+  clubMap: Record<string, string>;
 }) {
+  const router = useRouter();
   const chip = statusChip(row, meId);
   const when = row.round_time
     ? new Date(row.round_time).toLocaleDateString(undefined, { month: "short", day: "numeric" })
@@ -119,7 +123,18 @@ function MatchCard({
           )}
         </div>
         <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
-          {row.course_name} &middot; {fmtFormat(row.format)}{row.use_handicap ? " (Net)" : ""}
+          {(() => {
+            const cid = clubMap[row.course_name?.toLowerCase()];
+            return cid ? (
+              <span
+                role="link"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/clubs/${cid}`); }}
+                className="underline decoration-[var(--pine)]/30 hover:decoration-[var(--pine)] hover:text-[var(--pine)] cursor-pointer transition"
+              >
+                {row.course_name}
+              </span>
+            ) : row.course_name;
+          })()} &middot; {fmtFormat(row.format)}{row.use_handicap ? " (Net)" : ""}
           {when ? ` — ${when}` : ""}
         </div>
       </div>
@@ -138,6 +153,7 @@ export default function HomePage() {
   const [hasName, setHasName] = useState(false);
   const [rows, setRows] = useState<MatchRow[]>([]);
   const [players, setPlayers] = useState<Record<string, PlayerLite>>({});
+  const [clubMap, setClubMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -203,6 +219,19 @@ export default function HomePage() {
           if (res.ok && json?.players && mounted) {
             setPlayers(json.players as Record<string, PlayerLite>);
           }
+        }
+
+        // Fetch clubs for name→id map
+        const { data: clubData } = await supabase
+          .from("clubs")
+          .select("id, name")
+          .limit(50);
+        if (clubData && mounted) {
+          const map: Record<string, string> = {};
+          for (const c of clubData) {
+            if (c.name && c.id) map[String(c.name).toLowerCase()] = c.id;
+          }
+          setClubMap(map);
         }
 
         if (mounted) setLoading(false);
@@ -319,7 +348,7 @@ export default function HomePage() {
           <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Needs action</h2>
           <div className="space-y-2">
             {buckets.actionNeeded.slice(0, 4).map((r) => (
-              <MatchCard key={r.id} row={r} meId={meId ?? ""} opponent={opponentFor(r)} />
+              <MatchCard key={r.id} row={r} meId={meId ?? ""} opponent={opponentFor(r)} clubMap={clubMap} />
             ))}
           </div>
         </section>
@@ -343,7 +372,7 @@ export default function HomePage() {
         ) : (
           <div className="space-y-2">
             {buckets.active.slice(0, 3).map((r) => (
-              <MatchCard key={r.id} row={r} meId={meId ?? ""} opponent={opponentFor(r)} />
+              <MatchCard key={r.id} row={r} meId={meId ?? ""} opponent={opponentFor(r)} clubMap={clubMap} />
             ))}
             {buckets.active.length > 3 && (
               <Link href="/matches" className="block text-center text-xs font-medium text-[var(--pine)]">
@@ -360,7 +389,7 @@ export default function HomePage() {
           <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Recent results</h2>
           <div className="space-y-2">
             {buckets.completed.slice(0, 3).map((r) => (
-              <MatchCard key={r.id} row={r} meId={meId ?? ""} opponent={opponentFor(r)} />
+              <MatchCard key={r.id} row={r} meId={meId ?? ""} opponent={opponentFor(r)} clubMap={clubMap} />
             ))}
             {buckets.completed.length > 3 && (
               <Link href="/matches" className="block text-center text-xs font-medium text-[var(--pine)]">
