@@ -1,9 +1,46 @@
 import { NextResponse } from "next/server";
+import { adminClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 const API_KEY = process.env.GOLF_COURSE_API_KEY!;
 const BASE_URL = "https://www.golfapi.io/api/v2.3";
+const CACHE_DAYS = 30;
+
+/** Read from Supabase cache. Returns null on miss or expired. */
+async function cacheGet(key: string): Promise<any | null> {
+  try {
+    const sb = adminClient();
+    const { data } = await sb
+      .from("golf_course_cache")
+      .select("data, expires_at")
+      .eq("cache_key", key)
+      .maybeSingle();
+    if (!data) return null;
+    if (new Date(data.expires_at) < new Date()) {
+      // Expired — delete and return miss
+      sb.from("golf_course_cache").delete().eq("cache_key", key).then(() => {});
+      return null;
+    }
+    return data.data;
+  } catch {
+    return null;
+  }
+}
+
+/** Write to Supabase cache. */
+async function cacheSet(key: string, value: any): Promise<void> {
+  try {
+    const sb = adminClient();
+    const expires = new Date(Date.now() + CACHE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    await sb.from("golf_course_cache").upsert(
+      { cache_key: key, data: value, created_at: new Date().toISOString(), expires_at: expires },
+      { onConflict: "cache_key" }
+    );
+  } catch {
+    // Non-critical
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +53,6 @@ export async function GET(request: Request) {
     const state = (url.searchParams.get("state") ?? "").trim().toUpperCase();
     const courseId = url.searchParams.get("courseId");
     const clubId = url.searchParams.get("clubId");
-    // Keep backwards compat: "id" = courseId
     const legacyId = url.searchParams.get("id");
 
     const headers = { Authorization: `Bearer ${API_KEY}` };
@@ -24,34 +60,55 @@ export async function GET(request: Request) {
     // Single course lookup by courseID — returns full tee/hole data
     if (courseId || legacyId) {
       const cid = courseId || legacyId;
-      const res = await fetch(`${BASE_URL}/courses/${cid}`, { headers });
+      const cacheKey = `course:${cid}`;
 
+      // Check cache first
+      const cached = await cacheGet(cacheKey);
+      if (cached) {
+        return NextResponse.json({ course: cached, cached: true });
+      }
+
+      const res = await fetch(`${BASE_URL}/courses/${cid}`, { headers });
       if (!res.ok) {
         return NextResponse.json({ error: "Course not found" }, { status: 404 });
       }
 
       const data = await res.json();
-
-      // Normalize into the shape our frontend expects
       const course = normalizeCourse(data);
+
+      // Cache the normalized course
+      await cacheSet(cacheKey, course);
+
       return NextResponse.json({ course });
     }
 
     // Club detail by clubID
     if (clubId) {
-      const res = await fetch(`${BASE_URL}/clubs/${clubId}`, { headers });
+      const cacheKey = `club:${clubId}`;
+      const cached = await cacheGet(cacheKey);
+      if (cached) {
+        return NextResponse.json({ club: cached, cached: true });
+      }
 
+      const res = await fetch(`${BASE_URL}/clubs/${clubId}`, { headers });
       if (!res.ok) {
         return NextResponse.json({ error: "Club not found" }, { status: 404 });
       }
 
       const data = await res.json();
+      await cacheSet(cacheKey, data);
       return NextResponse.json({ club: data });
     }
 
     // Search clubs by name
     if (!query && !state) {
       return NextResponse.json({ courses: [], count: 0 });
+    }
+
+    const cacheKey = `search:${state}:${query.toLowerCase()}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return NextResponse.json({ courses: cached, count: cached.length, cached: true });
     }
 
     const params = new URLSearchParams();
@@ -67,7 +124,6 @@ export async function GET(request: Request) {
     const data = await res.json();
     const clubs = data.clubs ?? [];
 
-    // Map to a consistent shape for the frontend
     const courses = clubs.map((c: any) => ({
       id: c.clubID,
       club_name: c.clubName,
@@ -82,6 +138,9 @@ export async function GET(request: Request) {
       })),
     }));
 
+    // Cache search results
+    await cacheSet(cacheKey, courses);
+
     return NextResponse.json({
       courses,
       count: courses.length,
@@ -92,18 +151,14 @@ export async function GET(request: Request) {
 }
 
 /**
- * Normalize golfapi.io course response into the shape our ClubPicker/scoring pages expect.
- * Old shape: { tees: { "Blue": { par, slope, course_rating, total_yards, holes: [...] } } }
- * New API:   { tees: [...], parsMen: [...], length1..length18 per tee }
+ * Normalize golfapi.io course response into the shape our frontend expects.
  */
 function normalizeCourse(data: any) {
   const tees: Record<string, any> = {};
 
-  // USGA handicap hole allocation (1 = hardest, 18 = easiest)
   const handicaps: number[] = data.handicapsMen ?? data.handicapMen ?? data.handicapsWomen ?? [];
 
   for (const tee of (data.tees ?? []) as any[]) {
-    // Sum hole lengths for total yards
     let totalYards = 0;
     const holes: any[] = [];
     for (let h = 1; h <= 18; h++) {
@@ -119,7 +174,6 @@ function normalizeCourse(data: any) {
       });
     }
 
-    // Sum par from parsMen
     const parTotal = (data.parsMen ?? []).reduce((a: number, b: number) => a + (Number(b) || 0), 0) || null;
 
     tees[tee.teeName] = {
