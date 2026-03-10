@@ -303,12 +303,18 @@ export default function HomePage() {
           New match
         </Link>
         <Link
-          href="/ladder"
-          className="flex-1 rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-center text-sm font-semibold text-[var(--ink)] transition hover:-translate-y-[1px] hover:shadow-sm"
+          href="/matches/new?mode=link"
+          className="flex-1 rounded-xl border-2 border-[var(--pine)]/30 bg-[var(--pine)]/5 px-4 py-3 text-center text-sm font-semibold text-[var(--pine)] transition hover:-translate-y-[1px] hover:shadow-sm"
         >
-          View ladder
+          Invite a friend
         </Link>
       </div>
+      <Link
+        href="/ladder"
+        className="block rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-center text-sm font-semibold text-[var(--ink)] transition hover:-translate-y-[1px] hover:shadow-sm"
+      >
+        View ladder
+      </Link>
 
       {/* Needs action */}
       {!loading && buckets.actionNeeded.length > 0 && (

@@ -46,6 +46,7 @@ export default function NewMatchPage() {
   useEffect(() => {
     const preset = sp.get("course");
     if (preset) setCourseName(preset);
+    if (sp.get("mode") === "link") setInviteMode("link");
     if (sp.get("ladder") === "true") {
       setIsLadderMatch(true);
       setFormat("stroke_play");
