@@ -326,8 +326,9 @@ export default function ClubProfilePage() {
               const memberInitials = initials(name);
 
               return (
-                <div
+                <Link
                   key={m.user_id}
+                  href={`/players/${m.user_id}`}
                   className="group rounded-xl border border-[var(--border)] bg-white/70 p-4 transition-all duration-200 hover:bg-white hover:shadow-sm"
                 >
                   <div className="flex items-center gap-3">
@@ -345,7 +346,7 @@ export default function ClubProfilePage() {
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-[var(--ink)]">{name}</div>
+                      <div className="truncate text-sm font-semibold text-[var(--ink)] group-hover:text-[var(--pine)] transition-colors">{name}</div>
                       {handicap != null && (
                         <div className="text-xs text-[var(--muted)]">
                           Handicap: {handicap}
@@ -358,7 +359,7 @@ export default function ClubProfilePage() {
                       </span>
                     )}
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
