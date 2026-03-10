@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthedUser, adminClient } from "@/lib/supabase/server";
+import { sendPushToUser } from "@/lib/pushSend";
 
 export const runtime = "nodejs";
 
@@ -122,11 +123,16 @@ export async function POST(request: Request) {
       `;
 
       // In-app notification
-      await createInAppNotification(
-        admin, recipientId,
-        `${senderName} finished scoring at ${courseName} — your turn!`,
-        matchId
-      );
+      const inAppMsg = `${senderName} finished scoring at ${courseName} — your turn!`;
+      await createInAppNotification(admin, recipientId, inAppMsg, matchId);
+
+      // Push notification (best-effort)
+      sendPushToUser(recipientId, {
+        title: "Scores are in",
+        body: inAppMsg,
+        url: `/matches/${matchId}`,
+        matchId,
+      }).catch(() => {});
 
       // Email (best-effort)
       let emailResult = { ok: false } as any;
@@ -218,12 +224,17 @@ export async function POST(request: Request) {
 
       // In-app notification
       const oppId = match.opponent_id;
+      const inAppMsg = `${senderName} is waiting for your response — ${courseName}${ladderLabel}`;
       if (oppId) {
-        await createInAppNotification(
-          admin, oppId,
-          `${senderName} is waiting for your response — ${courseName}${ladderLabel}`,
-          matchId
-        );
+        await createInAppNotification(admin, oppId, inAppMsg, matchId);
+
+        // Push notification (best-effort)
+        sendPushToUser(oppId, {
+          title: "Pending challenge",
+          body: inAppMsg,
+          url: `/matches/${matchId}`,
+          matchId,
+        }).catch(() => {});
       }
 
       // Email (best-effort)

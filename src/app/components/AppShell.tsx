@@ -185,7 +185,7 @@ export function AppShell({
     };
   }, [isAuthRoute, router]);
 
-  // Fetch notifications
+  // Fetch notifications — on mount + when SW receives a push
   useEffect(() => {
     if (!email) return;
     let mounted = true;
@@ -205,8 +205,23 @@ export function AppShell({
     }
 
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 30000); // poll every 30s
-    return () => { mounted = false; clearInterval(interval); };
+
+    // Listen for push messages from service worker
+    function onSwMessage(event: MessageEvent) {
+      if (event.data?.type === "PUSH_RECEIVED") {
+        fetchNotifs();
+      }
+    }
+    navigator.serviceWorker?.addEventListener("message", onSwMessage);
+
+    // Fallback polling every 60s in case push isn't available
+    const interval = setInterval(fetchNotifs, 60000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+      navigator.serviceWorker?.removeEventListener("message", onSwMessage);
+    };
   }, [email]);
 
   // Close dropdown on outside click

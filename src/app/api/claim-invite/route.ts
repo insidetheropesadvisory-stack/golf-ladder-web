@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthedUser, adminClient } from "@/lib/supabase/server";
+import { sendPushToUser } from "@/lib/pushSend";
 
 export const runtime = "nodejs";
 
@@ -103,11 +104,20 @@ export async function POST(request: Request) {
 
       const claimerName = (claimerProfile as any)?.display_name || user.email || "Someone";
 
+      const notifMsg = `${claimerName} accepted your match invite!`;
       await admin.from("notifications").insert({
         user_id: match.creator_id,
-        message: `${claimerName} accepted your match invite!`,
+        message: notifMsg,
         match_id: matchId,
         read: false,
+      });
+
+      // Push notification (best-effort)
+      await sendPushToUser(match.creator_id, {
+        title: "Invite accepted!",
+        body: notifMsg,
+        url: `/matches/${matchId}`,
+        matchId,
       });
     } catch {
       // Non-critical
