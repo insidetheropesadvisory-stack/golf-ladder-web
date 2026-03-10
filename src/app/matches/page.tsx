@@ -30,7 +30,7 @@ function Badge({
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:px-2.5 sm:text-[11px]",
         tones[tone]
       )}
     >
@@ -387,27 +387,27 @@ export default function MatchesPage() {
                 <Link
                   key={m.id}
                   href={`/matches/${m.id}`}
-                  className="group block rounded-2xl border border-[var(--border)] bg-white/70 p-4 transition hover:border-amber-200 hover:shadow-md"
+                  className="group block rounded-2xl border border-[var(--border)] bg-white/70 p-3 transition hover:border-amber-200 hover:shadow-md sm:p-4"
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2 sm:items-center">
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold tracking-tight">
                         <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                       </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
                         <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
                         <span className="text-[var(--border)]">/</span>
                         <span>{formatLabel(m.format)}</span>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                       <Badge tone="proposed">Proposed</Badge>
                       {isCreator && (
                         <button
                           type="button"
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteMatch(m.id); }}
                           disabled={deleting === m.id}
-                          className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50"
+                          className="rounded-lg border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50 sm:px-2.5 sm:py-1 sm:text-xs"
                         >
                           {deleting === m.id ? "..." : "Delete"}
                         </button>
