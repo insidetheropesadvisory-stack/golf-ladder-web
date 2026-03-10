@@ -153,12 +153,22 @@ export default function ClubsPage() {
   async function removeClub(clubId: string) {
     if (!meId) return;
     setStatus(null);
-    const { error } = await supabase.from("club_memberships").delete().eq("user_id", meId).eq("club_id", clubId);
-    if (error) {
-      setStatus(error.message);
-      return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/club-membership", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ clubId }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setStatus(json.error ?? "Failed to remove"); return; }
+      await refresh();
+    } catch (e: any) {
+      setStatus(e?.message ?? "Failed to remove");
     }
-    await refresh();
   }
 
   async function updateGuestFee(clubId: string, fee: number | null) {
