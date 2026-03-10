@@ -94,6 +94,7 @@ export function ClubPicker({
   const [apiClubs, setApiClubs] = useState<Club[]>([]);
   const [apiLoading, setApiLoading] = useState(false);
   const [query, setQuery] = useState(value);
+  const [stateFilter, setStateFilter] = useState<string | null>(null);
   const apiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => setQuery(value), [value]);
@@ -155,7 +156,7 @@ export function ClubPicker({
             }
           }
         }
-        setApiClubs(clubs.filter((c) => c.name));
+        setApiClubs(dedupeByName(clubs.filter((c) => c.name)));
       } catch {
         setApiClubs([]);
       }
@@ -291,9 +292,29 @@ export function ClubPicker({
     return dedupeByName([...myClubs, ...dbClubs, ...mergedCtClubs]);
   }, [myClubs, dbClubs, mergedCtClubs]);
 
+  // Collect unique states for filter pills
+  const availableStates: string[] = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of allForSearch) {
+      const s = (c.state ?? "").trim().toUpperCase();
+      if (s) set.add(s);
+    }
+    // Sort with CT first, then alphabetical
+    return [...set].sort((a, b) => {
+      if (a === "CT") return -1;
+      if (b === "CT") return 1;
+      return a.localeCompare(b);
+    });
+  }, [allForSearch]);
+
   const filtered: Club[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const base = allForSearch;
+    let base = allForSearch;
+
+    // Apply state filter
+    if (stateFilter) {
+      base = base.filter((c) => (c.state ?? "").toUpperCase() === stateFilter);
+    }
 
     if (!q) return base.slice(0, 60);
 
@@ -304,7 +325,7 @@ export function ClubPicker({
         return name.includes(q) || loc.includes(q);
       })
       .slice(0, 60);
-  }, [allForSearch, query]);
+  }, [allForSearch, query, stateFilter]);
 
   // Dedupe API results against local clubs
   const dedupedApiClubs: Club[] = useMemo(() => {
@@ -406,6 +427,33 @@ export function ClubPicker({
       {open && (
         <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border bg-white shadow-lg">
           <div className="max-h-[360px] overflow-auto p-2">
+            {/* State filter pills */}
+            {!loading && availableStates.length > 1 && (
+              <div className="mb-2 flex flex-wrap gap-1 px-1">
+                <button
+                  type="button"
+                  className={`rounded-lg px-2 py-0.5 text-xs font-medium ${
+                    stateFilter === null ? "bg-emerald-950 text-white" : "bg-black/5 text-black/60 hover:bg-black/10"
+                  }`}
+                  onClick={() => setStateFilter(null)}
+                >
+                  All
+                </button>
+                {availableStates.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`rounded-lg px-2 py-0.5 text-xs font-medium ${
+                      stateFilter === s ? "bg-emerald-950 text-white" : "bg-black/5 text-black/60 hover:bg-black/10"
+                    }`}
+                    onClick={() => setStateFilter(stateFilter === s ? null : s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {loading ? (
               <div className="p-3 text-sm text-black/60">Loading clubs…</div>
             ) : (
@@ -507,7 +555,7 @@ function ClubRow({ club, onPick }: { club: Club; onPick: () => void }) {
 
         <div className="ml-auto shrink-0 text-right">
           <div className="text-xs text-black/45">
-            {club.source === "my" ? "Member" : club.source === "db" ? "Directory" : club.source === "api" ? "API" : "CT"}
+            {club.source === "my" ? "Member" : club.state ? club.state : club.source === "db" ? "Directory" : "Club"}
           </div>
           {club.source === "my" && club.guest_fee != null && (
             <div className="text-[10px] font-medium text-emerald-700">
