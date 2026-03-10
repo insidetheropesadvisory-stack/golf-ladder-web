@@ -512,10 +512,14 @@ export default function HomePage() {
                   href={`/matches/${m.id}`}
                   className="group flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-blue-200 hover:shadow-sm sm:p-4"
                 >
-                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-blue-100 text-blue-700 sm:h-10 sm:w-10">
-                    <div className="grid h-full w-full place-items-center text-[10px] font-bold sm:text-xs">
-                      {dt.toLocaleDateString(undefined, { day: "numeric" })}
-                    </div>
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
+                    {opp.avatarUrl ? (
+                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
+                        {initials(opp.name)}
+                      </div>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold text-[var(--ink)]">
