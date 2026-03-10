@@ -291,6 +291,13 @@ export default function MatchesPage() {
       // "expired" matches are hidden from UX
     }
 
+    // Sort upcoming by round_time ascending (soonest first)
+    upcoming.sort((a, b) => {
+      const ta = a.round_time ? new Date(a.round_time).getTime() : 0;
+      const tb = b.round_time ? new Date(b.round_time).getTime() : 0;
+      return ta - tb;
+    });
+
     return { proposed, upcoming, active, completed };
   }, [matches, query]);
 
