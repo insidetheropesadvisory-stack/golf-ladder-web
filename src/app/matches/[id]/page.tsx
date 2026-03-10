@@ -20,7 +20,43 @@ type MatchRow = {
   round_time: string | null;
   guest_fee: number | null;
   is_ladder_match: boolean;
+  golf_course_api_id?: number | null;
 };
+
+type TeeData = {
+  par?: number;
+  total_yards?: number;
+  totalYards?: number;
+  course_rating?: number;
+  courseRating?: number;
+  slope?: number;
+  bogey_rating?: number;
+  holes?: Array<{
+    number?: number;
+    hole?: number;
+    par?: number;
+    yardage?: number;
+    yards?: number;
+  }>;
+};
+
+type CourseData = {
+  id: number;
+  club_name?: string;
+  course_name?: string;
+  tees?: Record<string, TeeData>;
+};
+
+function getTeeRating(tee: TeeData) { return tee.course_rating ?? (tee as any).courseRating ?? null; }
+function getTeeTotalYards(tee: TeeData) { return tee.total_yards ?? (tee as any).totalYards ?? null; }
+function getHolePar(tee: TeeData, holeNo: number) {
+  const h = tee.holes?.find(h => (h.number ?? h.hole) === holeNo);
+  return h?.par ?? null;
+}
+function getHoleYards(tee: TeeData, holeNo: number) {
+  const h = tee.holes?.find(h => (h.number ?? h.hole) === holeNo);
+  return h?.yardage ?? h?.yards ?? null;
+}
 
 type HoleRow = {
   match_id: string;
@@ -165,6 +201,8 @@ export default function MatchScoringPage() {
   const [myHandicap, setMyHandicap] = useState<number | null>(null);
   const [oppHandicap, setOppHandicap] = useState<number | null>(null);
   const [oppDisplayName, setOppDisplayName] = useState<string | null>(null);
+  const [courseData, setCourseData] = useState<CourseData | null>(null);
+  const [selectedTee, setSelectedTee] = useState<string | null>(null);
 
   useEffect(() => {
     if (!matchId) return;
@@ -197,7 +235,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match, golf_course_api_id"
           )
           .eq("id", matchId)
           .single();
@@ -250,6 +288,25 @@ export default function MatchScoringPage() {
                 setOppDisplayName(p.display_name ?? null);
               }
             }
+          }
+        }
+
+        // Fetch course data from Golf Course API if available
+        if (m.golf_course_api_id) {
+          try {
+            const cRes = await fetch(`/api/golf-courses?id=${m.golf_course_api_id}`);
+            if (cRes.ok) {
+              const cJson = await cRes.json();
+              const course = cJson.course ?? cJson;
+              if (course && course.tees) {
+                setCourseData(course as CourseData);
+                // Auto-select first tee
+                const teeNames = Object.keys(course.tees);
+                if (teeNames.length > 0) setSelectedTee(teeNames[0]);
+              }
+            }
+          } catch {
+            // Course data is optional; ignore failures
           }
         }
 
@@ -356,6 +413,17 @@ export default function MatchScoringPage() {
       isTie: mdt === odt,
     };
   }, [isMatchPlay, matchPlayData, myTotal, oppTotal, myNetTotal, oppNetTotal, useHcp]);
+
+  // Current tee data for course info display
+  const activeTee: TeeData | null = useMemo(() => {
+    if (!courseData?.tees || !selectedTee) return null;
+    return courseData.tees[selectedTee] ?? null;
+  }, [courseData, selectedTee]);
+
+  const teeNames = useMemo(() => {
+    if (!courseData?.tees) return [];
+    return Object.keys(courseData.tees);
+  }, [courseData]);
 
   function goPrev() {
     if (!meId) return;
@@ -886,6 +954,42 @@ export default function MatchScoringPage() {
         )}
       </div>
 
+      {/* Tee selector */}
+      {teeNames.length > 0 && (
+        <div className="rounded-2xl border border-[var(--border)] bg-white/60 px-5 py-3">
+          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Tees</div>
+          <div className="flex flex-wrap gap-2">
+            {teeNames.map((name) => {
+              const tee = courseData?.tees?.[name];
+              const isActive = selectedTee === name;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setSelectedTee(name)}
+                  className={cx(
+                    "rounded-xl px-3 py-1.5 text-sm font-semibold transition",
+                    isActive
+                      ? "bg-[var(--pine)] text-white shadow-sm"
+                      : "border border-[var(--border)] bg-white text-[var(--ink)] hover:bg-[var(--paper)]"
+                  )}
+                >
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+          {activeTee && (
+            <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--muted)]">
+              {activeTee.slope != null && <span>Slope: <span className="font-semibold text-[var(--ink)]">{activeTee.slope}</span></span>}
+              {getTeeRating(activeTee) != null && <span>Rating: <span className="font-semibold text-[var(--ink)]">{getTeeRating(activeTee)}</span></span>}
+              {activeTee.par != null && <span>Par: <span className="font-semibold text-[var(--ink)]">{activeTee.par}</span></span>}
+              {getTeeTotalYards(activeTee) != null && <span>Yards: <span className="font-semibold text-[var(--ink)]">{getTeeTotalYards(activeTee)}</span></span>}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Score summary cards */}
       <div className="grid gap-3 sm:grid-cols-2">
         {(() => {
@@ -1094,6 +1198,21 @@ export default function MatchScoringPage() {
           </div>
 
           <div className="p-5">
+            {activeTee && (
+              <div className="mb-4 flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-4 py-2.5">
+                {getHolePar(activeTee, holeNo) != null && (
+                  <div className="text-xs text-[var(--muted)]">
+                    Par <span className="font-bold text-[var(--ink)]">{getHolePar(activeTee, holeNo)}</span>
+                  </div>
+                )}
+                {getHoleYards(activeTee, holeNo) != null && (
+                  <div className="text-xs text-[var(--muted)]">
+                    <span className="font-bold text-[var(--ink)]">{getHoleYards(activeTee, holeNo)}</span> yds
+                  </div>
+                )}
+                <div className="ml-auto text-[10px] text-[var(--muted)]">{selectedTee} tees</div>
+              </div>
+            )}
             <div className="flex items-end gap-3">
               <div className="flex-1">
                 <label className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Your strokes</label>
@@ -1195,6 +1314,9 @@ export default function MatchScoringPage() {
                 )}>
                   {h}
                 </div>
+                {activeTee && getHolePar(activeTee, h) != null && (
+                  <div className="text-[9px] text-[var(--muted)]/60">P{getHolePar(activeTee, h)}</div>
+                )}
                 <div className={cx(
                   "text-sm font-bold sm:text-base",
                   isCurrent && "text-[var(--pine)]",

@@ -28,6 +28,7 @@ export default function NewMatchPage() {
   const [roundDate, setRoundDate] = useState("");
   const [roundTime, setRoundTime] = useState("");
 
+  const [courseApiId, setCourseApiId] = useState<number | null>(null);
   const [guestFee, setGuestFee] = useState<number | null>(null);
   const [format, setFormat] = useState<"stroke_play" | "match_play">("stroke_play");
   const [useHandicap, setUseHandicap] = useState(false);
@@ -137,6 +138,7 @@ export default function NewMatchPage() {
         opponent_id: opponent.id,
         opponent_email: oppEmail,
         course_name: course,
+        golf_course_api_id: courseApiId,
         status: "proposed",
         round_time: roundTimeISO,
         format,
@@ -201,7 +203,7 @@ export default function NewMatchPage() {
 
         {meId ? (
           <div>
-            <ClubPicker value={courseName} onChange={setCourseName} onGuestFeeChange={setGuestFee} userId={meId} />
+            <ClubPicker value={courseName} onChange={setCourseName} onGuestFeeChange={setGuestFee} onCourseApiIdChange={setCourseApiId} userId={meId} />
             {guestFee != null && (
               <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50/50 px-3 py-2 text-sm">
                 <span className="text-emerald-700 font-medium">Guest fee:</span>

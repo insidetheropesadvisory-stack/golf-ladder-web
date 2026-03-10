@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase/supabase";
 import { CT_CLUBS } from "@/lib/data/ctClubs";
 import { cx, initials } from "@/lib/utils";
@@ -11,8 +11,9 @@ type Club = {
   city?: string | null;
   state?: string | null;
   logo_url?: string | null;
-  source: "my" | "db" | "ct";
+  source: "my" | "db" | "ct" | "api";
   guest_fee?: number | null;
+  apiCourseId?: number;
 };
 
 function normalizeClubRow(row: any): Club | null {
@@ -61,12 +62,14 @@ export function ClubPicker({
   value,
   onChange,
   onGuestFeeChange,
+  onCourseApiIdChange,
   userId,
   placeholder = "Search clubs…",
 }: {
   value: string;
   onChange: (next: string) => void;
   onGuestFeeChange?: (fee: number | null) => void;
+  onCourseApiIdChange?: (id: number | null) => void;
   userId: string;
   placeholder?: string;
 }) {
@@ -77,9 +80,49 @@ export function ClubPicker({
 
   const [myClubs, setMyClubs] = useState<Club[]>([]);
   const [dbClubs, setDbClubs] = useState<Club[]>([]);
+  const [apiClubs, setApiClubs] = useState<Club[]>([]);
+  const [apiLoading, setApiLoading] = useState(false);
   const [query, setQuery] = useState(value);
+  const apiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => setQuery(value), [value]);
+
+  // Debounced Golf Course API search
+  const searchApi = useCallback((q: string) => {
+    if (apiTimerRef.current) clearTimeout(apiTimerRef.current);
+    const trimmed = q.trim();
+    if (trimmed.length < 2) {
+      setApiClubs([]);
+      setApiLoading(false);
+      return;
+    }
+    setApiLoading(true);
+    apiTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/golf-courses?q=${encodeURIComponent(trimmed)}&limit=6`);
+        if (!res.ok) { setApiClubs([]); setApiLoading(false); return; }
+        const json = await res.json();
+        const courses: any[] = json.courses ?? [];
+        const clubs: Club[] = courses.map((c: any) => ({
+          id: `api::${c.id}`,
+          name: String(c.club_name ?? c.course_name ?? ""),
+          city: c.city ?? null,
+          state: c.state ?? null,
+          logo_url: null,
+          source: "api" as const,
+          apiCourseId: c.id,
+        })).filter((c) => c.name);
+        setApiClubs(clubs);
+      } catch {
+        setApiClubs([]);
+      }
+      setApiLoading(false);
+    }, 400);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (apiTimerRef.current) clearTimeout(apiTimerRef.current); };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -156,6 +199,12 @@ export function ClubPicker({
       .slice(0, 60);
   }, [allForSearch, query]);
 
+  // Dedupe API results against local clubs
+  const dedupedApiClubs: Club[] = useMemo(() => {
+    const localNames = new Set(allForSearch.map((c) => c.name.trim().toLowerCase()));
+    return apiClubs.filter((c) => !localNames.has(c.name.trim().toLowerCase()));
+  }, [apiClubs, allForSearch]);
+
   const grouped = useMemo(() => {
     const mine: Club[] = [];
     const ct: Club[] = [];
@@ -166,16 +215,17 @@ export function ClubPicker({
       else if ((c.state ?? "").toUpperCase() === "CT" || c.source === "ct") ct.push(c);
       else other.push(c);
     }
-    return { mine, ct, other };
-  }, [filtered]);
+    return { mine, ct, other, api: dedupedApiClubs };
+  }, [filtered, dedupedApiClubs]);
 
-  function pick(name: string, guestFee?: number | null) {
+  function pick(name: string, guestFee?: number | null, apiCourseId?: number | null) {
     const n = name.trim();
     if (!n) return;
     onChange(n);
     setQuery(n);
     setOpen(false);
     onGuestFeeChange?.(guestFee ?? null);
+    onCourseApiIdChange?.(apiCourseId ?? null);
   }
 
   return (
@@ -191,6 +241,7 @@ export function ClubPicker({
             onChange={(e) => {
               setQuery(e.target.value);
               setOpen(true);
+              searchApi(e.target.value);
             }}
             onFocus={() => setOpen(true)}
             onKeyDown={(e) => {
@@ -229,7 +280,7 @@ export function ClubPicker({
               <div className="p-3 text-sm text-black/60">Loading clubs…</div>
             ) : (
               <>
-                {filtered.length === 0 && (
+                {filtered.length === 0 && dedupedApiClubs.length === 0 && !apiLoading && (
                   <div className="p-3 text-sm text-black/60">
                     No results. Press <span className="font-semibold">Enter</span> to use custom:{" "}
                     <span className="font-semibold">{query.trim() || "—"}</span>
@@ -256,6 +307,18 @@ export function ClubPicker({
                   <Section title="Other">
                     {grouped.other.map((c) => (
                       <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null)} />
+                    ))}
+                  </Section>
+                )}
+
+                {apiLoading && (
+                  <div className="px-2 py-2 text-xs text-black/50">Searching nationwide...</div>
+                )}
+
+                {grouped.api.length > 0 && (
+                  <Section title="Nationwide">
+                    {grouped.api.map((c) => (
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId)} />
                     ))}
                   </Section>
                 )}
@@ -314,7 +377,7 @@ function ClubRow({ club, onPick }: { club: Club; onPick: () => void }) {
 
         <div className="ml-auto shrink-0 text-right">
           <div className="text-xs text-black/45">
-            {club.source === "my" ? "Member" : club.source === "db" ? "Directory" : "CT"}
+            {club.source === "my" ? "Member" : club.source === "db" ? "Directory" : club.source === "api" ? "API" : "CT"}
           </div>
           {club.source === "my" && club.guest_fee != null && (
             <div className="text-[10px] font-medium text-emerald-700">
