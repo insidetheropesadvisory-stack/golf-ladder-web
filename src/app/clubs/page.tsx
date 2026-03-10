@@ -11,6 +11,7 @@ type ApiCourse = {
   club_name: string;
   city: string | null;
   state: string | null;
+  courses?: { courseID: string; courseName: string; numHoles?: number }[];
 };
 
 type ClubRow = {
@@ -111,7 +112,7 @@ export default function ClubsPage() {
     await supabase.from("profiles").upsert({ id: userId, email }, { onConflict: "id" });
   }
 
-  async function addClub(clubName: string) {
+  async function addClub(clubName: string, city?: string | null, state?: string | null) {
     if (!meId) return;
     setStatus(null);
     await ensureProfile(meId, meEmail);
@@ -126,13 +127,22 @@ export default function ClubsPage() {
     let clubId = existing?.id;
 
     if (!clubId) {
+      const insertData: Record<string, string> = { name: clubName.trim() };
+      if (city) insertData.city = city;
+      if (state) insertData.state = state;
       const { data, error } = await supabase
         .from("clubs")
-        .insert({ name: clubName.trim(), state: "CT" })
+        .insert(insertData)
         .select("id")
         .single();
       if (error) { setStatus(error.message); return; }
       clubId = data.id;
+    } else if (city || state) {
+      // Update existing club with city/state if we have it and it's missing
+      const updates: Record<string, string> = {};
+      if (city) updates.city = city;
+      if (state) updates.state = state;
+      await supabase.from("clubs").update(updates).eq("id", clubId).is("state", null);
     }
 
     const { error } = await supabase.from("club_memberships").insert({ user_id: meId, club_id: clubId });
@@ -378,7 +388,7 @@ export default function ClubsPage() {
                 <button
                   key={`ct-${name}`}
                   type="button"
-                  onClick={() => addClub(name)}
+                  onClick={() => addClub(name, null, "CT")}
                   className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
                 >
                   <div className="text-sm font-medium">{name}</div>
@@ -398,7 +408,7 @@ export default function ClubsPage() {
                     <button
                       key={`api-${c.id}`}
                       type="button"
-                      onClick={() => addClub(c.club_name)}
+                      onClick={() => addClub(c.club_name, c.city, c.state)}
                       className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
                     >
                       <div className="text-sm font-medium">{c.club_name}</div>

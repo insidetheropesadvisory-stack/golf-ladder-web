@@ -235,7 +235,7 @@ function OnboardingContent() {
     }, 400);
   }
 
-  async function addClub(clubName: string) {
+  async function addClub(clubName: string, city?: string | null, state?: string | null) {
     if (!userId) return;
     setError(null);
 
@@ -253,10 +253,21 @@ function OnboardingContent() {
 
     if (existing) {
       club = existing as ClubRow;
+      // Backfill state if missing
+      if ((city || state) && !existing.state) {
+        const updates: Record<string, string> = {};
+        if (city) updates.city = city;
+        if (state) updates.state = state;
+        await supabase.from("clubs").update(updates).eq("id", existing.id);
+        club = { ...existing, ...updates } as ClubRow;
+      }
     } else {
+      const insertData: Record<string, string> = { name: clubName.trim() };
+      if (city) insertData.city = city;
+      if (state) insertData.state = state;
       const { data, error: err } = await supabase
         .from("clubs")
-        .insert({ name: clubName.trim() })
+        .insert(insertData)
         .select("id, name, city, state")
         .single();
       if (err) { setError(err.message); return; }
@@ -606,7 +617,7 @@ function OnboardingContent() {
                   <button
                     key={`ct-${name}`}
                     type="button"
-                    onClick={() => addClub(name)}
+                    onClick={() => addClub(name, null, "CT")}
                     className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
                   >
                     <div className="text-sm font-medium">{name}</div>
@@ -625,7 +636,7 @@ function OnboardingContent() {
                       <button
                         key={`api-${c.id}`}
                         type="button"
-                        onClick={() => addClub(c.club_name)}
+                        onClick={() => addClub(c.club_name, c.city, c.state)}
                         className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
                       >
                         <div className="text-sm font-medium">{c.club_name}</div>

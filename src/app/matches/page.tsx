@@ -115,6 +115,7 @@ export default function MatchesPage() {
   const [filterStatus, setFilterStatus] = useState<"all" | "upcoming" | "active" | "proposed" | "completed">("all");
   const [myHoleCounts, setMyHoleCounts] = useState<Record<string, number>>({});
   const [clubMap, setClubMap] = useState<Record<string, string>>({});
+  const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
 
   const loadPage = useCallback(async (sessionUser: { id: string; email?: string | null }) => {
     try {
@@ -164,6 +165,26 @@ export default function MatchesPage() {
         setClubMap(map);
       } else if (clubErr) {
         console.warn("clubs load error:", clubErr.message);
+      }
+
+      // Fetch display names for all opponents
+      const opponentIds = new Set<string>();
+      for (const row of m) {
+        const oppId = sessionUser.id === row.creator_id ? row.opponent_id : row.creator_id;
+        if (oppId) opponentIds.add(oppId);
+      }
+      if (opponentIds.size > 0) {
+        const { data: profData } = await supabase
+          .from("profiles")
+          .select("id, display_name")
+          .in("id", [...opponentIds]);
+        if (profData) {
+          const names: Record<string, string> = {};
+          for (const p of profData as any[]) {
+            if (p.display_name) names[p.id] = p.display_name;
+          }
+          setDisplayNames(names);
+        }
       }
 
       const ids = m.map((row) => row.id).filter(Boolean);
@@ -264,8 +285,15 @@ export default function MatchesPage() {
     }
   }
 
+  function opponentName(m: AnyRow) {
+    const oppId = me?.id === m.creator_id ? m.opponent_id : m.creator_id;
+    if (oppId && displayNames[oppId]) return displayNames[oppId];
+    return emailToName(String(m.opponent_email ?? ""));
+  }
+
   function matchText(m: AnyRow) {
     return [
+      opponentName(m),
       m.opponent_email ?? "",
       m.course_name ?? "",
       m.round_time ? new Date(m.round_time).toLocaleDateString() : "",
@@ -413,7 +441,7 @@ export default function MatchesPage() {
                       <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
-                      <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                      <span className="truncate">vs {opponentName(m)}</span>
                       <span className="text-[var(--border)]">/</span>
                       <span>{formatLabel(m.format)}</span>
                       {m.round_time && (
@@ -460,7 +488,7 @@ export default function MatchesPage() {
                         <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
-                        <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                        <span className="truncate">vs {opponentName(m)}</span>
                         <span className="text-[var(--border)]">/</span>
                         <span>{formatLabel(m.format)}</span>
                         {holesPlayed > 0 && (
@@ -507,7 +535,7 @@ export default function MatchesPage() {
                         <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                       </div>
                       <div className="mt-0.5 truncate text-[11px] text-[var(--muted)] sm:text-xs">
-                        vs {emailToName(String(m.opponent_email ?? ""))} &middot; {formatLabel(m.format)}
+                        vs {opponentName(m)} &middot; {formatLabel(m.format)}
                       </div>
                     </div>
                     {isCreator ? (
@@ -550,7 +578,7 @@ export default function MatchesPage() {
                       <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
-                      <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                      <span className="truncate">vs {opponentName(m)}</span>
                       {m.round_time && (
                         <>
                           <span className="text-[var(--border)]">/</span>
