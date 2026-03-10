@@ -239,7 +239,8 @@ export default function ClubsPage() {
             return (
               <div
                 key={c.id}
-                className="rounded-2xl border border-[var(--border)] bg-white/60 p-5"
+                className="rounded-2xl border border-[var(--border)] bg-white/60 p-5 cursor-pointer transition hover:border-[var(--pine)]/20 hover:shadow-sm"
+                onClick={() => router.push(`/clubs/${c.id}`)}
               >
                 <div className="flex items-center gap-4">
                   <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-[var(--pine)] text-white shadow-sm">
@@ -262,7 +263,7 @@ export default function ClubsPage() {
                 </div>
 
                 {/* Guest fee & remove */}
-                <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/50 pt-3">
+                <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/50 pt-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-[var(--muted)]">Guest fee</span>
                     {editingFeeClub === c.id ? (
