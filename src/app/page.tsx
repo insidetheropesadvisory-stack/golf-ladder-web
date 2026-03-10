@@ -100,34 +100,31 @@ function MatchCard({
   return (
     <Link
       href={`/matches/${row.id}`}
-      className="group flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white/60 p-4 transition hover:border-[var(--pine)]/20 hover:shadow-sm"
+      className="group flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
     >
-      <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white">
+      <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
         {opponent.avatarUrl ? (
           <img src={opponent.avatarUrl} alt={opponent.name} className="h-full w-full object-cover" />
         ) : (
-          <div className="grid h-full w-full place-items-center text-xs font-semibold">
+          <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
             {initials(opponent.name)}
           </div>
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <span className="truncate text-sm font-semibold">{opponent.name}</span>
           {row.is_ladder_match && (
-            <span className="rounded-full bg-amber-100/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Ladder</span>
+            <span className="hidden rounded-full bg-amber-100/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 sm:inline">Ladder</span>
           )}
         </div>
-        <div className="mt-0.5 text-xs text-[var(--muted)]">
-          {row.course_name} {fmtFormat(row.format)}{row.use_handicap ? " (Net)" : ""}
+        <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+          {row.course_name} &middot; {fmtFormat(row.format)}{row.use_handicap ? " (Net)" : ""}
           {when ? ` — ${when}` : ""}
         </div>
       </div>
-      <div className="flex flex-col items-end gap-1.5">
+      <div className="flex shrink-0 flex-col items-end gap-1">
         <Pill tone={chip.tone} label={chip.label} />
-        <span className="text-xs font-medium text-[var(--pine)] opacity-0 transition group-hover:opacity-100">
-          {primaryCta(row, meId)} →
-        </span>
       </div>
     </Link>
   );
@@ -277,7 +274,7 @@ export default function HomePage() {
       )}
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {[
           { label: "Needs action", value: buckets.actionNeeded.length, href: "/matches" },
           { label: "Active", value: buckets.active.length, href: "/matches" },
@@ -286,32 +283,32 @@ export default function HomePage() {
           <Link
             key={t.label}
             href={t.href}
-            className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)] transition hover:-translate-y-[1px] hover:shadow-[0_14px_40px_rgba(17,19,18,.10)]"
+            className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-4 shadow-[var(--shadow)] transition hover:-translate-y-[1px] hover:shadow-[0_14px_40px_rgba(17,19,18,.10)]"
           >
-            <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">{t.label}</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--ink)]">{t.value}</div>
+            <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--muted)] sm:text-[10px] sm:tracking-[0.2em]">{t.label}</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums text-[var(--ink)] sm:text-2xl">{t.value}</div>
           </Link>
         ))}
       </div>
 
       {/* Quick actions */}
-      <div className="flex gap-3">
+      <div className="flex gap-2 sm:gap-3">
         <Link
           href={newMatchHref}
-          className="flex-1 rounded-xl bg-[var(--pine)] px-4 py-3 text-center text-sm font-semibold text-[var(--paper)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.18)]"
+          className="flex-1 rounded-xl bg-[var(--pine)] px-3 py-2.5 text-center text-sm font-semibold text-[var(--paper)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.18)] sm:px-4 sm:py-3"
         >
           New match
         </Link>
         <Link
           href="/matches/new?mode=link"
-          className="flex-1 rounded-xl border-2 border-[var(--pine)]/30 bg-[var(--pine)]/5 px-4 py-3 text-center text-sm font-semibold text-[var(--pine)] transition hover:-translate-y-[1px] hover:shadow-sm"
+          className="flex-1 rounded-xl border-2 border-[var(--pine)]/30 bg-[var(--pine)]/5 px-3 py-2.5 text-center text-sm font-semibold text-[var(--pine)] transition hover:-translate-y-[1px] hover:shadow-sm sm:px-4 sm:py-3"
         >
           Invite a friend
         </Link>
       </div>
       <Link
         href="/ladder"
-        className="block rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-center text-sm font-semibold text-[var(--ink)] transition hover:-translate-y-[1px] hover:shadow-sm"
+        className="block rounded-xl border border-[var(--border)] bg-white/60 px-4 py-2.5 text-center text-sm font-semibold text-[var(--ink)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3"
       >
         View ladder
       </Link>

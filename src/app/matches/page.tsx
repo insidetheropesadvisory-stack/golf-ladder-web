@@ -286,14 +286,14 @@ export default function MatchesPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {filterTabs.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => setFilterStatus(t.key)}
               className={cx(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition",
+                "rounded-full px-2.5 py-1.5 text-xs font-medium transition",
                 filterStatus === t.key
                   ? "bg-[var(--pine)] text-white"
                   : "bg-black/[0.04] text-[var(--muted)] hover:bg-black/[0.07]"
@@ -306,41 +306,41 @@ export default function MatchesPage() {
       </div>
 
       {showActive && active.length > 0 && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold tracking-tight">Active Matches</div>
             <Badge tone="active">{active.length}</Badge>
           </div>
 
-          <div className="mt-4 grid gap-3">
+          <div className="mt-3 grid gap-2 sm:mt-4 sm:gap-3">
             {active.map((m) => {
               const holesPlayed = myHoleCounts[m.id] ?? 0;
               return (
                 <Link
                   key={m.id}
                   href={`/matches/${m.id}`}
-                  className="group rounded-2xl border border-[var(--border)] bg-white/70 p-4 transition hover:border-emerald-200 hover:shadow-md"
+                  className="group rounded-2xl border border-[var(--border)] bg-white/70 p-3 transition hover:border-emerald-200 hover:shadow-md sm:p-4"
                 >
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold tracking-tight group-hover:text-emerald-800 transition-colors">
                         {m.course_name ?? "Course"}
                       </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
-                        <span>vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
+                        <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
                         <span className="text-[var(--border)]">/</span>
                         <span>{formatLabel(m.format)}</span>
                         {holesPlayed > 0 && (
                           <>
                             <span className="text-[var(--border)]">/</span>
-                            <span className="font-medium text-emerald-700">{holesPlayed}/18 holes</span>
+                            <span className="font-medium text-emerald-700">{holesPlayed}/18</span>
                           </>
                         )}
                       </div>
                     </div>
                     <div className="shrink-0 flex items-center gap-2">
                       <Badge tone="active">Active</Badge>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-[var(--muted)] opacity-0 transition group-hover:opacity-100">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="hidden text-[var(--muted)] sm:block opacity-0 transition group-hover:opacity-100">
                         <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
@@ -353,45 +353,46 @@ export default function MatchesPage() {
       )}
 
       {showProposedSection && proposed.length > 0 && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold tracking-tight">Proposed</div>
             <Badge tone="proposed">{proposed.length}</Badge>
           </div>
-          <div className="mt-4 grid gap-3">
+          <div className="mt-3 grid gap-2 sm:mt-4 sm:gap-3">
             {proposed.map((m) => {
               const isCreator = me?.id === m.creator_id;
               return (
-                <div
+                <Link
                   key={m.id}
-                  className="group flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-white/70 p-4 transition hover:border-amber-200 hover:shadow-md"
+                  href={`/matches/${m.id}`}
+                  className="group block rounded-2xl border border-[var(--border)] bg-white/70 p-4 transition hover:border-amber-200 hover:shadow-md"
                 >
-                  <Link href={`/matches/${m.id}`} className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold tracking-tight">
-                          {m.course_name ?? "Course"}
-                        </div>
-                        <div className="mt-0.5 flex items-center gap-x-2 text-xs text-[var(--muted)]">
-                          <span>vs {emailToName(String(m.opponent_email ?? ""))}</span>
-                          <span className="text-[var(--border)]">/</span>
-                          <span>{formatLabel(m.format)}</span>
-                        </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold tracking-tight">
+                        {m.course_name ?? "Course"}
                       </div>
-                      <Badge tone="proposed">Proposed</Badge>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
+                        <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                        <span className="text-[var(--border)]">/</span>
+                        <span>{formatLabel(m.format)}</span>
+                      </div>
                     </div>
-                  </Link>
-                  {isCreator && (
-                    <button
-                      type="button"
-                      onClick={() => deleteMatch(m.id)}
-                      disabled={deleting === m.id}
-                      className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50"
-                    >
-                      {deleting === m.id ? "..." : "Delete"}
-                    </button>
-                  )}
-                </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge tone="proposed">Proposed</Badge>
+                      {isCreator && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteMatch(m.id); }}
+                          disabled={deleting === m.id}
+                          className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50"
+                        >
+                          {deleting === m.id ? "..." : "Delete"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </Link>
               );
             })}
           </div>
@@ -399,25 +400,25 @@ export default function MatchesPage() {
       )}
 
       {showCompleted && completed.length > 0 && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold tracking-tight">Completed</div>
             <Badge tone="done">{completed.length}</Badge>
           </div>
-          <div className="mt-4 grid gap-3">
+          <div className="mt-3 grid gap-2 sm:mt-4 sm:gap-3">
             {(filterStatus === "completed" ? completed : completed.slice(0, 6)).map((m) => (
               <Link
                 key={m.id}
                 href={`/matches/${m.id}`}
-                className="group rounded-2xl border border-[var(--border)] bg-white/70 p-4 transition hover:shadow-md"
+                className="group rounded-2xl border border-[var(--border)] bg-white/70 p-3 sm:p-4 transition hover:shadow-md"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold tracking-tight">
                       {m.course_name ?? "Course"}
                     </div>
-                    <div className="mt-0.5 flex items-center gap-x-2 text-xs text-[var(--muted)]">
-                      <span>vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
+                      <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
                       {m.round_time && (
                         <>
                           <span className="text-[var(--border)]">/</span>
@@ -428,7 +429,7 @@ export default function MatchesPage() {
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
                     <Badge tone="done">Done</Badge>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-[var(--muted)] opacity-0 transition group-hover:opacity-100">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="hidden text-[var(--muted)] sm:block opacity-0 transition group-hover:opacity-100">
                       <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>

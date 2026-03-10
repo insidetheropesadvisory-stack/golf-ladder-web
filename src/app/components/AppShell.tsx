@@ -313,7 +313,7 @@ export function AppShell({
                   </button>
 
                   {showNotifs && (
-                    <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] shadow-xl z-50">
+                    <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] shadow-xl z-50">
                       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
                         <span className="text-sm font-semibold text-[var(--ink)]">Notifications</span>
                         {unreadCount > 0 && (
@@ -379,7 +379,7 @@ export function AppShell({
       </header>
 
       {/* Main layout */}
-      <div className="mx-auto w-full max-w-[1200px] gap-6 px-4 py-4 sm:px-6 sm:py-6 md:grid md:grid-cols-[240px_1fr]">
+      <div className="mx-auto w-full max-w-[1200px] gap-6 px-3 py-4 pb-24 sm:px-6 sm:py-6 md:grid md:grid-cols-[240px_1fr] md:pb-6">
         {/* Desktop sidebar — hidden on mobile */}
         <aside className="hidden h-fit rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)] md:block">
           <div className="mb-4">

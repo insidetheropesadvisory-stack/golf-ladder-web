@@ -215,7 +215,7 @@ export default function LadderPage() {
                 <Wrapper
                   key={r.id}
                   {...wrapperProps as any}
-                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition ${
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 transition sm:gap-3 sm:px-4 sm:py-3 ${
                     isMe
                       ? "border-[var(--pine)]/30 bg-[var(--pine)]/5"
                       : "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20 hover:shadow-sm cursor-pointer"
@@ -235,7 +235,7 @@ export default function LadderPage() {
                   </div>
 
                   {/* Avatar */}
-                  <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm">
+                  <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm sm:h-10 sm:w-10">
                     {prof?.avatar_url ? (
                       <img
                         src={prof.avatar_url}
@@ -261,7 +261,7 @@ export default function LadderPage() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)] sm:gap-2 sm:text-xs">
                       {prof?.handicap_index != null && (
                         <span>HCP {prof.handicap_index}</span>
                       )}
@@ -288,7 +288,7 @@ export default function LadderPage() {
                           `/matches/new?opponent=${r.user_id}&ladder=true`
                         );
                       }}
-                      className="flex-shrink-0 rounded-xl border border-[var(--pine)]/30 bg-[var(--pine)]/5 px-3 py-1.5 text-xs font-semibold text-[var(--pine)] transition hover:bg-[var(--pine)]/10 hover:shadow-sm"
+                      className="flex-shrink-0 rounded-lg border border-[var(--pine)]/30 bg-[var(--pine)]/5 px-2 py-1 text-[11px] font-semibold text-[var(--pine)] transition hover:bg-[var(--pine)]/10 hover:shadow-sm sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs"
                     >
                       Challenge
                     </button>
