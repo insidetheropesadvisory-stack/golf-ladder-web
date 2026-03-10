@@ -158,7 +158,11 @@ export default function ClubDetailPage() {
 
   const teeNames = useMemo(() => {
     if (!courseData?.tees) return [];
-    return Object.keys(courseData.tees);
+    return Object.keys(courseData.tees).sort((a, b) => {
+      const ra = courseData.tees![a]?.course_rating ?? 0;
+      const rb = courseData.tees![b]?.course_rating ?? 0;
+      return rb - ra;
+    });
   }, [courseData]);
 
   if (loading) {

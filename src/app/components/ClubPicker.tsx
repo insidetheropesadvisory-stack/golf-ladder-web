@@ -368,7 +368,7 @@ export function ClubPicker({
               slope: t.slope ?? undefined,
               rating: t.course_rating ?? t.courseRating ?? undefined,
               yards: t.total_yards ?? t.totalYards ?? undefined,
-            }));
+            })).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
             onTeesChange(tees);
             return;
           }

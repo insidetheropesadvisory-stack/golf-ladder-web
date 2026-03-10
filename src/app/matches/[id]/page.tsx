@@ -460,7 +460,11 @@ export default function MatchScoringPage() {
 
   const teeNames = useMemo(() => {
     if (!courseData?.tees) return [];
-    return Object.keys(courseData.tees);
+    return Object.keys(courseData.tees).sort((a, b) => {
+      const ra = courseData.tees![a]?.course_rating ?? (courseData.tees![a] as any)?.courseRating ?? 0;
+      const rb = courseData.tees![b]?.course_rating ?? (courseData.tees![b] as any)?.courseRating ?? 0;
+      return rb - ra;
+    });
   }, [courseData]);
 
   // Handicap stroke distribution for match play
