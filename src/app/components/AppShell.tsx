@@ -11,6 +11,7 @@ type NavItem = { label: string; href: string; icon: string };
 const NAV: NavItem[] = [
   { label: "Home", href: "/", icon: "home" },
   { label: "Matches", href: "/matches", icon: "matches" },
+  { label: "Tournaments", href: "/tournaments", icon: "tournaments" },
   { label: "Ladder", href: "/ladder", icon: "ladder" },
   { label: "Memberships", href: "/clubs", icon: "clubs" },
   { label: "Profile", href: "/profile", icon: "profile" },
@@ -20,6 +21,7 @@ function titleFromPath(pathname: string) {
   const hit = NAV.find((n) => n.href === pathname);
   if (hit) return hit.label;
   if (pathname.startsWith("/matches")) return "Matches";
+  if (pathname.startsWith("/tournaments")) return "Tournaments";
   if (pathname.startsWith("/ladder")) return "Ladder";
   if (pathname.startsWith("/clubs")) return "Memberships";
   if (pathname.startsWith("/profile")) return "Profile";
@@ -53,6 +55,13 @@ function NavIcon({ name, size = 18 }: { name: string; size?: number }) {
           <path d="M12 20V10" />
           <path d="M18 20V4" />
           <path d="M6 20v-4" />
+        </svg>
+      );
+    case "tournaments":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="8" r="6" />
+          <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
         </svg>
       );
     case "clubs":
@@ -113,7 +122,7 @@ export function AppShell({
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth", "/onboarding", "/invite"];
+  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth", "/onboarding", "/invite", "/tournaments/invite"];
   const isAuthRoute = authRoutes.some(
     (r) => pathname === r || pathname.startsWith(r + "/")
   );
