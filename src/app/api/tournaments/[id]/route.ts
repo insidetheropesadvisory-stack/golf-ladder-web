@@ -91,16 +91,19 @@ export async function GET(
       .map((p: any) => p.user_id);
 
     // Map each player's score per period (only 1 allowed)
-    const periodScores: Record<string, Record<number, { differential: number; gross_score: number; course_name: string }>> = {};
+    const periodScores: Record<string, Record<number, { round_id: string; differential: number; gross_score: number; course_name: string }>> = {};
     for (const uid of acceptedUsers) {
       periodScores[uid] = {};
     }
 
     for (const r of (rounds ?? []) as any[]) {
       if (!periodScores[r.user_id]) continue;
+      // Only count completed rounds in standings
+      if (r.completed === false) continue;
       // Only 1 score per period — take the first (enforced by API)
       if (!periodScores[r.user_id][r.period_number]) {
         periodScores[r.user_id][r.period_number] = {
+          round_id: r.id,
           differential: Number(r.differential),
           gross_score: r.gross_score,
           course_name: r.course_name,
@@ -133,9 +136,9 @@ export async function GET(
     });
 
     // Period leaderboards
-    const periodLeaderboards: Record<number, { user_id: string; differential: number; gross_score: number; course_name: string }[]> = {};
+    const periodLeaderboards: Record<number, { user_id: string; round_id: string; differential: number; gross_score: number; course_name: string }[]> = {};
     for (let p = 1; p <= tournament.period_count; p++) {
-      const entries: { user_id: string; differential: number; gross_score: number; course_name: string }[] = [];
+      const entries: { user_id: string; round_id: string; differential: number; gross_score: number; course_name: string }[] = [];
       for (const uid of acceptedUsers) {
         const score = periodScores[uid]?.[p];
         if (score) entries.push({ user_id: uid, ...score });

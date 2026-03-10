@@ -29,7 +29,7 @@ export default function NewMatchPage() {
   const [roundDate, setRoundDate] = useState("");
   const [roundTime, setRoundTime] = useState("");
 
-  const [courseApiId, setCourseApiId] = useState<number | null>(null);
+  const [courseApiId, setCourseApiId] = useState<string | null>(null);
   const [courseTees, setCourseTees] = useState<ApiTeeInfo[]>([]);
   const [selectedTee, setSelectedTee] = useState<string | null>(null);
   const [guestFee, setGuestFee] = useState<number | null>(null);

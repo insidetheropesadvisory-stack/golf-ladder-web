@@ -117,7 +117,7 @@ export async function POST(request: Request) {
           period_count: periodCount,
           start_date: startDate,
           end_date: endDate,
-          status: "active",
+          status: "draft",
         })
         .select("*")
         .single();
@@ -194,6 +194,44 @@ export async function POST(request: Request) {
       if (invErr) return NextResponse.json({ error: invErr.message }, { status: 500 });
 
       return NextResponse.json({ ok: true, invited: userIds.length });
+    }
+
+    // ---- START (move from draft to active — creator only) ----
+    if (action === "start") {
+      const tournamentId = String(body.tournament_id ?? "").trim();
+      if (!tournamentId) return NextResponse.json({ error: "Missing tournament_id" }, { status: 400 });
+
+      const { data: t } = await admin
+        .from("tournaments")
+        .select("creator_id, status")
+        .eq("id", tournamentId)
+        .single();
+
+      if (!t || t.creator_id !== user.id) {
+        return NextResponse.json({ error: "Only the creator can start the tournament" }, { status: 403 });
+      }
+
+      if (t.status !== "draft") {
+        return NextResponse.json({ error: "Tournament has already been started" }, { status: 400 });
+      }
+
+      // Must have at least 2 accepted participants
+      const { count } = await admin
+        .from("tournament_participants")
+        .select("id", { count: "exact", head: true })
+        .eq("tournament_id", tournamentId)
+        .eq("status", "accepted");
+
+      if ((count ?? 0) < 2) {
+        return NextResponse.json({ error: "Need at least 2 players to start the tournament" }, { status: 400 });
+      }
+
+      await admin
+        .from("tournaments")
+        .update({ status: "active", updated_at: new Date().toISOString() })
+        .eq("id", tournamentId);
+
+      return NextResponse.json({ ok: true });
     }
 
     // ---- COMPLETE ----

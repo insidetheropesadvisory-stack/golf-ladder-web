@@ -26,6 +26,11 @@ function computePeriodNumber(
 
 const SUBMISSION_WINDOW_MS = 12 * 60 * 60 * 1000; // 12 hours
 
+/**
+ * POST /api/tournaments/[id]/rounds
+ * Creates a draft round (hole-by-hole scoring) or a completed round (total score).
+ * If `hole_by_hole` is true, creates a draft with no gross_score yet.
+ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -64,6 +69,9 @@ export async function POST(
       return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
     }
 
+    if (tournament.status === "draft") {
+      return NextResponse.json({ error: "Tournament hasn't started yet. The creator needs to start it first." }, { status: 400 });
+    }
     if (tournament.status === "completed") {
       return NextResponse.json({ error: "Tournament is completed" }, { status: 400 });
     }
@@ -71,16 +79,13 @@ export async function POST(
     // Parse input
     const courseName = String(body.course_name ?? "").trim();
     const teeName = String(body.tee_name ?? "").trim() || null;
-    const grossScore = Number(body.gross_score);
     const courseRating = Number(body.course_rating);
     const slopeRating = Number(body.slope_rating);
     const par = body.par != null ? Number(body.par) : null;
     const playedAt = String(body.played_at ?? "").trim();
+    const holeByHole = body.hole_by_hole === true;
 
     if (!courseName) return NextResponse.json({ error: "Course name is required" }, { status: 400 });
-    if (!grossScore || grossScore < 40 || grossScore > 200) {
-      return NextResponse.json({ error: "Gross score must be between 40 and 200" }, { status: 400 });
-    }
     if (!courseRating || courseRating < 50 || courseRating > 90) {
       return NextResponse.json({ error: "Course rating must be between 50 and 90" }, { status: 400 });
     }
@@ -88,6 +93,14 @@ export async function POST(
       return NextResponse.json({ error: "Slope rating must be between 55 and 155" }, { status: 400 });
     }
     if (!playedAt) return NextResponse.json({ error: "Date played is required" }, { status: 400 });
+
+    // For non-hole-by-hole, require gross_score
+    if (!holeByHole) {
+      const grossScore = Number(body.gross_score);
+      if (!grossScore || grossScore < 40 || grossScore > 200) {
+        return NextResponse.json({ error: "Gross score must be between 40 and 200" }, { status: 400 });
+      }
+    }
 
     // Validate date is within tournament range
     if (playedAt < tournament.start_date || playedAt > tournament.end_date) {
@@ -98,7 +111,7 @@ export async function POST(
     }
 
     // Enforce 12-hour submission window
-    const playedDate = new Date(playedAt + "T23:59:59"); // end of day played
+    const playedDate = new Date(playedAt + "T23:59:59");
     const deadline = new Date(playedDate.getTime() + SUBMISSION_WINDOW_MS);
     const now = new Date();
     if (now > deadline) {
@@ -119,7 +132,7 @@ export async function POST(
       return NextResponse.json({ error: "Round falls outside tournament periods" }, { status: 400 });
     }
 
-    // Enforce 1 score per period — check for existing submission
+    // Enforce 1 score per period
     const { data: existing } = await admin
       .from("tournament_rounds")
       .select("id")
@@ -131,35 +144,63 @@ export async function POST(
     if (existing) {
       const unit = tournament.period_type === "weekly" ? "week" : "month";
       return NextResponse.json(
-        { error: `You already submitted a score for ${unit} ${periodNumber}. Only one score per ${unit} is allowed.` },
+        { error: `You already have a round for ${unit} ${periodNumber}. Only one score per ${unit} is allowed.` },
         { status: 400 }
       );
     }
 
-    // Compute differential: (113 / slope) * (gross - rating)
-    const differential = Math.round(((113 / slopeRating) * (grossScore - courseRating)) * 10) / 10;
+    if (holeByHole) {
+      // Create draft round — no gross_score or differential yet
+      const { data: round, error: insErr } = await admin
+        .from("tournament_rounds")
+        .insert({
+          tournament_id: tournamentId,
+          user_id: user.id,
+          period_number: periodNumber,
+          course_name: courseName,
+          tee_name: teeName,
+          gross_score: null,
+          course_rating: courseRating,
+          slope_rating: slopeRating,
+          par,
+          differential: null,
+          played_at: playedAt,
+          completed: false,
+        })
+        .select("*")
+        .single();
 
-    const { data: round, error: insErr } = await admin
-      .from("tournament_rounds")
-      .insert({
-        tournament_id: tournamentId,
-        user_id: user.id,
-        period_number: periodNumber,
-        course_name: courseName,
-        tee_name: teeName,
-        gross_score: grossScore,
-        course_rating: courseRating,
-        slope_rating: slopeRating,
-        par,
-        differential,
-        played_at: playedAt,
-      })
-      .select("*")
-      .single();
+      if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
 
-    if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+      return NextResponse.json({ round, period_number: periodNumber });
+    } else {
+      // Legacy: total score submission
+      const grossScore = Number(body.gross_score);
+      const differential = Math.round(((113 / slopeRating) * (grossScore - courseRating)) * 10) / 10;
 
-    return NextResponse.json({ round, period_number: periodNumber, differential });
+      const { data: round, error: insErr } = await admin
+        .from("tournament_rounds")
+        .insert({
+          tournament_id: tournamentId,
+          user_id: user.id,
+          period_number: periodNumber,
+          course_name: courseName,
+          tee_name: teeName,
+          gross_score: grossScore,
+          course_rating: courseRating,
+          slope_rating: slopeRating,
+          par,
+          differential,
+          played_at: playedAt,
+          completed: true,
+        })
+        .select("*")
+        .single();
+
+      if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+
+      return NextResponse.json({ round, period_number: periodNumber, differential });
+    }
   } catch (e: any) {
     console.error("tournament round error:", e);
     return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
