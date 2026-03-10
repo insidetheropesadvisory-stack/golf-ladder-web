@@ -377,11 +377,9 @@ export default function NewMatchPage() {
                 })()}
               </div>
             )}
-            {guestFee != null && (
-              <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50/50 px-3 py-2 text-sm">
-                <span className="text-emerald-700 font-medium">Guest fee for opponent:</span>
-                <span className="font-semibold text-emerald-800">${guestFee}</span>
-                <span className="text-xs text-emerald-600/70">per round</span>
+            {guestFee != null && courseTees.length === 0 && (
+              <div className="mt-2 text-xs text-[var(--muted)]">
+                Guest fee of <span className="font-semibold">${guestFee}</span> will be shown to your opponent.
               </div>
             )}
           </div>

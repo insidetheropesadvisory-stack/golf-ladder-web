@@ -333,12 +333,31 @@ export function ClubPicker({
     setQuery(n);
     setOpen(false);
     onGuestFeeChange?.(guestFee ?? null);
-    onCourseApiIdChange?.(apiCourseId ?? null);
 
-    // Fetch tee data for API courses
-    if (apiCourseId && onTeesChange) {
+    let resolvedCourseId = apiCourseId ?? null;
+
+    // If no apiCourseId, try to find the course by name (e.g. "My clubs" picks)
+    if (!resolvedCourseId && onTeesChange) {
       try {
-        const res = await fetch(`/api/golf-courses?courseId=${apiCourseId}`);
+        const searchRes = await fetch(`/api/golf-courses?q=${encodeURIComponent(n)}&limit=3`);
+        if (searchRes.ok) {
+          const searchJson = await searchRes.json();
+          const results: any[] = searchJson.courses ?? [];
+          const nameNorm = n.toLowerCase();
+          const match = results.find((c: any) => (c.club_name ?? "").toLowerCase() === nameNorm) ?? results[0];
+          if (match?.courses?.[0]?.courseID) {
+            resolvedCourseId = match.courses[0].courseID;
+          }
+        }
+      } catch {}
+    }
+
+    onCourseApiIdChange?.(resolvedCourseId);
+
+    // Fetch tee data for the resolved course
+    if (resolvedCourseId && onTeesChange) {
+      try {
+        const res = await fetch(`/api/golf-courses?courseId=${resolvedCourseId}`);
         if (res.ok) {
           const json = await res.json();
           const course = json.course ?? json;
