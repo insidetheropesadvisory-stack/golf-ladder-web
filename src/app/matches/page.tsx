@@ -116,6 +116,10 @@ export default function MatchesPage() {
   const [myHoleCounts, setMyHoleCounts] = useState<Record<string, number>>({});
   const [clubMap, setClubMap] = useState<Record<string, string>>({});
   const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
+  const [hasMoreCompleted, setHasMoreCompleted] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const PAGE_SIZE = 20;
 
   const loadPage = useCallback(async (sessionUser: { id: string; email?: string | null }) => {
     try {
@@ -137,19 +141,37 @@ export default function MatchesPage() {
         }
       });
 
-      const { data: matchData, error: matchErr } = await supabase
+      // Load active/proposed/upcoming matches (all of them)
+      const { data: activeData, error: activeErr } = await supabase
         .from("matches")
         .select("*")
+        .eq("completed", false)
+        .neq("status", "completed")
         .order("created_at", { ascending: false });
 
-      if (matchErr) {
-        setStatus(matchErr.message);
+      if (activeErr) {
+        setStatus(activeErr.message);
         setLoading(false);
         return;
       }
 
-      const m = (matchData ?? []) as AnyRow[];
+      // Load completed matches with pagination
+      const { data: completedData, error: completedErr } = await supabase
+        .from("matches")
+        .select("*")
+        .or("completed.eq.true,status.eq.completed")
+        .order("created_at", { ascending: false })
+        .range(0, PAGE_SIZE - 1);
+
+      if (completedErr) {
+        setStatus(completedErr.message);
+        setLoading(false);
+        return;
+      }
+
+      const m = [...(activeData ?? []), ...(completedData ?? [])] as AnyRow[];
       setMatches(m);
+      setHasMoreCompleted((completedData ?? []).length >= PAGE_SIZE);
 
       const { data: clubData, error: clubErr } = await supabase
         .from("clubs")
@@ -283,6 +305,80 @@ export default function MatchesPage() {
       setDeleting(null);
       setStatus(e?.message || "Failed to delete match");
     }
+  }
+
+  async function loadMoreCompleted() {
+    if (!me || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const currentCompleted = matches.filter(
+        (m) => Boolean(m.completed) || m.status === "completed"
+      );
+      const offset = currentCompleted.length;
+
+      const { data, error } = await supabase
+        .from("matches")
+        .select("*")
+        .or("completed.eq.true,status.eq.completed")
+        .order("created_at", { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1);
+
+      if (error) {
+        setStatus(error.message);
+        setLoadingMore(false);
+        return;
+      }
+
+      const newRows = (data ?? []) as AnyRow[];
+      setMatches((prev) => [...prev, ...newRows]);
+      setHasMoreCompleted(newRows.length >= PAGE_SIZE);
+
+      // Fetch display names for new opponents
+      const newOppIds = new Set<string>();
+      for (const row of newRows) {
+        const oppId = me.id === row.creator_id ? row.opponent_id : row.creator_id;
+        if (oppId && !displayNames[oppId]) newOppIds.add(oppId);
+      }
+      if (newOppIds.size > 0) {
+        const { data: profData } = await supabase
+          .from("profiles")
+          .select("id, display_name")
+          .in("id", [...newOppIds]);
+        if (profData) {
+          setDisplayNames((prev) => {
+            const next = { ...prev };
+            for (const p of profData as any[]) {
+              if (p.display_name) next[p.id] = p.display_name;
+            }
+            return next;
+          });
+        }
+      }
+
+      // Fetch hole counts for new matches
+      const newIds = newRows.map((r) => r.id).filter(Boolean);
+      if (newIds.length > 0) {
+        const { data: holeData } = await supabase
+          .from("holes")
+          .select("match_id, hole_no, strokes, player_id")
+          .in("match_id", newIds)
+          .eq("player_id", me.id);
+        if (holeData) {
+          setMyHoleCounts((prev) => {
+            const next = { ...prev };
+            for (const r of holeData as AnyRow[]) {
+              if (r.match_id && typeof r.strokes === "number") {
+                next[r.match_id] = (next[r.match_id] ?? 0) + 1;
+              }
+            }
+            return next;
+          });
+        }
+      }
+    } catch (e: any) {
+      setStatus(e?.message || "Failed to load more");
+    }
+    setLoadingMore(false);
   }
 
   function opponentName(m: AnyRow) {
@@ -574,7 +670,7 @@ export default function MatchesPage() {
             <Badge tone="done">{completed.length}</Badge>
           </div>
           <div className="mt-3 grid gap-2 sm:mt-4 sm:gap-3">
-            {(filterStatus === "completed" ? completed : completed.slice(0, 6)).map((m) => (
+            {completed.map((m) => (
               <Link
                 key={m.id}
                 href={`/matches/${m.id}`}
@@ -605,6 +701,16 @@ export default function MatchesPage() {
               </Link>
             ))}
           </div>
+          {hasMoreCompleted && (
+            <button
+              type="button"
+              onClick={loadMoreCompleted}
+              disabled={loadingMore}
+              className="mt-3 w-full rounded-xl border border-[var(--border)] bg-white/60 py-2.5 text-sm font-medium text-[var(--muted)] transition hover:bg-white hover:text-[var(--ink)] hover:border-[var(--pine)]/20 disabled:opacity-50"
+            >
+              {loadingMore ? "Loading..." : "Load more matches"}
+            </button>
+          )}
         </div>
       )}
 
