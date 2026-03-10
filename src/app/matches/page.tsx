@@ -518,6 +518,12 @@ export default function MatchesPage() {
       </div>
 
       {/* Active matches */}
+      {showActive && active.length === 0 && filterStatus === "active" && (
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
+          <div className="text-sm font-medium text-[var(--ink)]">No active matches right now</div>
+          <p className="mt-1 text-xs text-[var(--muted)]">Matches appear here once scoring begins.</p>
+        </div>
+      )}
       {showActive && active.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">
@@ -566,6 +572,12 @@ export default function MatchesPage() {
       )}
 
       {/* Proposed */}
+      {showProposedSection && proposed.length === 0 && filterStatus === "proposed" && (
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
+          <div className="text-sm font-medium text-[var(--ink)]">No pending proposals</div>
+          <p className="mt-1 text-xs text-[var(--muted)]">Challenges you send or receive will show up here.</p>
+        </div>
+      )}
       {showProposedSection && proposed.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">
@@ -619,6 +631,12 @@ export default function MatchesPage() {
       )}
 
       {/* Upcoming matches */}
+      {showUpcoming && upcoming.length === 0 && filterStatus === "upcoming" && (
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
+          <div className="text-sm font-medium text-[var(--ink)]">No upcoming matches scheduled</div>
+          <p className="mt-1 text-xs text-[var(--muted)]">Accepted matches with a future tee time appear here.</p>
+        </div>
+      )}
       {showUpcoming && upcoming.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">
@@ -663,6 +681,12 @@ export default function MatchesPage() {
       )}
 
       {/* Completed */}
+      {showCompleted && completed.length === 0 && filterStatus === "completed" && (
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
+          <div className="text-sm font-medium text-[var(--ink)]">No completed matches yet</div>
+          <p className="mt-1 text-xs text-[var(--muted)]">Finished matches and scorecards will appear here.</p>
+        </div>
+      )}
       {showCompleted && completed.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">
