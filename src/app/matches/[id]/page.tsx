@@ -435,6 +435,45 @@ export default function MatchScoringPage() {
   const isCompleted = match?.completed === true || match?.status === "completed";
   const isActive = match?.terms_status === "accepted" || match?.status === "active";
 
+  // Count opponent scored holes
+  const oppScoredCount = useMemo(() => {
+    if (!oppId) return 0;
+    const scored = new Set<number>();
+    for (const r of holes) {
+      if (r.player_id === oppId && typeof r.strokes === "number") scored.add(r.hole_no);
+    }
+    return scored.size;
+  }, [holes, oppId]);
+
+  const allScoredByOpp = oppScoredCount >= TOTAL_HOLES;
+
+  // Match play: clinched when lead > remaining holes
+  const matchPlayClinched = useMemo(() => {
+    if (!isMatchPlay || !matchPlayData) return false;
+    const { p1Holes, p2Holes, halved } = matchPlayData;
+    const holesPlayed = p1Holes + p2Holes + halved;
+    const remaining = TOTAL_HOLES - holesPlayed;
+    const lead = Math.abs(p1Holes - p2Holes);
+    return lead > remaining;
+  }, [isMatchPlay, matchPlayData]);
+
+  // Determine if match can be completed
+  const canComplete = useMemo(() => {
+    if (!isActive || isCompleted) return false;
+    if (isMatchPlay) {
+      // Match play: both players must have scored the same holes they played,
+      // AND either all 18 played or the match is clinched
+      const holesPlayed = matchPlayData
+        ? matchPlayData.p1Holes + matchPlayData.p2Holes + matchPlayData.halved
+        : 0;
+      const bothScored = allScoredByMe && allScoredByOpp;
+      const bothScoredThrough = myScoresByHole.size >= holesPlayed && oppScoredCount >= holesPlayed;
+      return (bothScored || (matchPlayClinched && bothScoredThrough));
+    }
+    // Stroke play: both players must have scored all 18 holes
+    return allScoredByMe && allScoredByOpp;
+  }, [isActive, isCompleted, isMatchPlay, allScoredByMe, allScoredByOpp, matchPlayClinched, matchPlayData, myScoresByHole.size, oppScoredCount]);
+
   async function completeMatch() {
     if (!matchId || !meId) return;
     if (!confirm("Mark this match as completed? Scores will be locked.")) return;
@@ -789,15 +828,22 @@ export default function MatchScoringPage() {
         </div>
       )}
 
-      {/* Complete match button - show when all 18 holes scored and match is active */}
-      {!isCompleted && allScoredByMe && isActive && (
+      {/* Complete match button */}
+      {!isCompleted && isActive && canComplete && (
         <div className="rounded-2xl border-2 border-[var(--pine)]/30 bg-gradient-to-br from-[var(--pine)]/5 to-white p-5 text-center">
-          <div className="text-sm font-semibold text-[var(--ink)]">All 18 holes scored!</div>
+          <div className="text-sm font-semibold text-[var(--ink)]">
+            {isMatchPlay && matchPlayClinched ? "Match clinched!" : "All holes scored!"}
+          </div>
           <div className="mt-1 text-xs text-[var(--muted)]">
             {isMatchPlay && matchPlayData ? (
               <>Holes won: {matchPlayData.p1Holes} - {matchPlayData.p2Holes} ({matchPlayData.halved} halved){useHcp ? " (net)" : ""}</>
             ) : (
-              <>Your {useHcp ? "net" : ""} total: {useHcp ? myNetTotal : myTotal} strokes. Ready to finalize?</>
+              <>
+                Your {useHcp ? "net " : ""}total: {useHcp ? myNetTotal : myTotal}
+                {" "}&middot;{" "}
+                Opponent: {useHcp ? oppNetTotal : oppTotal}
+                {" "}&middot; Ready to finalize?
+              </>
             )}
           </div>
           <button
@@ -808,6 +854,16 @@ export default function MatchScoringPage() {
           >
             {completing ? "Completing..." : "Complete Match"}
           </button>
+        </div>
+      )}
+
+      {/* Waiting for opponent scores */}
+      {!isCompleted && isActive && allScoredByMe && !canComplete && (
+        <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 px-5 py-4 text-center">
+          <div className="text-sm font-semibold text-amber-800">Waiting for opponent</div>
+          <div className="mt-1 text-xs text-amber-700/70">
+            You've scored all your holes. Your opponent has scored {oppScoredCount} of {TOTAL_HOLES}.
+          </div>
         </div>
       )}
 
