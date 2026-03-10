@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase/supabase";
-import { CT_CLUBS } from "@/lib/data/ctClubs";
+
 import { cx, initials } from "@/lib/utils";
 
 type Club = {
@@ -262,29 +262,9 @@ export function ClubPicker({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // Merge CT clubs: API versions overwrite static CT_CLUBS by name, static fallbacks kept
+  // CT clubs from API only (static list removed)
   const mergedCtClubs: Club[] = useMemo(() => {
-    const apiByName = new Map<string, Club>();
-    for (const c of ctApiClubs) {
-      apiByName.set(c.name.trim().toLowerCase(), c);
-    }
-
-    const merged: Club[] = [...ctApiClubs];
-    // Add static CT_CLUBS entries that don't have an API match
-    for (const name of CT_CLUBS) {
-      const key = name.trim().toLowerCase();
-      if (!apiByName.has(key)) {
-        merged.push({
-          id: `ct::${name}`,
-          name,
-          city: null,
-          state: "CT",
-          logo_url: null,
-          source: "ct",
-        });
-      }
-    }
-    return dedupeByName(merged);
+    return dedupeByName(ctApiClubs);
   }, [ctApiClubs]);
 
   const allForSearch: Club[] = useMemo(() => {

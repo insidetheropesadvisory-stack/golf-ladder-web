@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
-import { CT_CLUBS } from "@/lib/data/ctClubs";
+
 import { initials } from "@/lib/utils";
 
 type ApiCourse = {
@@ -174,14 +174,7 @@ export default function ClubsPage() {
     setMyClubFees((prev) => ({ ...prev, [clubId]: fee }));
   }
 
-  const ctSuggestions = useMemo(() => {
-    const q = addQuery.trim().toLowerCase();
-    if (q.length < 2) return [];
-    const myNames = new Set(myClubs.map((c) => c.name.toLowerCase()));
-    return CT_CLUBS.filter(
-      (name) => name.toLowerCase().includes(q) && !myNames.has(name.toLowerCase())
-    ).slice(0, 8);
-  }, [addQuery, myClubs]);
+  const ctSuggestions: string[] = [];
 
   function searchApi(q: string) {
     if (searchTimer.current) clearTimeout(searchTimer.current);

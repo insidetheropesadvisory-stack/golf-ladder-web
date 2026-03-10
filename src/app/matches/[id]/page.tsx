@@ -1942,70 +1942,203 @@ export default function MatchScoringPage() {
         </div>
       )}
 
-      {/* Hole grid - hidden when scoring is locked or expired */}
-      {!scoringLocked && !isExpired && <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="text-sm font-bold tracking-tight">Your Holes</div>
-          <div className="text-xs text-[var(--muted)]">{myScoresByHole.size}/{TOTAL_HOLES} complete</div>
-        </div>
-        <div className="grid grid-cols-6 gap-2 sm:grid-cols-9 sm:gap-2.5">
-          {Array.from({ length: TOTAL_HOLES }, (_, i) => i + 1).map((h) => {
-            const v = myScoresByHole.get(h);
-            const isCurrent = !isCompleted && h === holeNo;
-            const isScored = v != null;
-            return (
-              <button
-                key={h}
-                type="button"
-                onClick={() => {
-                  if (isCompleted) return;
-                  setHoleNo(h);
-                  const existing = holes.find((r) => r.player_id === meId && r.hole_no === h);
-                  setStrokesInput(existing?.strokes != null ? String(existing.strokes) : "");
-                  setStatus(null);
-                }}
-                disabled={isCompleted}
-                className={cx(
-                  "rounded-xl p-2 text-center transition sm:p-2.5",
-                  isCurrent && "ring-2 ring-[var(--pine)] bg-[var(--pine)]/10 border-[var(--pine)]/30 shadow-sm",
-                  !isCurrent && isScored && "border border-emerald-200/60 bg-emerald-50/50",
-                  !isCurrent && !isScored && "border border-[var(--border)] bg-white/60",
-                  !isCompleted && !isCurrent && isScored && "hover:bg-emerald-50",
-                  !isCompleted && !isCurrent && !isScored && "hover:bg-white",
-                  isCurrent && "border border-[var(--pine)]/30",
-                  !isCompleted && !isCurrent && "cursor-pointer",
-                  isCompleted && "cursor-default"
-                )}
-              >
-                <div className={cx(
-                  "text-[10px] font-medium sm:text-xs",
-                  isCurrent ? "text-[var(--pine)]" : "text-[var(--muted)]"
-                )}>
-                  {h}
-                </div>
-                {activeTee && getHolePar(activeTee, h) != null && (
-                  <div className="text-[9px] text-[var(--muted)]/60">P{getHolePar(activeTee, h)}</div>
-                )}
-                {strokeHolesMap.has(h) && (
-                  <div className="flex justify-center gap-0.5">
-                    {Array.from({ length: strokeHolesMap.get(h) ?? 0 }).map((_, i) => (
-                      <span key={i} className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+      {/* Live scorecard - classic golf scorecard layout */}
+      {!scoringLocked && !isExpired && (() => {
+        const front = Array.from({ length: 9 }, (_, i) => i + 1);
+        const back = Array.from({ length: 9 }, (_, i) => i + 10);
+
+        function sumMyRange(holeNos: number[]) {
+          let t = 0;
+          for (const h of holeNos) t += myScoresByHole.get(h) ?? 0;
+          return myScoresByHole.size > 0 ? t : 0;
+        }
+        function parRange(holeNos: number[]) {
+          if (!activeTee) return null;
+          let t = 0;
+          for (const h of holeNos) {
+            const p = getHolePar(activeTee, h);
+            if (p == null) return null;
+            t += p;
+          }
+          return t;
+        }
+
+        function scoreDiffClass(strokes: number | undefined, par: number | null) {
+          if (strokes == null || par == null) return "";
+          const d = strokes - par;
+          if (d <= -2) return "bg-amber-400 text-white font-bold";
+          if (d === -1) return "bg-red-500 text-white font-bold";
+          if (d === 0) return "";
+          if (d === 1) return "bg-[var(--pine)]/15 text-[var(--pine)]";
+          return "bg-[var(--pine)]/30 text-[var(--pine)]";
+        }
+
+        const frontPar = parRange(front);
+        const backPar = parRange(back);
+
+        return (
+          <div className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden">
+            <div className="border-b border-[var(--border)] bg-[var(--paper-2)] px-5 py-3 flex items-center justify-between">
+              <div className="text-sm font-bold tracking-tight">Scorecard</div>
+              <div className="text-xs text-[var(--muted)]">{myScoresByHole.size}/{TOTAL_HOLES} scored</div>
+            </div>
+
+            {/* Front 9 */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs tabular-nums">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--paper-2)]/50">
+                    <th className="sticky left-0 z-10 bg-[var(--paper-2)] px-3 py-1.5 text-left font-semibold text-[var(--muted)] min-w-[56px]">Hole</th>
+                    {front.map(h => (
+                      <th key={h} className={cx("px-2 py-1.5 text-center font-semibold min-w-[30px] cursor-pointer transition", h === holeNo ? "text-[var(--pine)] bg-[var(--pine)]/10" : "text-[var(--muted)]")} onClick={() => !isCompleted && navigateToHole(h)}>{h}</th>
                     ))}
-                  </div>
+                    <th className="px-2 py-1.5 text-center font-bold text-[var(--ink)] min-w-[36px] bg-[var(--paper-2)]">Out</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeTee && getHoleYards(activeTee, 1) != null && (
+                    <tr className="border-b border-[var(--border)] bg-slate-50/30">
+                      <td className="sticky left-0 z-10 bg-slate-50/50 px-3 py-1 font-semibold text-[var(--muted)] text-[10px]">Yards</td>
+                      {front.map(h => (
+                        <td key={h} className={cx("px-2 py-1 text-center text-[10px]", h === holeNo ? "bg-[var(--pine)]/5 font-semibold text-[var(--ink)]" : "text-[var(--muted)]")}>{getHoleYards(activeTee, h) ?? ""}</td>
+                      ))}
+                      <td className="px-2 py-1 text-center text-[10px] font-bold text-[var(--ink)] bg-slate-100/30"></td>
+                    </tr>
+                  )}
+                  {activeTee && (
+                    <tr className="border-b border-[var(--border)] bg-slate-50/50">
+                      <td className="sticky left-0 z-10 bg-slate-50 px-3 py-1 font-semibold text-[var(--muted)] text-[10px]">Par</td>
+                      {front.map(h => (
+                        <td key={h} className={cx("px-2 py-1 text-center text-[10px]", h === holeNo ? "bg-[var(--pine)]/5 font-semibold text-[var(--ink)]" : "text-[var(--muted)]")}>{getHolePar(activeTee, h) ?? ""}</td>
+                      ))}
+                      <td className="px-2 py-1 text-center text-[10px] font-bold text-[var(--ink)] bg-slate-100/50">{frontPar ?? ""}</td>
+                    </tr>
+                  )}
+                  {activeTee && getHoleHandicap(activeTee, 1) != null && (
+                    <tr className="border-b border-[var(--border)] bg-slate-50/30">
+                      <td className="sticky left-0 z-10 bg-slate-50/50 px-3 py-1 font-semibold text-[var(--muted)] text-[10px]">HDCP</td>
+                      {front.map(h => (
+                        <td key={h} className={cx("px-2 py-1 text-center text-[10px]", strokeHolesMap.has(h) ? "font-bold text-amber-700" : h === holeNo ? "bg-[var(--pine)]/5 text-[var(--ink)]" : "text-[var(--muted)]")}>
+                          {getHoleHandicap(activeTee, h) ?? ""}
+                          {strokeHolesMap.has(h) && <span className="ml-0.5 inline-block h-1 w-1 rounded-full bg-amber-500 align-middle" />}
+                        </td>
+                      ))}
+                      <td className="px-2 py-1 bg-slate-100/30"></td>
+                    </tr>
+                  )}
+                  <tr className="border-b border-[var(--border)]">
+                    <td className="sticky left-0 z-10 bg-white px-3 py-1.5 font-semibold text-emerald-700 text-[10px]">Score</td>
+                    {front.map(h => {
+                      const s = myScoresByHole.get(h);
+                      const par = activeTee ? getHolePar(activeTee, h) : null;
+                      return (
+                        <td
+                          key={h}
+                          className={cx(
+                            "px-2 py-1.5 text-center font-semibold cursor-pointer transition",
+                            h === holeNo && "ring-2 ring-inset ring-[var(--pine)]",
+                            s != null ? scoreDiffClass(s, par) : "text-[var(--muted)]"
+                          )}
+                          onClick={() => !isCompleted && navigateToHole(h)}
+                        >
+                          {s ?? "--"}
+                        </td>
+                      );
+                    })}
+                    <td className="px-2 py-1.5 text-center font-bold text-emerald-800 bg-emerald-50/50">{sumMyRange(front) || ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Back 9 */}
+            <div className="overflow-x-auto border-t border-[var(--border)]">
+              <table className="w-full text-xs tabular-nums">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--paper-2)]/50">
+                    <th className="sticky left-0 z-10 bg-[var(--paper-2)] px-3 py-1.5 text-left font-semibold text-[var(--muted)] min-w-[56px]">Hole</th>
+                    {back.map(h => (
+                      <th key={h} className={cx("px-2 py-1.5 text-center font-semibold min-w-[30px] cursor-pointer transition", h === holeNo ? "text-[var(--pine)] bg-[var(--pine)]/10" : "text-[var(--muted)]")} onClick={() => !isCompleted && navigateToHole(h)}>{h}</th>
+                    ))}
+                    <th className="px-2 py-1.5 text-center font-bold text-[var(--ink)] min-w-[36px] bg-[var(--paper-2)]">In</th>
+                    <th className="px-2 py-1.5 text-center font-bold text-[var(--ink)] min-w-[36px] bg-[var(--paper-2)]">Tot</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeTee && getHoleYards(activeTee, 10) != null && (
+                    <tr className="border-b border-[var(--border)] bg-slate-50/30">
+                      <td className="sticky left-0 z-10 bg-slate-50/50 px-3 py-1 font-semibold text-[var(--muted)] text-[10px]">Yards</td>
+                      {back.map(h => (
+                        <td key={h} className={cx("px-2 py-1 text-center text-[10px]", h === holeNo ? "bg-[var(--pine)]/5 font-semibold text-[var(--ink)]" : "text-[var(--muted)]")}>{getHoleYards(activeTee, h) ?? ""}</td>
+                      ))}
+                      <td className="px-2 py-1 bg-slate-100/30"></td>
+                      <td className="px-2 py-1 text-center text-[10px] font-bold text-[var(--ink)] bg-slate-100/30">{getTeeTotalYards(activeTee) ?? ""}</td>
+                    </tr>
+                  )}
+                  {activeTee && (
+                    <tr className="border-b border-[var(--border)] bg-slate-50/50">
+                      <td className="sticky left-0 z-10 bg-slate-50 px-3 py-1 font-semibold text-[var(--muted)] text-[10px]">Par</td>
+                      {back.map(h => (
+                        <td key={h} className={cx("px-2 py-1 text-center text-[10px]", h === holeNo ? "bg-[var(--pine)]/5 font-semibold text-[var(--ink)]" : "text-[var(--muted)]")}>{getHolePar(activeTee, h) ?? ""}</td>
+                      ))}
+                      <td className="px-2 py-1 text-center text-[10px] font-bold text-[var(--ink)] bg-slate-100/50">{backPar ?? ""}</td>
+                      <td className="px-2 py-1 text-center text-[10px] font-bold text-[var(--ink)] bg-slate-100/50">{frontPar != null && backPar != null ? frontPar + backPar : ""}</td>
+                    </tr>
+                  )}
+                  {activeTee && getHoleHandicap(activeTee, 10) != null && (
+                    <tr className="border-b border-[var(--border)] bg-slate-50/30">
+                      <td className="sticky left-0 z-10 bg-slate-50/50 px-3 py-1 font-semibold text-[var(--muted)] text-[10px]">HDCP</td>
+                      {back.map(h => (
+                        <td key={h} className={cx("px-2 py-1 text-center text-[10px]", strokeHolesMap.has(h) ? "font-bold text-amber-700" : h === holeNo ? "bg-[var(--pine)]/5 text-[var(--ink)]" : "text-[var(--muted)]")}>
+                          {getHoleHandicap(activeTee, h) ?? ""}
+                          {strokeHolesMap.has(h) && <span className="ml-0.5 inline-block h-1 w-1 rounded-full bg-amber-500 align-middle" />}
+                        </td>
+                      ))}
+                      <td className="px-2 py-1 bg-slate-100/30"></td>
+                      <td className="px-2 py-1 bg-slate-100/30"></td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td className="sticky left-0 z-10 bg-white px-3 py-1.5 font-semibold text-emerald-700 text-[10px]">Score</td>
+                    {back.map(h => {
+                      const s = myScoresByHole.get(h);
+                      const par = activeTee ? getHolePar(activeTee, h) : null;
+                      return (
+                        <td
+                          key={h}
+                          className={cx(
+                            "px-2 py-1.5 text-center font-semibold cursor-pointer transition",
+                            h === holeNo && "ring-2 ring-inset ring-[var(--pine)]",
+                            s != null ? scoreDiffClass(s, par) : "text-[var(--muted)]"
+                          )}
+                          onClick={() => !isCompleted && navigateToHole(h)}
+                        >
+                          {s ?? "--"}
+                        </td>
+                      );
+                    })}
+                    <td className="px-2 py-1.5 text-center font-bold text-emerald-800 bg-emerald-50/50">{sumMyRange(back) || ""}</td>
+                    <td className="px-2 py-1.5 text-center font-bold text-emerald-800 bg-emerald-50/50">{(sumMyRange(front) + sumMyRange(back)) || ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Legend */}
+            {activeTee && (
+              <div className="border-t border-[var(--border)] px-4 py-2 flex flex-wrap gap-3 text-[10px] text-[var(--muted)]">
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400" /> Eagle+</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500" /> Birdie</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-[var(--pine)]/15" /> Bogey</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-[var(--pine)]/30" /> Dbl+</span>
+                {strokeHolesMap.size > 0 && (
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" /> Stroke</span>
                 )}
-                <div className={cx(
-                  "text-sm font-bold sm:text-base",
-                  isCurrent && "text-[var(--pine)]",
-                  !isCurrent && isScored && "text-emerald-700",
-                  !isCurrent && !isScored && "text-[var(--muted)]"
-                )}>
-                  {v ?? "--"}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {status && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
