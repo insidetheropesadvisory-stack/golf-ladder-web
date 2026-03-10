@@ -387,32 +387,29 @@ export default function MatchesPage() {
                 <Link
                   key={m.id}
                   href={`/matches/${m.id}`}
-                  className="group block rounded-2xl border border-[var(--border)] bg-white/70 p-3 transition hover:border-amber-200 hover:shadow-md sm:p-4"
+                  className="group block rounded-xl border border-[var(--border)] bg-white/70 p-3 transition hover:border-amber-200 hover:shadow-md sm:rounded-2xl sm:p-4"
                 >
-                  <div className="flex items-start justify-between gap-2 sm:items-center">
+                  <div className="flex items-center gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold tracking-tight">
+                      <div className="truncate text-[13px] font-semibold tracking-tight sm:text-sm">
                         <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                       </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
-                        <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
-                        <span className="text-[var(--border)]">/</span>
-                        <span>{formatLabel(m.format)}</span>
+                      <div className="mt-0.5 truncate text-[11px] text-[var(--muted)] sm:text-xs">
+                        vs {emailToName(String(m.opponent_email ?? ""))} &middot; {formatLabel(m.format)}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                      <Badge tone="proposed">Proposed</Badge>
-                      {isCreator && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteMatch(m.id); }}
-                          disabled={deleting === m.id}
-                          className="rounded-lg border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50 sm:px-2.5 sm:py-1 sm:text-xs"
-                        >
-                          {deleting === m.id ? "..." : "Delete"}
-                        </button>
-                      )}
-                    </div>
+                    {isCreator ? (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteMatch(m.id); }}
+                        disabled={deleting === m.id}
+                        className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50"
+                      >
+                        {deleting === m.id ? "..." : "Delete"}
+                      </button>
+                    ) : (
+                      <Badge tone="proposed">Review</Badge>
+                    )}
                   </div>
                 </Link>
               );
