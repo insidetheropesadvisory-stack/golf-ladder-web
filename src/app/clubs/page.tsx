@@ -356,6 +356,15 @@ export default function ClubsPage() {
               </button>
             </div>
 
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200/60 bg-red-50/50 px-3 py-2.5 mb-4">
+              <svg className="h-4 w-4 flex-shrink-0 text-red-500 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <p className="text-xs text-red-700 leading-relaxed">
+                <span className="font-semibold">Only add clubs you are a member of.</span> Memberships are verified — fraudulent claims will result in a ban.
+              </p>
+            </div>
+
             <input
               className="w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
               value={addQuery}
