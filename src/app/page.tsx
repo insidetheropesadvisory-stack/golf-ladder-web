@@ -272,19 +272,6 @@ export default function HomePage() {
         </h1>
       </div>
 
-      {/* Setup prompt */}
-      {!canCreateMatch && !loading && (
-        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-5">
-          <div className="text-sm font-semibold">Finish setup</div>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Add your display name so opponents see who they're playing.
-          </p>
-          <Link className="mt-3 inline-block text-sm font-medium text-[var(--pine)] underline" href={newMatchHref}>
-            Go to Profile
-          </Link>
-        </div>
-      )}
-
       {fatal && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{fatal}</div>
       )}

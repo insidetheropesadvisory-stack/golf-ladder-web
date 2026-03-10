@@ -113,13 +113,47 @@ export function AppShell({
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth"];
+  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth", "/onboarding"];
   const isAuthRoute = authRoutes.some(
     (r) => pathname === r || pathname.startsWith(r + "/")
   );
 
+  const [profileChecked, setProfileChecked] = useState(false);
+
   useEffect(() => {
     let mounted = true;
+
+    async function checkProfileComplete(userId: string) {
+      try {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const hasName = Boolean((prof as any)?.display_name?.trim());
+        if (!hasName) {
+          router.replace("/onboarding");
+          return;
+        }
+
+        const { data: memberships } = await supabase
+          .from("club_memberships")
+          .select("club_id")
+          .eq("user_id", userId)
+          .limit(1);
+
+        const hasClub = (memberships ?? []).length > 0;
+        if (!hasClub) {
+          router.replace("/onboarding");
+          return;
+        }
+
+        if (mounted) setProfileChecked(true);
+      } catch {
+        if (mounted) setProfileChecked(true);
+      }
+    }
 
     const {
       data: { subscription },
@@ -131,6 +165,8 @@ export function AppShell({
 
       if (!session?.user && !isAuthRoute) {
         router.replace("/login");
+      } else if (session?.user && !isAuthRoute) {
+        checkProfileComplete(session.user.id);
       }
     });
 
@@ -138,6 +174,8 @@ export function AppShell({
       if (!mounted) return;
       if (!session?.user && !isAuthRoute) {
         router.replace("/login");
+      } else if (session?.user && !isAuthRoute) {
+        checkProfileComplete(session.user.id);
       }
     });
 
@@ -205,7 +243,7 @@ export function AppShell({
     return <div className="min-h-screen bg-[var(--paper)]">{children}</div>;
   }
 
-  if (!checkedSession) {
+  if (!checkedSession || (!isAuthRoute && !profileChecked)) {
     return <div className="min-h-screen bg-[var(--paper)]" />;
   }
 

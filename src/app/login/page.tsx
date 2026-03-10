@@ -74,7 +74,7 @@ export default function LoginPage() {
       return;
     }
 
-    window.location.assign("/");
+    window.location.assign("/onboarding");
   }
 
   return (
