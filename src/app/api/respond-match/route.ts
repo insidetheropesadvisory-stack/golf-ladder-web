@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     // Fetch match
     const { data: match, error: matchErr } = await supabaseAdmin
       .from("matches")
-      .select("id, creator_id, status, terms_status, opponent_email, course_name")
+      .select("id, creator_id, opponent_id, status, terms_status, opponent_email, course_name, is_ladder_match")
       .eq("id", matchId)
       .single();
 
@@ -127,6 +127,37 @@ export async function POST(request: Request) {
     } else {
       // Send notification email BEFORE deleting so we still have match data
       await sendCreatorNotification(supabaseAdmin, match, action, userEmail, reason);
+
+      // If ladder match, trigger decline-swap (challenger takes decliner's spot)
+      if (match.is_ladder_match && match.creator_id) {
+        try {
+          for (const ladderType of ["gross", "net"]) {
+            const { data: positions } = await supabaseAdmin
+              .from("ladder_rankings")
+              .select("id, user_id, position")
+              .eq("type", ladderType)
+              .in("user_id", [match.creator_id, user.id]);
+
+            if (positions && positions.length === 2) {
+              const challengerRow = positions.find((p: any) => p.user_id === match.creator_id);
+              const declinerRow = positions.find((p: any) => p.user_id === user.id);
+              if (challengerRow && declinerRow && challengerRow.position > declinerRow.position) {
+                const now = new Date().toISOString();
+                await supabaseAdmin
+                  .from("ladder_rankings")
+                  .update({ position: declinerRow.position, updated_at: now })
+                  .eq("id", challengerRow.id);
+                await supabaseAdmin
+                  .from("ladder_rankings")
+                  .update({ position: challengerRow.position, updated_at: now })
+                  .eq("id", declinerRow.id);
+              }
+            }
+          }
+        } catch (swapErr) {
+          console.error("respond-match: ladder decline-swap failed", swapErr);
+        }
+      }
 
       // Delete holes then match
       await supabaseAdmin.from("holes").delete().eq("match_id", matchId);

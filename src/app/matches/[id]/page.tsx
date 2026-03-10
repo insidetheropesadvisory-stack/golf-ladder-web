@@ -18,6 +18,7 @@ type MatchRow = {
   use_handicap: boolean;
   round_time: string | null;
   guest_fee: number | null;
+  is_ladder_match: boolean;
 };
 
 type HoleRow = {
@@ -196,7 +197,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match"
           )
           .eq("id", matchId)
           .single();
@@ -528,13 +529,63 @@ export default function MatchScoringPage() {
       .update({ completed: true, status: "completed" })
       .eq("id", matchId);
 
-    setCompleting(false);
-
     if (error) {
+      setCompleting(false);
       setStatus(error.message);
       return;
     }
 
+    // If ladder match, trigger position swap
+    if (match?.is_ladder_match && match.creator_id && match.opponent_id) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        // Determine winner from scores
+        const myTotal = sumStrokes(holes, meId);
+        const oppTotal = sumStrokes(holes, oppId);
+        let winnerId: string | null = null;
+        let loserId: string | null = null;
+
+        if (match.format === "match_play") {
+          const mp = match.use_handicap && myHandicap != null && oppHandicap != null
+            ? matchPlayNetResult(holes, meId!, oppId!, myHandicap, oppHandicap)
+            : matchPlayResult(holes, meId!, oppId!);
+          if (mp.p1Holes > mp.p2Holes) { winnerId = meId; loserId = oppId; }
+          else if (mp.p2Holes > mp.p1Holes) { winnerId = oppId; loserId = meId; }
+        } else {
+          const myNet = match.use_handicap && myHandicap != null ? (myTotal ?? 0) - myHandicap : myTotal;
+          const oppNet = match.use_handicap && oppHandicap != null ? (oppTotal ?? 0) - oppHandicap : oppTotal;
+          if (myNet != null && oppNet != null) {
+            if (myNet < oppNet) { winnerId = meId; loserId = oppId; }
+            else if (oppNet < myNet) { winnerId = oppId; loserId = meId; }
+          }
+        }
+
+        if (winnerId && loserId) {
+          await fetch("/api/ladder", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+            body: JSON.stringify({ action: "swap", winnerId, loserId, type: "gross" }),
+          });
+          if (match.use_handicap) {
+            await fetch("/api/ladder", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+              },
+              body: JSON.stringify({ action: "swap", winnerId, loserId, type: "net" }),
+            });
+          }
+        }
+      } catch {
+        console.warn("Ladder swap failed");
+      }
+    }
+
+    setCompleting(false);
     setMatch((prev) => prev ? { ...prev, completed: true, status: "completed" } : prev);
   }
 

@@ -31,6 +31,7 @@ export default function NewMatchPage() {
   const [guestFee, setGuestFee] = useState<number | null>(null);
   const [format, setFormat] = useState<"stroke_play" | "match_play">("stroke_play");
   const [useHandicap, setUseHandicap] = useState(false);
+  const [isLadderMatch, setIsLadderMatch] = useState(false);
 
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,7 @@ export default function NewMatchPage() {
   useEffect(() => {
     const preset = sp.get("course");
     if (preset) setCourseName(preset);
+    if (sp.get("ladder") === "true") setIsLadderMatch(true);
 
     let handled = false;
 
@@ -58,6 +60,28 @@ export default function NewMatchPage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!handled) handleUser(session?.user ?? null);
     });
+
+    // Pre-select opponent from query param (e.g. from ladder challenge)
+    const oppParam = sp.get("opponent");
+    if (oppParam) {
+      supabase
+        .from("profiles")
+        .select("id, display_name, email, avatar_url, handicap_index")
+        .eq("id", oppParam)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setOpponent({
+              id: data.id,
+              display_name: data.display_name,
+              email: data.email,
+              avatar_url: data.avatar_url,
+              handicap_index: data.handicap_index,
+              clubs: [],
+            });
+          }
+        });
+    }
 
     return () => subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,6 +138,7 @@ export default function NewMatchPage() {
         format,
         use_handicap: useHandicap,
         guest_fee: guestFee,
+        is_ladder_match: isLadderMatch,
         terms_status: "pending",
         terms_last_proposed_by: meId,
         terms_last_proposed_at: new Date().toISOString(),
@@ -230,17 +255,31 @@ export default function NewMatchPage() {
               </select>
             </div>
 
-            <div className="flex items-center gap-2 pt-6">
-              <input
-                id="useHandicap"
-                type="checkbox"
-                checked={useHandicap}
-                onChange={(e) => setUseHandicap(e.target.checked)}
-                className="h-4 w-4 rounded border-[var(--border)]"
-              />
-              <label htmlFor="useHandicap" className="text-sm font-medium">
-                Use handicap (net scoring)
-              </label>
+            <div className="space-y-3 pt-6">
+              <div className="flex items-center gap-2">
+                <input
+                  id="useHandicap"
+                  type="checkbox"
+                  checked={useHandicap}
+                  onChange={(e) => setUseHandicap(e.target.checked)}
+                  className="h-4 w-4 rounded border-[var(--border)]"
+                />
+                <label htmlFor="useHandicap" className="text-sm font-medium">
+                  Use handicap (net scoring)
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="isLadderMatch"
+                  type="checkbox"
+                  checked={isLadderMatch}
+                  onChange={(e) => setIsLadderMatch(e.target.checked)}
+                  className="h-4 w-4 rounded border-[var(--border)]"
+                />
+                <label htmlFor="isLadderMatch" className="text-sm font-medium">
+                  Ladder match (affects rankings)
+                </label>
+              </div>
             </div>
           </div>
         </div>

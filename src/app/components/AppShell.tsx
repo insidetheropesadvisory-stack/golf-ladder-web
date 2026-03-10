@@ -10,6 +10,7 @@ type NavItem = { label: string; href: string; icon: string };
 const NAV: NavItem[] = [
   { label: "Home", href: "/", icon: "home" },
   { label: "Matches", href: "/matches", icon: "matches" },
+  { label: "Ladder", href: "/ladder", icon: "ladder" },
   { label: "Clubs", href: "/clubs", icon: "clubs" },
   { label: "Profile", href: "/profile", icon: "profile" },
 ];
@@ -22,6 +23,7 @@ function titleFromPath(pathname: string) {
   const hit = NAV.find((n) => n.href === pathname);
   if (hit) return hit.label;
   if (pathname.startsWith("/matches")) return "Matches";
+  if (pathname.startsWith("/ladder")) return "Ladder";
   if (pathname.startsWith("/clubs")) return "Clubs";
   if (pathname.startsWith("/profile")) return "Profile";
   return "Home";
@@ -46,6 +48,21 @@ function NavIcon({ name, size = 18 }: { name: string; size?: number }) {
           <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.24 7 20v2" />
           <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.24 17 20v2" />
           <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
+      );
+    case "ladder":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 21h18" />
+          <path d="M3 10h18" />
+          <path d="M3 16h12" />
+          <path d="M3 4h6" />
+          <rect x="5" y="4" width="14" height="17" rx="1" fill="none" />
+          <path d="M8 4v17" />
+          <path d="M16 4v17" />
+          <path d="M8 8h8" />
+          <path d="M8 12h8" />
+          <path d="M8 16h8" />
         </svg>
       );
     case "clubs":
