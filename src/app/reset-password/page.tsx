@@ -130,8 +130,8 @@ export default function ResetPasswordPage() {
         </div>
 
         {/* Footer */}
-        <div className="mt-12 text-center text-xs text-[var(--muted)]">
-          Private club competition, refined.
+        <div className="mt-12 text-center">
+          <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--muted)]/60">Earn your standing.</span>
         </div>
       </div>
     </div>

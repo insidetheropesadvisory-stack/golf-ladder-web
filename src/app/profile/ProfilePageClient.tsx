@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
-import { cx } from "@/lib/utils";
+import { cx, initials } from "@/lib/utils";
 
 type ProfileRow = {
   id: string;
@@ -220,7 +220,7 @@ export default function ProfilePageClient() {
       }
 
       setAvatarUrl(publicData.publicUrl);
-      setToast("Photo uploaded. Click Save changes to apply it to your profile.");
+      setToast("Photo uploaded. Click Save to apply.");
     } catch (e: any) {
       console.error(e);
       setToast(null);
@@ -324,103 +324,95 @@ export default function ProfilePageClient() {
 
   const shownAvatar = avatarPreview ?? avatarUrl ?? null;
 
+  const hcpDisplay = profile?.handicap_index != null ? String(profile.handicap_index) : handicap.trim() || null;
+
   return (
     <div className="space-y-6">
-        <div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Profile</h1>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              Update your name, handicap, and photo.
-              {email ? <span className="ml-1.5 text-[var(--muted)]">({email})</span> : null}
-            </p>
+      {showNameRequired ? (
+        <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-100">
+              <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-amber-900">Add your name to create matches</div>
+              <div className="mt-1 text-sm text-amber-700">
+                Set a display name, save, and you&apos;ll be sent right back.
+              </div>
+            </div>
+          </div>
         </div>
+      ) : null}
 
-        {showNameRequired ? (
-          <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-100">
-                <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-amber-900">Add your name to create matches</div>
-                <div className="mt-1 text-sm text-amber-700">
-                  Set a display name, save, and you'll be sent right back.
-                </div>
-              </div>
+      {fatal ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {fatal}
+        </div>
+      ) : null}
+
+      {toast ? (
+        <div className="rounded-xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 px-4 py-3 text-sm text-[var(--pine)]">
+          {toast}
+        </div>
+      ) : null}
+
+      {/* Profile card */}
+      <div className="rounded-2xl border border-[var(--border)] bg-white/70 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="p-8 space-y-6">
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-24 w-24 animate-pulse rounded-full bg-black/[0.04]" />
+              <div className="h-5 w-36 animate-pulse rounded bg-black/[0.04]" />
+              <div className="h-3 w-24 animate-pulse rounded bg-black/[0.04]" />
+            </div>
+            <div className="space-y-4 max-w-sm mx-auto">
+              <div className="h-12 w-full animate-pulse rounded-xl bg-black/[0.04]" />
+              <div className="h-12 w-full animate-pulse rounded-xl bg-black/[0.04]" />
             </div>
           </div>
-        ) : null}
-
-        {fatal ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {fatal}
-          </div>
-        ) : null}
-
-        {toast ? (
-          <div className="rounded-xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 px-4 py-3 text-sm text-[var(--pine)]">
-            {toast}
-          </div>
-        ) : null}
-
-        <div className="rounded-2xl border border-[var(--border)] bg-white/70 p-6 shadow-sm">
-          {loading ? (
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-[220px_1fr]">
-              <div className="space-y-4">
-                <div className="h-4 w-12 rounded bg-black/[0.04]" />
-                <div className="h-40 w-40 rounded-2xl bg-black/[0.04]" />
-              </div>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <div className="h-4 w-24 rounded bg-black/[0.04]" />
-                  <div className="h-12 w-full rounded-xl bg-black/[0.04]" />
-                </div>
-                <div className="space-y-2">
-                  <div className="h-4 w-28 rounded bg-black/[0.04]" />
-                  <div className="h-12 w-full rounded-xl bg-black/[0.04]" />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-[220px_1fr]">
-              <div className="space-y-4">
-                <div className="text-xs font-medium tracking-[0.15em] text-[var(--muted)] uppercase">Photo</div>
-
-                <div className="relative h-40 w-40 overflow-hidden rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--paper-2)] transition-colors duration-200 hover:border-[var(--pine)]/30">
-                  {shownAvatar ? (
-                    <Image
-                      src={shownAvatar}
-                      alt="Avatar"
-                      width={160}
-                      height={160}
-                      className="h-full w-full object-cover"
-                      unoptimized={shownAvatar.startsWith("blob:")}
-                    />
-                  ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-2">
-                      <svg className="h-8 w-8 text-[var(--muted)]/40" fill="none" viewBox="0 0 24 24" strokeWidth="1" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                      </svg>
-                      <span className="text-xs text-[var(--muted)]">No photo</span>
-                    </div>
-                  )}
+        ) : (
+          <>
+            {/* Hero header */}
+            <div className="border-b border-[var(--border)]/60 bg-gradient-to-b from-slate-50/80 to-white px-6 pb-7 pt-8">
+              <div className="flex flex-col items-center">
+                {/* Avatar */}
+                <div className="relative group">
+                  <div className="h-24 w-24 overflow-hidden rounded-full border-2 border-[var(--border)] bg-[var(--paper-2)] shadow-sm ring-4 ring-white">
+                    {shownAvatar ? (
+                      <Image
+                        src={shownAvatar}
+                        alt="Avatar"
+                        width={96}
+                        height={96}
+                        className="h-full w-full object-cover"
+                        unoptimized={shownAvatar.startsWith("blob:")}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-[var(--pine)] text-white">
+                        <span className="text-2xl font-semibold">{initials(displayName || email || "?")}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* Upload photo button */}
                 <label
                   className={cx(
-                    "inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors duration-200",
-                    uploading ? "opacity-60 cursor-not-allowed" : "hover:bg-white hover:shadow-sm hover:border-[var(--pine)]/30"
+                    "mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition",
+                    uploading ? "opacity-60 cursor-not-allowed" : "hover:text-[var(--pine)] hover:bg-[var(--pine)]/5"
                   )}
                 >
                   {uploading ? (
                     "Uploading..."
                   ) : (
                     <>
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
                       </svg>
-                      Upload photo
+                      Change photo
                     </>
                   )}
                   <input
@@ -436,28 +428,51 @@ export default function ProfilePageClient() {
                   />
                 </label>
 
-                <div className="text-xs text-[var(--muted)]">PNG or JPG, up to 5MB.</div>
-              </div>
+                {/* Name */}
+                <h1 className="mt-3 text-xl font-semibold tracking-tight text-[var(--ink)]">
+                  {displayName || "Your Name"}
+                </h1>
 
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium tracking-[0.15em] text-[var(--muted)] uppercase">
-                    Display name
+                {/* Handicap badge + email */}
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                  {hcpDisplay && (
+                    <span className="inline-flex items-center rounded-full bg-[var(--pine)]/8 px-2.5 py-0.5 text-xs font-semibold text-[var(--pine)]">
+                      {hcpDisplay} HCP
+                    </span>
+                  )}
+                  {!hcpDisplay && (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-[var(--muted)]">
+                      No handicap set
+                    </span>
+                  )}
+                </div>
+                {email && (
+                  <div className="mt-1.5 text-xs text-[var(--muted)]">{email}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Edit form */}
+            <div className="px-6 py-6 sm:px-8">
+              <div className="mx-auto max-w-sm space-y-5">
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                    Display Name
                   </label>
                   <input
-                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition-colors duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
+                    className="w-full rounded-lg border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[var(--pine)]/40 focus:ring-1 focus:ring-[var(--pine)]/20"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="e.g., Ned Roosevelt"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-medium tracking-[0.15em] text-[var(--muted)] uppercase">
-                    Handicap index
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                    Handicap Index
                   </label>
                   <input
-                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition-colors duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
+                    className="w-full rounded-lg border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[var(--pine)]/40 focus:ring-1 focus:ring-[var(--pine)]/20"
                     value={handicap}
                     onChange={(e) => setHandicap(e.target.value)}
                     placeholder="e.g., 9.8"
@@ -465,10 +480,10 @@ export default function ProfilePageClient() {
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                <div className="flex items-center gap-3 pt-1">
                   <button
                     className={cx(
-                      "rounded-full px-5 py-2.5 text-sm font-medium transition-colors duration-200",
+                      "rounded-lg px-5 py-2.5 text-sm font-semibold transition",
                       hasChanges && !saving
                         ? "bg-[var(--pine)] text-white shadow-sm hover:shadow-md hover:-translate-y-[1px]"
                         : "bg-black/[0.04] text-[var(--muted)] cursor-not-allowed"
@@ -480,14 +495,14 @@ export default function ProfilePageClient() {
                     {saving ? "Saving..." : "Save changes"}
                   </button>
 
-                  <Link className="rounded-full px-4 py-2.5 text-sm text-[var(--muted)] transition-colors duration-200 hover:bg-black/[0.04] hover:text-[var(--ink)]" href={next}>
+                  <Link className="text-sm text-[var(--muted)] transition hover:text-[var(--ink)]" href={next}>
                     Back
                   </Link>
 
                   {showNameRequired && next !== "/" && hasName ? (
                     <Link
                       href={next}
-                      className="rounded-full border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-white hover:shadow-sm"
+                      className="rounded-lg border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium transition hover:shadow-sm"
                     >
                       Continue &rarr;
                     </Link>
@@ -501,157 +516,177 @@ export default function ProfilePageClient() {
                 ) : null}
               </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
+      </div>
 
-        {/* Stats button */}
-        {!loading && (
-          <button
-            type="button"
-            onClick={openStats}
-            className="group w-full rounded-2xl border border-[var(--border)] bg-white/70 p-5 text-left shadow-sm transition hover:border-[var(--pine)]/20 hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold text-[var(--ink)]">Match Statistics</div>
-                <div className="mt-0.5 text-xs text-[var(--muted)]">Win/loss record, head-to-head, scoring averages</div>
+      {/* Match Statistics card */}
+      {!loading && (
+        <button
+          type="button"
+          onClick={openStats}
+          className="group w-full rounded-2xl border border-[var(--border)] bg-white/70 p-5 text-left shadow-sm transition hover:border-[var(--pine)]/20 hover:shadow-md"
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--pine)]/8">
+              <svg className="h-5 w-5 text-[var(--pine)]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-[var(--ink)]">Match Statistics</div>
+              <div className="mt-0.5 text-xs text-[var(--muted)]">Win/loss record, head-to-head, scoring averages</div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Stat preview chips */}
+              <div className="hidden sm:flex items-center gap-1.5">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 tabular-nums">
+                  {stats ? `${stats.wins}W-${stats.losses}L` : "W/L"}
+                </span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 tabular-nums">
+                  {stats?.avgScore ? `Avg ${stats.avgScore}` : "Avg"}
+                </span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 tabular-nums">
+                  {stats?.totalRounds ? `${stats.totalRounds} Rds` : "Rounds"}
+                </span>
               </div>
-              <svg className="h-5 w-5 text-[var(--muted)] transition group-hover:text-[var(--pine)]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="h-5 w-5 text-[var(--muted)] transition group-hover:text-[var(--pine)] group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6" />
               </svg>
             </div>
-          </button>
-        )}
-
-        {/* Stats modal */}
-        {showStats && (
-          <div
-            className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) setShowStats(false); }}
-          >
-            <div className="w-full max-w-md max-h-[85vh] overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-2xl">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-semibold">Match Statistics</h2>
-                <button
-                  type="button"
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:bg-black/5"
-                  onClick={() => setShowStats(false)}
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {statsLoading ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    {[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-black/[0.03]" style={{ animationDelay: `${i * 75}ms` }} />)}
-                  </div>
-                  <div className="h-32 animate-pulse rounded-xl bg-black/[0.03]" style={{ animationDelay: "225ms" }} />
-                </div>
-              ) : stats && stats.totalRounds === 0 ? (
-                <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center">
-                  <div className="text-sm font-medium text-[var(--ink)]">No completed matches yet</div>
-                  <div className="mt-1 text-xs text-[var(--muted)]">Stats will appear after you finish a match.</div>
-                </div>
-              ) : stats ? (
-                <div className="space-y-5">
-                  {/* Overview tiles */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-xl border border-[var(--border)] bg-white/60 p-3 text-center">
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Record</div>
-                      <div className="mt-1 text-lg font-semibold tabular-nums">
-                        <span className="text-green-700">{stats.wins}</span>
-                        <span className="text-[var(--muted)]">-</span>
-                        <span className="text-red-600">{stats.losses}</span>
-                        {stats.ties > 0 && <><span className="text-[var(--muted)]">-</span><span className="text-[var(--muted)]">{stats.ties}</span></>}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-[var(--border)] bg-white/60 p-3 text-center">
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Avg Score</div>
-                      <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--ink)]">
-                        {stats.avgScore ?? "—"}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-[var(--border)] bg-white/60 p-3 text-center">
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Best</div>
-                      <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--ink)]">
-                        {stats.bestScore ?? "—"}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Win percentage bar */}
-                  {(stats.wins + stats.losses) > 0 && (
-                    <div>
-                      <div className="mb-1.5 text-xs text-[var(--muted)]">
-                        Win rate: {Math.round((stats.wins / (stats.wins + stats.losses + stats.ties)) * 100)}%
-                        <span className="ml-1 text-[var(--border)]">&middot;</span>
-                        <span className="ml-1">{stats.totalRounds} round{stats.totalRounds !== 1 ? "s" : ""}</span>
-                      </div>
-                      <div className="flex h-2 overflow-hidden rounded-full bg-black/[0.04]">
-                        <div className="bg-green-500 transition-all" style={{ width: `${(stats.wins / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
-                        {stats.ties > 0 && (
-                          <div className="bg-gray-300 transition-all" style={{ width: `${(stats.ties / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
-                        )}
-                        <div className="bg-red-400 transition-all" style={{ width: `${(stats.losses / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Head to head */}
-                  {stats.headToHead.length > 0 && (
-                    <div>
-                      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Head to Head</div>
-                      <div className="space-y-1.5">
-                        {stats.headToHead.map((h) => (
-                          <div key={h.opponentId} className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-white/60 px-3 py-2.5">
-                            <span className="text-sm font-medium truncate mr-3">{h.opponentName}</span>
-                            <span className="text-sm tabular-nums flex-shrink-0">
-                              <span className="text-green-700">{h.wins}W</span>
-                              <span className="text-[var(--muted)] mx-1">-</span>
-                              <span className="text-red-600">{h.losses}L</span>
-                              {h.ties > 0 && (
-                                <>
-                                  <span className="text-[var(--muted)] mx-1">-</span>
-                                  <span className="text-[var(--muted)]">{h.ties}T</span>
-                                </>
-                              )}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* By course */}
-                  {stats.byCourse.length > 0 && (
-                    <div>
-                      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--muted)]">By Course</div>
-                      <div className="space-y-1.5">
-                        {stats.byCourse.map((c) => (
-                          <div key={c.course} className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-white/60 px-3 py-2.5">
-                            <div className="min-w-0 mr-3">
-                              <div className="text-sm font-medium truncate">{c.course}</div>
-                              <div className="text-[10px] text-[var(--muted)]">{c.rounds} round{c.rounds !== 1 ? "s" : ""}</div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <div className="text-sm font-semibold tabular-nums">{c.avgScore}</div>
-                              {c.bestScore != null && (
-                                <div className="text-[10px] text-[var(--muted)]">Best: {c.bestScore}</div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
           </div>
-        )}
+        </button>
+      )}
+
+      {/* Stats modal */}
+      {showStats && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowStats(false); }}
+        >
+          <div className="w-full max-w-md max-h-[85vh] overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold">Match Statistics</h2>
+              <button
+                type="button"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:bg-black/5"
+                onClick={() => setShowStats(false)}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {statsLoading ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  {[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-black/[0.03]" style={{ animationDelay: `${i * 75}ms` }} />)}
+                </div>
+                <div className="h-32 animate-pulse rounded-xl bg-black/[0.03]" style={{ animationDelay: "225ms" }} />
+              </div>
+            ) : stats && stats.totalRounds === 0 ? (
+              <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center">
+                <div className="text-sm font-medium text-[var(--ink)]">No completed matches yet</div>
+                <div className="mt-1 text-xs text-[var(--muted)]">Stats will appear after you finish a match.</div>
+              </div>
+            ) : stats ? (
+              <div className="space-y-5">
+                {/* Overview tiles */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-[var(--border)] bg-white/60 p-3 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Record</div>
+                    <div className="mt-1 text-lg font-semibold tabular-nums">
+                      <span className="text-green-700">{stats.wins}</span>
+                      <span className="text-[var(--muted)]">-</span>
+                      <span className="text-red-600">{stats.losses}</span>
+                      {stats.ties > 0 && <><span className="text-[var(--muted)]">-</span><span className="text-[var(--muted)]">{stats.ties}</span></>}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border)] bg-white/60 p-3 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Avg Score</div>
+                    <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--ink)]">
+                      {stats.avgScore ?? "\u2014"}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border)] bg-white/60 p-3 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Best</div>
+                    <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--ink)]">
+                      {stats.bestScore ?? "\u2014"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Win percentage bar */}
+                {(stats.wins + stats.losses) > 0 && (
+                  <div>
+                    <div className="mb-1.5 text-xs text-[var(--muted)]">
+                      Win rate: {Math.round((stats.wins / (stats.wins + stats.losses + stats.ties)) * 100)}%
+                      <span className="ml-1 text-[var(--border)]">&middot;</span>
+                      <span className="ml-1">{stats.totalRounds} round{stats.totalRounds !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="flex h-2 overflow-hidden rounded-full bg-black/[0.04]">
+                      <div className="bg-green-500 transition-all" style={{ width: `${(stats.wins / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
+                      {stats.ties > 0 && (
+                        <div className="bg-gray-300 transition-all" style={{ width: `${(stats.ties / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
+                      )}
+                      <div className="bg-red-400 transition-all" style={{ width: `${(stats.losses / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Head to head */}
+                {stats.headToHead.length > 0 && (
+                  <div>
+                    <div className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Head to Head</div>
+                    <div className="space-y-1.5">
+                      {stats.headToHead.map((h) => (
+                        <div key={h.opponentId} className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-white/60 px-3 py-2.5">
+                          <span className="text-sm font-medium truncate mr-3">{h.opponentName}</span>
+                          <span className="text-sm tabular-nums flex-shrink-0">
+                            <span className="text-green-700">{h.wins}W</span>
+                            <span className="text-[var(--muted)] mx-1">-</span>
+                            <span className="text-red-600">{h.losses}L</span>
+                            {h.ties > 0 && (
+                              <>
+                                <span className="text-[var(--muted)] mx-1">-</span>
+                                <span className="text-[var(--muted)]">{h.ties}T</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* By course */}
+                {stats.byCourse.length > 0 && (
+                  <div>
+                    <div className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--muted)]">By Course</div>
+                    <div className="space-y-1.5">
+                      {stats.byCourse.map((c) => (
+                        <div key={c.course} className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-white/60 px-3 py-2.5">
+                          <div className="min-w-0 mr-3">
+                            <div className="text-sm font-medium truncate">{c.course}</div>
+                            <div className="text-[10px] text-[var(--muted)]">{c.rounds} round{c.rounds !== 1 ? "s" : ""}</div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <div className="text-sm font-semibold tabular-nums">{c.avgScore}</div>
+                            {c.bestScore != null && (
+                              <div className="text-[10px] text-[var(--muted)]">Best: {c.bestScore}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

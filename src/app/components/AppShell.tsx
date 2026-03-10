@@ -406,30 +406,25 @@ export function AppShell({
                   key={item.href}
                   href={item.href}
                   className={cx(
-                    "flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition",
+                    "relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition",
                     active
-                      ? "bg-[rgba(11,59,46,.08)] font-medium text-[var(--pine)]"
+                      ? "bg-[rgba(11,59,46,.10)] font-semibold text-[var(--pine)]"
                       : "text-[var(--ink)] hover:bg-[rgba(17,19,18,.04)]"
                   )}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <NavIcon name={item.icon} size={16} />
-                    <span>{item.label}</span>
-                  </div>
-                  <span
-                    className={cx(
-                      "h-1.5 w-1.5 rounded-full transition-opacity",
-                      active ? "bg-[var(--pine)] opacity-100" : "opacity-0"
-                    )}
-                  />
+                  {active && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[var(--pine)]" />
+                  )}
+                  <NavIcon name={item.icon} size={16} />
+                  <span>{item.label}</span>
                 </Link>
               );
             })}
           </nav>
 
           <div className="mt-5 border-t border-[var(--border)] pt-4">
-            <div className="text-xs text-[var(--muted)]">
-              Old-golf feel. Silicon-clean execution.
+            <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--pine)]/50">
+              Where serious golfers settle scores.
             </div>
           </div>
         </aside>
@@ -440,9 +435,10 @@ export function AppShell({
             {children}
           </div>
 
-          <footer className="mt-6 hidden text-center text-xs text-[var(--muted)] md:block">
-            &copy; {new Date().getFullYear()} Reciprocity &bull; Private club
-            competition, refined
+          <footer className="mt-6 hidden text-center md:block">
+            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--muted)]/60">
+              &copy; {new Date().getFullYear()} Reciprocity &bull; Earn your standing.
+            </span>
           </footer>
         </main>
       </div>

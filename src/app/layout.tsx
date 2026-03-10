@@ -7,7 +7,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata = {
   title: "Reciprocity",
-  description: "Private club competition, refined.",
+  description: "Where serious golfers settle scores.",
   manifest: "/manifest.json",
   themeColor: "#0b3b2e",
   appleWebApp: {
