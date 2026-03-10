@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
-import { CT_CLUBS } from "@/lib/data/ctClubs";
 
 type ClubRow = {
   id: string;
@@ -13,7 +12,15 @@ type ClubRow = {
   logo_url: string | null;
 };
 
-type MemberCount = { club_id: string; count: number };
+type ApiCourse = {
+  id: number;
+  club_name: string;
+  course_name: string;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  address: string | null;
+};
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
@@ -32,6 +39,9 @@ export default function ClubsPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [addQuery, setAddQuery] = useState("");
+  const [apiResults, setApiResults] = useState<ApiCourse[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function refresh(sessionUser?: { id: string; email?: string | null }) {
     try {
@@ -153,15 +163,20 @@ export default function ClubsPage() {
     setMyClubFees((prev) => ({ ...prev, [clubId]: fee }));
   }
 
-  // Suggestions for add modal — CT clubs not already joined
-  const myClubNames = useMemo(() => new Set(myClubs.map((c) => c.name.toLowerCase())), [myClubs]);
-  const suggestions = useMemo(() => {
-    const q = addQuery.trim().toLowerCase();
-    return CT_CLUBS
-      .filter((n) => !myClubNames.has(n.toLowerCase()))
-      .filter((n) => !q || n.toLowerCase().includes(q))
-      .slice(0, 8);
-  }, [addQuery, myClubNames]);
+  function searchApi(q: string) {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const trimmed = q.trim();
+    if (trimmed.length < 2) { setApiResults([]); setSearching(false); return; }
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/golf-courses?q=${encodeURIComponent(trimmed)}&limit=10`);
+        const json = await res.json();
+        setApiResults(json.courses ?? []);
+      } catch { setApiResults([]); }
+      setSearching(false);
+    }, 350);
+  }
 
   return (
     <div className="space-y-6">
@@ -283,14 +298,14 @@ export default function ClubsPage() {
 
       {/* Add club modal */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowAdd(false); }}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowAdd(false); setAddQuery(""); setApiResults([]); } }}>
           <div className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div className="text-lg font-semibold">Add a club</div>
               <button
                 type="button"
                 className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:bg-black/5"
-                onClick={() => { setShowAdd(false); setAddQuery(""); }}
+                onClick={() => { setShowAdd(false); setAddQuery(""); setApiResults([]); }}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -301,32 +316,42 @@ export default function ClubsPage() {
             <input
               className="w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
               value={addQuery}
-              onChange={(e) => setAddQuery(e.target.value)}
-              placeholder="Search or type club name..."
+              onChange={(e) => { setAddQuery(e.target.value); searchApi(e.target.value); }}
+              placeholder="Search golf courses across the US..."
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && addQuery.trim()) addClub(addQuery);
               }}
             />
 
-            <div className="mt-3 max-h-[240px] overflow-auto space-y-1">
-              {suggestions.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => addClub(name)}
-                  className="w-full rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-[var(--pine)]/5"
-                >
-                  {name}
-                </button>
-              ))}
-              {addQuery.trim() && !suggestions.some((s) => s.toLowerCase() === addQuery.trim().toLowerCase()) && (
+            <div className="mt-3 max-h-[280px] overflow-auto space-y-1">
+              {searching && (
+                <div className="px-3 py-2.5 text-xs text-[var(--muted)]">Searching...</div>
+              )}
+              {!searching && apiResults.map((c) => {
+                const loc = [c.city, c.state].filter(Boolean).join(", ");
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => addClub(c.club_name)}
+                    className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
+                  >
+                    <div className="text-sm font-medium">{c.club_name}</div>
+                    {loc && <div className="text-xs text-[var(--muted)]">{loc}</div>}
+                  </button>
+                );
+              })}
+              {!searching && addQuery.trim().length >= 2 && apiResults.length === 0 && (
+                <div className="px-3 py-2.5 text-xs text-[var(--muted)]">No courses found.</div>
+              )}
+              {addQuery.trim() && (
                 <button
                   type="button"
                   onClick={() => addClub(addQuery)}
                   className="w-full rounded-lg bg-[var(--pine)]/5 px-3 py-2.5 text-left text-sm font-medium text-[var(--pine)] transition hover:bg-[var(--pine)]/10"
                 >
-                  Add &ldquo;{addQuery.trim()}&rdquo;
+                  Add &ldquo;{addQuery.trim()}&rdquo; manually
                 </button>
               )}
             </div>
