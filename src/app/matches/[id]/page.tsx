@@ -12,6 +12,7 @@ type MatchRow = {
   opponent_email: string;
   course_name: string;
   status: string;
+  completed: boolean;
   terms_status: string | null;
   format: "stroke_play" | "match_play";
   use_handicap: boolean;
@@ -112,7 +113,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, terms_status, format, use_handicap, round_time"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time"
           )
           .eq("id", matchId)
           .single();
@@ -281,6 +282,34 @@ export default function MatchScoringPage() {
       );
       setStrokesInput(existing?.strokes != null ? String(existing.strokes) : "");
     }
+  }
+
+  const [completing, setCompleting] = useState(false);
+
+  const allScoredByMe = myScoresByHole.size >= TOTAL_HOLES;
+  const isCompleted = match?.completed === true || match?.status === "completed";
+  const isActive = match?.terms_status === "accepted" || match?.status === "active";
+
+  async function completeMatch() {
+    if (!matchId || !meId) return;
+    if (!confirm("Mark this match as completed? Scores will be locked.")) return;
+
+    setCompleting(true);
+    setStatus(null);
+
+    const { error } = await supabase
+      .from("matches")
+      .update({ completed: true, status: "completed" })
+      .eq("id", matchId);
+
+    setCompleting(false);
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    setMatch((prev) => prev ? { ...prev, completed: true, status: "completed" } : prev);
   }
 
   const [deletingMatch, setDeletingMatch] = useState(false);
@@ -480,104 +509,169 @@ export default function MatchScoringPage() {
 
       {/* Score summary cards */}
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50/80 to-emerald-50/30 p-5">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">You</div>
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
-              {myScoresByHole.size}
-            </div>
-          </div>
-          <div className="mt-2 text-4xl font-bold tracking-tight text-emerald-800">{myTotal ?? 0}</div>
-          <div className="mt-1 truncate text-xs text-emerald-600/70">{meEmail ?? ""}</div>
-        </div>
+        {(() => {
+          const myWins = isCompleted && myTotal != null && oppTotal != null && myTotal < oppTotal;
+          const oppWins = isCompleted && myTotal != null && oppTotal != null && oppTotal < myTotal;
+          const isTie = isCompleted && myTotal != null && oppTotal != null && myTotal === oppTotal;
 
-        <div className="rounded-2xl border border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-slate-50/30 p-5">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Opponent</div>
-          </div>
-          <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">{oppTotal ?? "--"}</div>
-          <div className="mt-1 truncate text-xs text-slate-400">
-            {match?.opponent_id ? opponentLabel : "Not linked yet"}
-          </div>
-        </div>
-      </div>
+          return (
+            <>
+              <div className={cx(
+                "rounded-2xl border p-5",
+                isCompleted && myWins
+                  ? "border-emerald-300 bg-gradient-to-br from-emerald-100 to-emerald-50 ring-2 ring-emerald-300/50"
+                  : "border-emerald-200/50 bg-gradient-to-br from-emerald-50/80 to-emerald-50/30"
+              )}>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                    You {isCompleted && myWins ? "- Winner" : isCompleted && isTie ? "- Tie" : ""}
+                  </div>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+                    {myScoresByHole.size}
+                  </div>
+                </div>
+                <div className="mt-2 text-4xl font-bold tracking-tight text-emerald-800">{myTotal ?? 0}</div>
+                <div className="mt-1 truncate text-xs text-emerald-600/70">{meEmail ?? ""}</div>
+              </div>
 
-      {/* Scoring input area */}
-      <div className="overflow-hidden rounded-2xl border-2 border-[var(--pine)]/20 bg-gradient-to-b from-white to-[var(--paper)] shadow-sm">
-        <div className="border-b border-[var(--border)] bg-[var(--pine)]/5 px-5 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--pine)] text-sm font-bold text-white">
-                {holeNo}
-              </span>
-              <div>
-                <div className="text-sm font-bold tracking-tight">Hole {holeNo} of {TOTAL_HOLES}</div>
-                <div className="text-[11px] text-[var(--muted)]">
-                  {myScoresByHole.has(holeNo) ? "Scored" : "Not scored yet"}
+              <div className={cx(
+                "rounded-2xl border p-5",
+                isCompleted && oppWins
+                  ? "border-slate-300 bg-gradient-to-br from-slate-100 to-slate-50 ring-2 ring-slate-300/50"
+                  : "border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-slate-50/30"
+              )}>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Opponent {isCompleted && oppWins ? "- Winner" : isCompleted && isTie ? "- Tie" : ""}
+                  </div>
+                </div>
+                <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">{oppTotal ?? "--"}</div>
+                <div className="mt-1 truncate text-xs text-slate-400">
+                  {match?.opponent_id ? opponentLabel : "Not linked yet"}
                 </div>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Running total</div>
-              <div className="text-lg font-bold text-[var(--pine)]">{myTotal ?? 0}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-5">
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <label className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Your strokes</label>
-              <input
-                className="mt-2 w-full rounded-xl border-2 border-[var(--border)] bg-white px-4 py-3.5 text-center text-2xl font-bold tracking-tight outline-none transition focus:border-[var(--pine)] focus:ring-2 focus:ring-[var(--pine)]/20"
-                inputMode="numeric"
-                value={strokesInput}
-                onChange={(e) => setStrokesInput(e.target.value)}
-                placeholder="0"
-              />
-            </div>
-
-            <button
-              className="rounded-xl bg-[var(--pine)] px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:shadow-none disabled:translate-y-0"
-              onClick={saveHole}
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
-          <div className="mt-2 text-[11px] text-[var(--muted)]">
-            Save to advance. Next is locked until scored.
-          </div>
-
-          <div className="mt-5 flex items-center justify-between gap-3">
-            <button
-              className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
-              onClick={goPrev}
-              disabled={holeNo <= 1}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M8.5 3L4.5 7L8.5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Previous
-            </button>
-
-            <div className="text-xs font-medium text-[var(--muted)]">
-              {myScoresByHole.size} of {TOTAL_HOLES} scored
-            </div>
-
-            <button
-              className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
-              onClick={goNext}
-              disabled={!myScoresByHole.has(holeNo) || holeNo >= TOTAL_HOLES}
-            >
-              Next
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M5.5 3L9.5 7L5.5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </div>
-        </div>
+            </>
+          );
+        })()}
       </div>
+
+      {/* Completed banner */}
+      {isCompleted && (
+        <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 text-center shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Match Complete</div>
+          <div className="mt-2 text-lg font-bold text-[var(--ink)]">
+            {myTotal != null && oppTotal != null ? (
+              myTotal < oppTotal ? "You won!" :
+              myTotal > oppTotal ? "You lost." :
+              "It's a tie."
+            ) : (
+              "Final scores are in."
+            )}
+          </div>
+          {myTotal != null && oppTotal != null && (
+            <div className="mt-1 text-sm text-[var(--muted)]">
+              {myTotal} vs {oppTotal} ({Math.abs(myTotal - oppTotal)} stroke{Math.abs(myTotal - oppTotal) !== 1 ? "s" : ""} {myTotal < oppTotal ? "ahead" : myTotal > oppTotal ? "behind" : "even"})
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Complete match button - show when all 18 holes scored and match is active */}
+      {!isCompleted && allScoredByMe && isActive && (
+        <div className="rounded-2xl border-2 border-[var(--pine)]/30 bg-gradient-to-br from-[var(--pine)]/5 to-white p-5 text-center">
+          <div className="text-sm font-semibold text-[var(--ink)]">All 18 holes scored!</div>
+          <div className="mt-1 text-xs text-[var(--muted)]">
+            Your total: {myTotal} strokes. Ready to finalize?
+          </div>
+          <button
+            type="button"
+            onClick={completeMatch}
+            disabled={completing}
+            className="mt-4 rounded-xl bg-[var(--pine)] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px disabled:opacity-60"
+          >
+            {completing ? "Completing..." : "Complete Match"}
+          </button>
+        </div>
+      )}
+
+      {/* Scoring input area - only show when match is not completed */}
+      {!isCompleted && (
+        <div className="overflow-hidden rounded-2xl border-2 border-[var(--pine)]/20 bg-gradient-to-b from-white to-[var(--paper)] shadow-sm">
+          <div className="border-b border-[var(--border)] bg-[var(--pine)]/5 px-5 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--pine)] text-sm font-bold text-white">
+                  {holeNo}
+                </span>
+                <div>
+                  <div className="text-sm font-bold tracking-tight">Hole {holeNo} of {TOTAL_HOLES}</div>
+                  <div className="text-[11px] text-[var(--muted)]">
+                    {myScoresByHole.has(holeNo) ? "Scored" : "Not scored yet"}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Running total</div>
+                <div className="text-lg font-bold text-[var(--pine)]">{myTotal ?? 0}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-5">
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Your strokes</label>
+                <input
+                  className="mt-2 w-full rounded-xl border-2 border-[var(--border)] bg-white px-4 py-3.5 text-center text-2xl font-bold tracking-tight outline-none transition focus:border-[var(--pine)] focus:ring-2 focus:ring-[var(--pine)]/20"
+                  inputMode="numeric"
+                  value={strokesInput}
+                  onChange={(e) => setStrokesInput(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+
+              <button
+                className="rounded-xl bg-[var(--pine)] px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:shadow-none disabled:translate-y-0"
+                onClick={saveHole}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+            <div className="mt-2 text-[11px] text-[var(--muted)]">
+              Save to advance. Next is locked until scored.
+            </div>
+
+            <div className="mt-5 flex items-center justify-between gap-3">
+              <button
+                className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
+                onClick={goPrev}
+                disabled={holeNo <= 1}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M8.5 3L4.5 7L8.5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Previous
+              </button>
+
+              <div className="text-xs font-medium text-[var(--muted)]">
+                {myScoresByHole.size} of {TOTAL_HOLES} scored
+              </div>
+
+              <button
+                className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
+                onClick={goNext}
+                disabled={!myScoresByHole.has(holeNo) || holeNo >= TOTAL_HOLES}
+              >
+                Next
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M5.5 3L9.5 7L5.5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hole grid */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
@@ -588,25 +682,30 @@ export default function MatchScoringPage() {
         <div className="grid grid-cols-6 gap-2 sm:grid-cols-9 sm:gap-2.5">
           {Array.from({ length: TOTAL_HOLES }, (_, i) => i + 1).map((h) => {
             const v = myScoresByHole.get(h);
-            const isCurrent = h === holeNo;
+            const isCurrent = !isCompleted && h === holeNo;
             const isScored = v != null;
             return (
               <button
                 key={h}
                 type="button"
                 onClick={() => {
+                  if (isCompleted) return;
                   setHoleNo(h);
                   const existing = holes.find((r) => r.player_id === meId && r.hole_no === h);
                   setStrokesInput(existing?.strokes != null ? String(existing.strokes) : "");
                   setStatus(null);
                 }}
+                disabled={isCompleted}
                 className={cx(
                   "rounded-xl p-2 text-center transition sm:p-2.5",
                   isCurrent && "ring-2 ring-[var(--pine)] bg-[var(--pine)]/10 border-[var(--pine)]/30 shadow-sm",
-                  !isCurrent && isScored && "border border-emerald-200/60 bg-emerald-50/50 hover:bg-emerald-50",
-                  !isCurrent && !isScored && "border border-[var(--border)] bg-white/60 hover:bg-white",
+                  !isCurrent && isScored && "border border-emerald-200/60 bg-emerald-50/50",
+                  !isCurrent && !isScored && "border border-[var(--border)] bg-white/60",
+                  !isCompleted && !isCurrent && isScored && "hover:bg-emerald-50",
+                  !isCompleted && !isCurrent && !isScored && "hover:bg-white",
                   isCurrent && "border border-[var(--pine)]/30",
-                  !isCurrent && "cursor-pointer"
+                  !isCompleted && !isCurrent && "cursor-pointer",
+                  isCompleted && "cursor-default"
                 )}
               >
                 <div className={cx(
