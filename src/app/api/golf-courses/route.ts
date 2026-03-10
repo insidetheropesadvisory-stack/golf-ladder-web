@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 const API_KEY = process.env.GOLF_COURSE_API_KEY!;
 const BASE_URL = "https://www.golfapi.io/api/v2.3";
-const CACHE_DAYS = 30;
+const CACHE_DAYS = 365;
 
 /** Read from Supabase cache. Returns null on miss or expired. */
 async function cacheGet(key: string): Promise<any | null> {
