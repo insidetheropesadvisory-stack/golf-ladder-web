@@ -39,7 +39,11 @@ export default function NewMatchPage() {
   useEffect(() => {
     const preset = sp.get("course");
     if (preset) setCourseName(preset);
-    if (sp.get("ladder") === "true") setIsLadderMatch(true);
+    if (sp.get("ladder") === "true") {
+      setIsLadderMatch(true);
+      setFormat("stroke_play");
+      setUseHandicap(true);
+    }
 
     let handled = false;
 
@@ -246,9 +250,10 @@ export default function NewMatchPage() {
             <div className="space-y-1">
               <label className="text-sm font-medium">Format</label>
               <select
-                className="w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none"
+                className="w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none disabled:opacity-50"
                 value={format}
                 onChange={(e) => setFormat(e.target.value as any)}
+                disabled={isLadderMatch}
               >
                 <option value="stroke_play">Stroke Play</option>
                 <option value="match_play">Match Play</option>
@@ -262,7 +267,8 @@ export default function NewMatchPage() {
                   type="checkbox"
                   checked={useHandicap}
                   onChange={(e) => setUseHandicap(e.target.checked)}
-                  className="h-4 w-4 rounded border-[var(--border)]"
+                  disabled={isLadderMatch}
+                  className="h-4 w-4 rounded border-[var(--border)] disabled:opacity-50"
                 />
                 <label htmlFor="useHandicap" className="text-sm font-medium">
                   Use handicap (net scoring)
@@ -273,13 +279,24 @@ export default function NewMatchPage() {
                   id="isLadderMatch"
                   type="checkbox"
                   checked={isLadderMatch}
-                  onChange={(e) => setIsLadderMatch(e.target.checked)}
+                  onChange={(e) => {
+                    setIsLadderMatch(e.target.checked);
+                    if (e.target.checked) {
+                      setFormat("stroke_play");
+                      setUseHandicap(true);
+                    }
+                  }}
                   className="h-4 w-4 rounded border-[var(--border)]"
                 />
                 <label htmlFor="isLadderMatch" className="text-sm font-medium">
                   Ladder match (affects rankings)
                 </label>
               </div>
+              {isLadderMatch && (
+                <div className="text-xs text-[var(--muted)]">
+                  Ladder matches are always stroke play with handicap.
+                </div>
+              )}
             </div>
           </div>
         </div>
