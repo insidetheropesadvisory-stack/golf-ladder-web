@@ -113,7 +113,7 @@ export function AppShell({
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth", "/onboarding"];
+  const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth", "/onboarding", "/invite"];
   const isAuthRoute = authRoutes.some(
     (r) => pathname === r || pathname.startsWith(r + "/")
   );

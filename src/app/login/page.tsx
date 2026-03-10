@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
+  const sp = useSearchParams();
+  const nextUrl = sp.get("next") || "/";
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,7 +43,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
+      router.push(nextUrl);
       return;
     }
 
@@ -74,7 +76,7 @@ export default function LoginPage() {
       return;
     }
 
-    window.location.assign("/onboarding");
+    window.location.assign(nextUrl === "/" ? "/onboarding" : `/onboarding?next=${encodeURIComponent(nextUrl)}`);
   }
 
   return (

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { CT_CLUBS } from "@/lib/data/ctClubs";
 import { cx, initials } from "@/lib/utils";
@@ -68,6 +68,8 @@ function StepIndicator({ current, steps }: { current: number; steps: readonly st
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const sp = useSearchParams();
+  const nextUrl = sp.get("next") || "/";
 
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(0);
@@ -327,7 +329,7 @@ export default function OnboardingPage() {
         },
       });
 
-      router.replace("/");
+      router.replace(nextUrl);
     } catch (e: any) {
       setError(e?.message ?? "Failed to save profile");
     } finally {

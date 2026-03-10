@@ -37,6 +37,9 @@ export default function NewMatchPage() {
   const [useHandicap, setUseHandicap] = useState(false);
   const [isLadderMatch, setIsLadderMatch] = useState(false);
 
+  const [inviteMode, setInviteMode] = useState<"player" | "link">("player");
+  const [inviteMatchId, setInviteMatchId] = useState<string | null>(null);
+
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -106,13 +109,13 @@ export default function NewMatchPage() {
       return;
     }
 
-    if (!opponent) {
+    if (inviteMode === "player" && !opponent) {
       setStatus("Select an opponent.");
       setLoading(false);
       return;
     }
 
-    if (opponent.id === meId) {
+    if (opponent && opponent.id === meId) {
       setStatus("You can't challenge yourself.");
       setLoading(false);
       return;
@@ -132,13 +135,14 @@ export default function NewMatchPage() {
       roundTimeISO = new Date(`${roundDate}T${timePart}`).toISOString();
     }
 
-    const oppEmail = opponent.email ?? "";
+    const isLinkInvite = inviteMode === "link";
+    const oppEmail = isLinkInvite ? "" : (opponent?.email ?? "");
 
     const { data, error } = await supabase
       .from("matches")
       .insert({
         creator_id: meId,
-        opponent_id: opponent.id,
+        opponent_id: isLinkInvite ? null : (opponent?.id ?? null),
         opponent_email: oppEmail,
         course_name: course,
         golf_course_api_id: courseApiId,
@@ -162,7 +166,14 @@ export default function NewMatchPage() {
       return;
     }
 
-    // Send invite email to opponent
+    // For link invites, show the share UI instead of navigating away
+    if (isLinkInvite) {
+      setLoading(false);
+      setInviteMatchId(data.id);
+      return;
+    }
+
+    // Send invite email to opponent (existing users)
     if (oppEmail) {
       const matchUrl = `${window.location.origin}/matches/${data.id}`;
       try {
@@ -187,6 +198,104 @@ export default function NewMatchPage() {
     router.push(`/matches/${data.id}`);
   }
 
+  // Share screen after link invite creation
+  if (inviteMatchId) {
+    const inviteUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/invite/${inviteMatchId}`;
+    const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Match created!</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Share the link below with your opponent. They'll sign up and the match will be waiting.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-[var(--border)] bg-white/70 p-6 shadow-sm space-y-5">
+          {/* Match summary */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--muted)]">Course</span>
+              <span className="font-semibold">{courseName}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--muted)]">Format</span>
+              <span className="font-semibold">{format === "match_play" ? "Match Play" : "Stroke Play"}{useHandicap ? " (Net)" : ""}</span>
+            </div>
+            {roundDate && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[var(--muted)]">Date</span>
+                <span className="font-semibold">{new Date(`${roundDate}T${roundTime || "00:00"}`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-[var(--border)] pt-5">
+            <div className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--muted)] mb-3">
+              Invite link
+            </div>
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-3 py-2.5">
+              <code className="flex-1 truncate text-xs text-[var(--ink)]">{inviteUrl}</code>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(inviteUrl);
+                  setStatus("Copied!");
+                  setTimeout(() => setStatus(null), 2000);
+                } catch {}
+              }}
+              className="flex-1 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:shadow-sm"
+            >
+              {status === "Copied!" ? "Copied!" : "Copy link"}
+            </button>
+            {canShare && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.share({
+                      title: "Golf match challenge",
+                      text: "You've been challenged to a round on Reciprocity!",
+                      url: inviteUrl,
+                    });
+                  } catch {}
+                }}
+                className="flex-1 rounded-xl bg-[var(--pine)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+              >
+                Share
+              </button>
+            )}
+          </div>
+
+          <p className="text-xs text-[var(--muted)]">
+            Send via text, WhatsApp, iMessage, or any messaging app.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/matches/${inviteMatchId}`}
+            className="rounded-xl bg-[var(--pine)] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-px hover:shadow-md"
+          >
+            View match
+          </Link>
+          <Link
+            href="/matches"
+            className="text-sm text-[var(--muted)] transition hover:text-[var(--ink)]"
+          >
+            Back to matches
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -197,11 +306,50 @@ export default function NewMatchPage() {
       </div>
 
       <form onSubmit={createMatch} className="space-y-5">
-        {meId ? (
-          <OpponentPicker meId={meId} value={opponent} onChange={setOpponent} />
+        {/* Invite mode toggle */}
+        <div className="flex gap-1 rounded-xl border border-[var(--border)] bg-white/60 p-1">
+          <button
+            type="button"
+            onClick={() => { setInviteMode("player"); setOpponent(null); }}
+            className={cx(
+              "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition",
+              inviteMode === "player"
+                ? "bg-[var(--pine)] text-white shadow-sm"
+                : "text-[var(--muted)] hover:text-[var(--ink)]"
+            )}
+          >
+            Existing player
+          </button>
+          <button
+            type="button"
+            onClick={() => { setInviteMode("link"); setOpponent(null); }}
+            className={cx(
+              "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition",
+              inviteMode === "link"
+                ? "bg-[var(--pine)] text-white shadow-sm"
+                : "text-[var(--muted)] hover:text-[var(--ink)]"
+            )}
+          >
+            Invite via link
+          </button>
+        </div>
+
+        {inviteMode === "player" ? (
+          meId ? (
+            <OpponentPicker meId={meId} value={opponent} onChange={setOpponent} />
+          ) : (
+            <div className="rounded-xl border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
+              Loading...
+            </div>
+          )
         ) : (
-          <div className="rounded-xl border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
-            Loading...
+          <div className="rounded-2xl border border-dashed border-[var(--pine)]/30 bg-[var(--pine)]/5 p-5 text-center">
+            <div className="text-sm font-medium text-[var(--ink)]">
+              Invite via link
+            </div>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              A shareable link will be generated after you create the match. Send it to your opponent via text, WhatsApp, or any messaging app.
+            </p>
           </div>
         )}
 
