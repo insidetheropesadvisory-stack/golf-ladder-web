@@ -820,6 +820,78 @@ export default function MatchScoringPage() {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [reminderSent, setReminderSent] = useState(false);
 
+  // Reschedule state
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleCourse, setRescheduleCourse] = useState("");
+  const [rescheduling, setRescheduling] = useState(false);
+
+  const canReschedule = useMemo(() => {
+    if (!match || isCompleted || isExpired) return false;
+    if (match.status === "expired") return false;
+    // Can reschedule active or proposed matches
+    const isParticipant = meId === match.creator_id || meId === match.opponent_id;
+    if (!isParticipant) return false;
+    // Can't reschedule if scoring started
+    return holes.filter((h) => typeof h.strokes === "number").length === 0;
+  }, [match, isCompleted, isExpired, meId, holes]);
+
+  async function rescheduleMatch() {
+    if (!matchId) return;
+    setRescheduling(true);
+    setStatus(null);
+
+    const update: Record<string, any> = {};
+
+    if (rescheduleDate || rescheduleTime) {
+      const date = rescheduleDate || (match?.round_time ? new Date(match.round_time).toISOString().split("T")[0] : "");
+      const time = rescheduleTime || "08:00";
+      if (date) {
+        update.round_time = `${date}T${time}:00`;
+      }
+    }
+
+    if (rescheduleCourse.trim() && rescheduleCourse.trim() !== match?.course_name) {
+      update.course_name = rescheduleCourse.trim();
+    }
+
+    if (Object.keys(update).length === 0) {
+      setStatus("No changes to save");
+      setRescheduling(false);
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/matches/${matchId}/reschedule`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify(update),
+      });
+      const json = await res.json();
+      setRescheduling(false);
+
+      if (!res.ok) {
+        setStatus(json.error || "Failed to reschedule");
+        return;
+      }
+
+      // Update local state
+      setMatch((prev) => prev ? { ...prev, ...update } : prev);
+      setShowReschedule(false);
+      setRescheduleDate("");
+      setRescheduleTime("");
+      setRescheduleCourse("");
+    } catch (e: any) {
+      setRescheduling(false);
+      setStatus(e?.message || "Failed to reschedule");
+    }
+  }
+
   const isProposed =
     match?.status === "proposed" || match?.terms_status === "pending";
   const isCreator = meId != null && meId === match?.creator_id;
@@ -934,46 +1006,128 @@ export default function MatchScoringPage() {
           </div>
         </div>
 
-        {canDelete && (
-          <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {canReschedule && (
             <button
               type="button"
-              onClick={async () => {
-                setSendingReminder(true);
-                try {
-                  const { data: { session } } = await supabase.auth.getSession();
-                  await fetch("/api/send-notification", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-                    },
-                    body: JSON.stringify({
-                      type: "pending_reminder",
-                      matchId,
-                      matchUrl: window.location.href,
-                    }),
-                  });
-                  setReminderSent(true);
-                } catch {}
-                setSendingReminder(false);
+              onClick={() => {
+                setShowReschedule(!showReschedule);
+                if (!showReschedule) {
+                  // Pre-fill with current values
+                  if (match?.round_time) {
+                    const d = new Date(match.round_time);
+                    setRescheduleDate(d.toISOString().split("T")[0]);
+                    setRescheduleTime(d.toTimeString().slice(0, 5));
+                  }
+                  setRescheduleCourse(match?.course_name || "");
+                }
               }}
-              disabled={sendingReminder || reminderSent}
-              className="rounded-lg border border-[var(--pine)]/20 bg-[var(--pine)]/5 px-3 py-1.5 text-xs font-semibold text-[var(--pine)] transition hover:bg-[var(--pine)]/10 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 hover:border-blue-300 sm:px-4 sm:py-2 sm:text-sm"
             >
-              {reminderSent ? "Reminder sent" : sendingReminder ? "Sending..." : "Send reminder"}
+              Reschedule
             </button>
+          )}
+          {canDelete && (
+            <>
+              <button
+                type="button"
+                onClick={async () => {
+                  setSendingReminder(true);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    await fetch("/api/send-notification", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                      },
+                      body: JSON.stringify({
+                        type: "pending_reminder",
+                        matchId,
+                        matchUrl: window.location.href,
+                      }),
+                    });
+                    setReminderSent(true);
+                  } catch {}
+                  setSendingReminder(false);
+                }}
+                disabled={sendingReminder || reminderSent}
+                className="rounded-lg border border-[var(--pine)]/20 bg-[var(--pine)]/5 px-3 py-1.5 text-xs font-semibold text-[var(--pine)] transition hover:bg-[var(--pine)]/10 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+              >
+                {reminderSent ? "Reminder sent" : sendingReminder ? "Sending..." : "Send reminder"}
+              </button>
+              <button
+                type="button"
+                onClick={deleteMatch}
+                disabled={deletingMatch}
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+              >
+                {deletingMatch ? "Deleting..." : "Delete"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Reschedule form */}
+      {showReschedule && canReschedule && (
+        <div className="rounded-2xl border-2 border-blue-200/60 bg-blue-50/30 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-blue-800">Reschedule match</div>
+              <div className="mt-0.5 text-xs text-blue-600/70">Update the date, time, or course. Your opponent will be notified.</div>
+            </div>
             <button
               type="button"
-              onClick={deleteMatch}
-              disabled={deletingMatch}
-              className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+              onClick={() => setShowReschedule(false)}
+              className="rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
             >
-              {deletingMatch ? "Deleting..." : "Delete"}
+              Cancel
             </button>
           </div>
-        )}
-      </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-medium text-[var(--muted)]">Date</label>
+              <input
+                type="date"
+                value={rescheduleDate}
+                onChange={(e) => setRescheduleDate(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted)]">Time</label>
+              <input
+                type="time"
+                value={rescheduleTime}
+                onChange={(e) => setRescheduleTime(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-[var(--muted)]">Course</label>
+            <input
+              type="text"
+              value={rescheduleCourse}
+              onChange={(e) => setRescheduleCourse(e.target.value)}
+              placeholder="Course name"
+              className="mt-1 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={rescheduleMatch}
+            disabled={rescheduling}
+            className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+          >
+            {rescheduling ? "Saving..." : "Save changes"}
+          </button>
+        </div>
+      )}
 
       {/* Opponent: Accept / Decline challenge */}
       {isOpponent && (
