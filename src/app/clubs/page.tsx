@@ -34,6 +34,7 @@ export default function ClubsPage() {
   const [myClubFees, setMyClubFees] = useState<Record<string, number | null>>({});
   const [editingFeeClub, setEditingFeeClub] = useState<string | null>(null);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const [showAdd, setShowAdd] = useState(false);
   const [addQuery, setAddQuery] = useState("");
@@ -151,7 +152,12 @@ export default function ClubsPage() {
 
   async function removeClub(clubId: string) {
     if (!meId) return;
-    await supabase.from("club_memberships").delete().eq("user_id", meId).eq("club_id", clubId);
+    setStatus(null);
+    const { error } = await supabase.from("club_memberships").delete().eq("user_id", meId).eq("club_id", clubId);
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
     await refresh();
   }
 
@@ -277,13 +283,32 @@ export default function ClubsPage() {
                       </button>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => { if (confirm(`Remove ${c.name}?`)) removeClub(c.id); }}
-                    className="text-xs text-[var(--muted)] transition hover:text-red-500"
-                  >
-                    Remove
-                  </button>
+                  {confirmRemove === c.id ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setConfirmRemove(null); removeClub(c.id); }}
+                        className="rounded-lg bg-red-500 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-red-600"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRemove(null)}
+                        className="text-xs text-[var(--muted)]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRemove(c.id)}
+                      className="text-xs text-[var(--muted)] transition hover:text-red-500"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
             );
