@@ -24,6 +24,8 @@ function computePeriodNumber(
   }
 }
 
+const SUBMISSION_WINDOW_MS = 12 * 60 * 60 * 1000; // 12 hours
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -95,6 +97,17 @@ export async function POST(
       );
     }
 
+    // Enforce 12-hour submission window
+    const playedDate = new Date(playedAt + "T23:59:59"); // end of day played
+    const deadline = new Date(playedDate.getTime() + SUBMISSION_WINDOW_MS);
+    const now = new Date();
+    if (now > deadline) {
+      return NextResponse.json(
+        { error: "Submission window closed. Scores must be entered within 12 hours of the round date." },
+        { status: 400 }
+      );
+    }
+
     // Compute period number
     const periodNumber = computePeriodNumber(
       tournament.start_date,
@@ -104,6 +117,23 @@ export async function POST(
 
     if (periodNumber < 1 || periodNumber > tournament.period_count) {
       return NextResponse.json({ error: "Round falls outside tournament periods" }, { status: 400 });
+    }
+
+    // Enforce 1 score per period — check for existing submission
+    const { data: existing } = await admin
+      .from("tournament_rounds")
+      .select("id")
+      .eq("tournament_id", tournamentId)
+      .eq("user_id", user.id)
+      .eq("period_number", periodNumber)
+      .maybeSingle();
+
+    if (existing) {
+      const unit = tournament.period_type === "weekly" ? "week" : "month";
+      return NextResponse.json(
+        { error: `You already submitted a score for ${unit} ${periodNumber}. Only one score per ${unit} is allowed.` },
+        { status: 400 }
+      );
     }
 
     // Compute differential: (113 / slope) * (gross - rating)

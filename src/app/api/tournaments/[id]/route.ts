@@ -85,22 +85,22 @@ export async function GET(
       .eq("tournament_id", tournamentId)
       .order("played_at", { ascending: true });
 
-    // Compute leaderboard
+    // Compute leaderboard (1 score per period per player)
     const acceptedUsers = (participants ?? [])
       .filter((p: any) => p.status === "accepted")
       .map((p: any) => p.user_id);
 
-    // Per-period best differentials
-    const periodBests: Record<string, Record<number, { differential: number; gross_score: number; course_name: string }>> = {};
+    // Map each player's score per period (only 1 allowed)
+    const periodScores: Record<string, Record<number, { differential: number; gross_score: number; course_name: string }>> = {};
     for (const uid of acceptedUsers) {
-      periodBests[uid] = {};
+      periodScores[uid] = {};
     }
 
     for (const r of (rounds ?? []) as any[]) {
-      if (!periodBests[r.user_id]) continue;
-      const existing = periodBests[r.user_id][r.period_number];
-      if (!existing || r.differential < existing.differential) {
-        periodBests[r.user_id][r.period_number] = {
+      if (!periodScores[r.user_id]) continue;
+      // Only 1 score per period — take the first (enforced by API)
+      if (!periodScores[r.user_id][r.period_number]) {
+        periodScores[r.user_id][r.period_number] = {
           differential: Number(r.differential),
           gross_score: r.gross_score,
           course_name: r.course_name,
@@ -108,20 +108,19 @@ export async function GET(
       }
     }
 
-    // Overall standings: average of best differentials
+    // Overall standings: average differential across submitted periods
     const standings = acceptedUsers.map((uid: string) => {
-      const bests = periodBests[uid];
-      const periods = Object.keys(bests).map(Number);
-      const diffs = periods.map((p) => bests[p].differential);
+      const scores = periodScores[uid];
+      const periods = Object.keys(scores).map(Number);
+      const diffs = periods.map((p) => scores[p].differential);
       const avgDiff = diffs.length > 0 ? diffs.reduce((a, b) => a + b, 0) / diffs.length : null;
-      const totalRounds = (rounds ?? []).filter((r: any) => r.user_id === uid).length;
 
       return {
         user_id: uid,
-        rounds_played: totalRounds,
+        rounds_played: periods.length,
         periods_played: periods.length,
         avg_differential: avgDiff != null ? Math.round(avgDiff * 10) / 10 : null,
-        period_bests: bests,
+        period_scores: scores,
       };
     });
 
@@ -138,8 +137,8 @@ export async function GET(
     for (let p = 1; p <= tournament.period_count; p++) {
       const entries: { user_id: string; differential: number; gross_score: number; course_name: string }[] = [];
       for (const uid of acceptedUsers) {
-        const best = periodBests[uid]?.[p];
-        if (best) entries.push({ user_id: uid, ...best });
+        const score = periodScores[uid]?.[p];
+        if (score) entries.push({ user_id: uid, ...score });
       }
       entries.sort((a, b) => a.differential - b.differential);
       periodLeaderboards[p] = entries;

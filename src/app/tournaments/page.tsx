@@ -140,11 +140,11 @@ export default function TournamentsPage() {
           </div>
           <div className="flex items-start gap-2.5">
             <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">2</span>
-            <span>Everyone plays their own rounds at any course — scores are normalized using <span className="font-medium">course rating &amp; slope</span> so every course is fair.</span>
+            <span><span className="font-medium">One score per period.</span> Play a round at any course, submit your score, and it's locked in. Scores must be entered within <span className="font-medium">12 hours</span> or the period counts as N/A.</span>
           </div>
           <div className="flex items-start gap-2.5">
             <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">3</span>
-            <span>Best <span className="font-medium">differential</span> each period wins that period. Lowest average differential wins overall.</span>
+            <span>Scores are normalized using <span className="font-medium">course rating &amp; slope</span> so every course is fair. Lowest differential each period wins. Lowest average wins overall.</span>
           </div>
         </div>
       </div>

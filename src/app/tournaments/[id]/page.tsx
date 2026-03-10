@@ -23,7 +23,7 @@ type Standing = {
   rounds_played: number;
   periods_played: number;
   avg_differential: number | null;
-  period_bests: Record<number, { differential: number; gross_score: number; course_name: string }>;
+  period_scores: Record<number, { differential: number; gross_score: number; course_name: string }>;
 };
 
 type PeriodEntry = {
