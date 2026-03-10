@@ -13,7 +13,7 @@ type Club = {
   logo_url?: string | null;
   source: "my" | "db" | "ct" | "api";
   guest_fee?: number | null;
-  apiCourseId?: number;
+  apiCourseId?: string;
 };
 
 function normalizeClubRow(row: any): Club | null {
@@ -78,7 +78,7 @@ export function ClubPicker({
   value: string;
   onChange: (next: string) => void;
   onGuestFeeChange?: (fee: number | null) => void;
-  onCourseApiIdChange?: (id: number | null) => void;
+  onCourseApiIdChange?: (id: string | null) => void;
   onTeesChange?: (tees: ApiTeeInfo[]) => void;
   userId: string;
   placeholder?: string;
@@ -90,6 +90,7 @@ export function ClubPicker({
 
   const [myClubs, setMyClubs] = useState<Club[]>([]);
   const [dbClubs, setDbClubs] = useState<Club[]>([]);
+  const [ctApiClubs, setCtApiClubs] = useState<Club[]>([]);
   const [apiClubs, setApiClubs] = useState<Club[]>([]);
   const [apiLoading, setApiLoading] = useState(false);
   const [query, setQuery] = useState(value);
@@ -112,17 +113,49 @@ export function ClubPicker({
         const res = await fetch(`/api/golf-courses?q=${encodeURIComponent(trimmed)}&limit=6`);
         if (!res.ok) { setApiClubs([]); setApiLoading(false); return; }
         const json = await res.json();
-        const courses: any[] = json.courses ?? [];
-        const clubs: Club[] = courses.map((c: any) => ({
-          id: `api::${c.id}`,
-          name: String(c.club_name ?? c.course_name ?? ""),
-          city: c.city ?? null,
-          state: c.state ?? null,
-          logo_url: null,
-          source: "api" as const,
-          apiCourseId: c.id,
-        })).filter((c) => c.name);
-        setApiClubs(clubs);
+        const results: any[] = json.courses ?? [];
+        // Each result is a club that may have multiple courses
+        const clubs: Club[] = [];
+        for (const c of results) {
+          const clubCourses: any[] = c.courses ?? [];
+          if (clubCourses.length === 0) {
+            // Club with no courses — use club name
+            clubs.push({
+              id: `api::${c.id}`,
+              name: String(c.club_name ?? ""),
+              city: c.city ?? null,
+              state: c.state ?? null,
+              logo_url: null,
+              source: "api" as const,
+              apiCourseId: undefined,
+            });
+          } else if (clubCourses.length === 1) {
+            // Single course — use club name
+            clubs.push({
+              id: `api::${clubCourses[0].courseID}`,
+              name: String(c.club_name ?? ""),
+              city: c.city ?? null,
+              state: c.state ?? null,
+              logo_url: null,
+              source: "api" as const,
+              apiCourseId: clubCourses[0].courseID,
+            });
+          } else {
+            // Multiple courses — list each one
+            for (const co of clubCourses) {
+              clubs.push({
+                id: `api::${co.courseID}`,
+                name: `${c.club_name} - ${co.courseName}`,
+                city: c.city ?? null,
+                state: c.state ?? null,
+                logo_url: null,
+                source: "api" as const,
+                apiCourseId: co.courseID,
+              });
+            }
+          }
+        }
+        setApiClubs(clubs.filter((c) => c.name));
       } catch {
         setApiClubs([]);
       }
@@ -167,6 +200,58 @@ export function ClubPicker({
     };
   }, [userId]);
 
+  // Fetch CT clubs from API in background (non-blocking) to enrich static list
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const ctRes = await fetch("/api/golf-courses?state=CT");
+        if (!ctRes.ok || !mounted) return;
+        const ctJson = await ctRes.json();
+        const ctResults: any[] = ctJson.courses ?? [];
+        const ctFromApi: Club[] = [];
+        for (const c of ctResults) {
+          const clubCourses: any[] = c.courses ?? [];
+          if (clubCourses.length === 0) {
+            ctFromApi.push({
+              id: `ctapi::${c.id}`,
+              name: String(c.club_name ?? ""),
+              city: c.city ?? null,
+              state: c.state ?? null,
+              logo_url: null,
+              source: "ct",
+              apiCourseId: undefined,
+            });
+          } else if (clubCourses.length === 1) {
+            ctFromApi.push({
+              id: `ctapi::${clubCourses[0].courseID}`,
+              name: String(c.club_name ?? ""),
+              city: c.city ?? null,
+              state: c.state ?? null,
+              logo_url: null,
+              source: "ct",
+              apiCourseId: clubCourses[0].courseID,
+            });
+          } else {
+            for (const co of clubCourses) {
+              ctFromApi.push({
+                id: `ctapi::${co.courseID}`,
+                name: `${c.club_name} - ${co.courseName}`,
+                city: c.city ?? null,
+                state: c.state ?? null,
+                logo_url: null,
+                source: "ct",
+                apiCourseId: co.courseID,
+              });
+            }
+          }
+        }
+        if (mounted) setCtApiClubs(ctFromApi.filter((c) => c.name));
+      } catch {}
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!rootRef.current) return;
@@ -176,23 +261,35 @@ export function ClubPicker({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const ctClubs: Club[] = useMemo(
-    () =>
-      CT_CLUBS.map((name) => ({
-        id: `ct::${name}`,
-        name,
-        city: null,
-        state: "CT",
-        logo_url: null,
-        source: "ct",
-      })),
-    []
-  );
+  // Merge CT clubs: API versions overwrite static CT_CLUBS by name, static fallbacks kept
+  const mergedCtClubs: Club[] = useMemo(() => {
+    const apiByName = new Map<string, Club>();
+    for (const c of ctApiClubs) {
+      apiByName.set(c.name.trim().toLowerCase(), c);
+    }
+
+    const merged: Club[] = [...ctApiClubs];
+    // Add static CT_CLUBS entries that don't have an API match
+    for (const name of CT_CLUBS) {
+      const key = name.trim().toLowerCase();
+      if (!apiByName.has(key)) {
+        merged.push({
+          id: `ct::${name}`,
+          name,
+          city: null,
+          state: "CT",
+          logo_url: null,
+          source: "ct",
+        });
+      }
+    }
+    return dedupeByName(merged);
+  }, [ctApiClubs]);
 
   const allForSearch: Club[] = useMemo(() => {
     // Always include CT list so you never see an empty dropdown
-    return dedupeByName([...myClubs, ...dbClubs, ...ctClubs]);
-  }, [myClubs, dbClubs, ctClubs]);
+    return dedupeByName([...myClubs, ...dbClubs, ...mergedCtClubs]);
+  }, [myClubs, dbClubs, mergedCtClubs]);
 
   const filtered: Club[] = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -228,7 +325,7 @@ export function ClubPicker({
     return { mine, ct, other, api: dedupedApiClubs };
   }, [filtered, dedupedApiClubs]);
 
-  async function pick(name: string, guestFee?: number | null, apiCourseId?: number | null) {
+  async function pick(name: string, guestFee?: number | null, apiCourseId?: string | null) {
     const n = name.trim();
     if (!n) return;
     onChange(n);
@@ -240,7 +337,7 @@ export function ClubPicker({
     // Fetch tee data for API courses
     if (apiCourseId && onTeesChange) {
       try {
-        const res = await fetch(`/api/golf-courses?id=${apiCourseId}`);
+        const res = await fetch(`/api/golf-courses?courseId=${apiCourseId}`);
         if (res.ok) {
           const json = await res.json();
           const course = json.course ?? json;
@@ -331,7 +428,7 @@ export function ClubPicker({
                 {grouped.ct.length > 0 && (
                   <Section title="Connecticut">
                     {grouped.ct.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null)} />
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId)} />
                     ))}
                   </Section>
                 )}
