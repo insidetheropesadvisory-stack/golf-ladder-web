@@ -1179,6 +1179,150 @@ export default function MatchScoringPage() {
         </div>
       )}
 
+      {/* Full 18-hole scorecard summary (completed matches) */}
+      {isCompleted && (() => {
+        const myHoleScores = new Map<number, number>();
+        const oppHoleScores = new Map<number, number>();
+        for (const r of holes) {
+          if (r.player_id === meId && typeof r.strokes === "number") myHoleScores.set(r.hole_no, r.strokes);
+          if (r.player_id === oppId && typeof r.strokes === "number") oppHoleScores.set(r.hole_no, r.strokes);
+        }
+
+        const front = Array.from({ length: 9 }, (_, i) => i + 1);
+        const back = Array.from({ length: 9 }, (_, i) => i + 10);
+
+        function sumRange(scores: Map<number, number>, holeNos: number[]) {
+          let t = 0;
+          for (const h of holeNos) { t += scores.get(h) ?? 0; }
+          return t;
+        }
+        function parForRange(holeNos: number[]) {
+          if (!activeTee) return null;
+          let t = 0;
+          for (const h of holeNos) {
+            const p = getHolePar(activeTee, h);
+            if (p == null) return null;
+            t += p;
+          }
+          return t;
+        }
+
+        const myOut = sumRange(myHoleScores, front);
+        const myIn = sumRange(myHoleScores, back);
+        const oppOut = sumRange(oppHoleScores, front);
+        const oppIn = sumRange(oppHoleScores, back);
+        const parOut = parForRange(front);
+        const parIn = parForRange(back);
+
+        function diffClass(strokes: number | undefined, par: number | null) {
+          if (strokes == null || par == null) return "";
+          const d = strokes - par;
+          if (d <= -2) return "bg-amber-400 text-white font-bold";       // eagle or better
+          if (d === -1) return "bg-red-500 text-white font-bold";        // birdie
+          if (d === 0) return "";                                         // par
+          if (d === 1) return "bg-[var(--pine)]/15 text-[var(--pine)]";  // bogey
+          return "bg-[var(--pine)]/30 text-[var(--pine)]";               // double+
+        }
+
+        const allHoles = [...front, ...back];
+
+        return (
+          <div className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden">
+            <div className="border-b border-[var(--border)] bg-[var(--paper-2)] px-5 py-3">
+              <div className="text-sm font-bold tracking-tight">Scorecard Summary</div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs tabular-nums">
+                <thead>
+                  {/* Front 9 header */}
+                  <tr className="border-b border-[var(--border)] bg-[var(--paper-2)]/50">
+                    <th className="sticky left-0 z-10 bg-[var(--paper-2)] px-3 py-2 text-left font-semibold text-[var(--muted)] min-w-[80px]">Hole</th>
+                    {front.map(h => (
+                      <th key={h} className="px-2 py-2 text-center font-semibold text-[var(--muted)] min-w-[32px]">{h}</th>
+                    ))}
+                    <th className="px-3 py-2 text-center font-bold text-[var(--ink)] min-w-[40px] bg-[var(--paper-2)]">Out</th>
+                    {back.map(h => (
+                      <th key={h} className="px-2 py-2 text-center font-semibold text-[var(--muted)] min-w-[32px]">{h}</th>
+                    ))}
+                    <th className="px-3 py-2 text-center font-bold text-[var(--ink)] min-w-[40px] bg-[var(--paper-2)]">In</th>
+                    <th className="px-3 py-2 text-center font-bold text-[var(--ink)] min-w-[44px] bg-[var(--paper-2)]">Tot</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Par row */}
+                  {activeTee && (
+                    <tr className="border-b border-[var(--border)] bg-slate-50/50">
+                      <td className="sticky left-0 z-10 bg-slate-50 px-3 py-1.5 font-semibold text-[var(--muted)]">Par</td>
+                      {front.map(h => (
+                        <td key={h} className="px-2 py-1.5 text-center text-[var(--muted)]">{getHolePar(activeTee, h) ?? ""}</td>
+                      ))}
+                      <td className="px-3 py-1.5 text-center font-bold text-[var(--ink)] bg-slate-100/50">{parOut ?? ""}</td>
+                      {back.map(h => (
+                        <td key={h} className="px-2 py-1.5 text-center text-[var(--muted)]">{getHolePar(activeTee, h) ?? ""}</td>
+                      ))}
+                      <td className="px-3 py-1.5 text-center font-bold text-[var(--ink)] bg-slate-100/50">{parIn ?? ""}</td>
+                      <td className="px-3 py-1.5 text-center font-bold text-[var(--ink)] bg-slate-100/50">{parOut != null && parIn != null ? parOut + parIn : ""}</td>
+                    </tr>
+                  )}
+                  {/* My scores */}
+                  <tr className="border-b border-[var(--border)]">
+                    <td className="sticky left-0 z-10 bg-white px-3 py-1.5 font-semibold text-emerald-700 truncate max-w-[100px]">You</td>
+                    {front.map(h => {
+                      const s = myHoleScores.get(h);
+                      const par = activeTee ? getHolePar(activeTee, h) : null;
+                      return (
+                        <td key={h} className={cx("px-2 py-1.5 text-center", diffClass(s, par))}>{s ?? ""}</td>
+                      );
+                    })}
+                    <td className="px-3 py-1.5 text-center font-bold text-emerald-800 bg-emerald-50/50">{myOut || ""}</td>
+                    {back.map(h => {
+                      const s = myHoleScores.get(h);
+                      const par = activeTee ? getHolePar(activeTee, h) : null;
+                      return (
+                        <td key={h} className={cx("px-2 py-1.5 text-center", diffClass(s, par))}>{s ?? ""}</td>
+                      );
+                    })}
+                    <td className="px-3 py-1.5 text-center font-bold text-emerald-800 bg-emerald-50/50">{myIn || ""}</td>
+                    <td className="px-3 py-1.5 text-center font-bold text-emerald-800 bg-emerald-50/50">{myTotal ?? ""}</td>
+                  </tr>
+                  {/* Opponent scores */}
+                  <tr>
+                    <td className="sticky left-0 z-10 bg-white px-3 py-1.5 font-semibold text-slate-600 truncate max-w-[100px]">{opponentLabel}</td>
+                    {front.map(h => {
+                      const s = oppHoleScores.get(h);
+                      const par = activeTee ? getHolePar(activeTee, h) : null;
+                      return (
+                        <td key={h} className={cx("px-2 py-1.5 text-center", diffClass(s, par))}>{s ?? ""}</td>
+                      );
+                    })}
+                    <td className="px-3 py-1.5 text-center font-bold text-slate-700 bg-slate-50/50">{oppOut || ""}</td>
+                    {back.map(h => {
+                      const s = oppHoleScores.get(h);
+                      const par = activeTee ? getHolePar(activeTee, h) : null;
+                      return (
+                        <td key={h} className={cx("px-2 py-1.5 text-center", diffClass(s, par))}>{s ?? ""}</td>
+                      );
+                    })}
+                    <td className="px-3 py-1.5 text-center font-bold text-slate-700 bg-slate-50/50">{oppIn || ""}</td>
+                    <td className="px-3 py-1.5 text-center font-bold text-slate-700 bg-slate-50/50">{oppTotal ?? ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            {/* Legend */}
+            {activeTee && (
+              <div className="border-t border-[var(--border)] px-5 py-2.5 flex flex-wrap gap-3 text-[10px] text-[var(--muted)]">
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm bg-amber-400" /> Eagle+</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm bg-red-500" /> Birdie</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm border border-[var(--border)]" /> Par</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm bg-[var(--pine)]/15" /> Bogey</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm bg-[var(--pine)]/30" /> Double+</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Complete match button */}
       {!isCompleted && isActive && canComplete && (
         <div className="rounded-2xl border-2 border-[var(--pine)]/30 bg-gradient-to-br from-[var(--pine)]/5 to-white p-5 text-center">
