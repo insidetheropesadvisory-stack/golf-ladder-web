@@ -5,6 +5,16 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { ClubPicker } from "@/app/components/ClubPicker";
+import { OpponentPicker } from "@/app/components/OpponentPicker";
+
+type SelectedOpponent = {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  handicap_index: number | null;
+  clubs: string[];
+};
 
 export default function NewMatchPage() {
   const router = useRouter();
@@ -13,7 +23,7 @@ export default function NewMatchPage() {
   const [meId, setMeId] = useState<string | null>(null);
   const [meEmail, setMeEmail] = useState<string | null>(null);
 
-  const [opponentEmail, setOpponentEmail] = useState("");
+  const [opponent, setOpponent] = useState<SelectedOpponent | null>(null);
   const [courseName, setCourseName] = useState("");
   const [roundDate, setRoundDate] = useState("");
   const [roundTime, setRoundTime] = useState("");
@@ -64,22 +74,19 @@ export default function NewMatchPage() {
       return;
     }
 
-    const opp = opponentEmail.trim().toLowerCase();
-    const me = meEmail.trim().toLowerCase();
+    if (!opponent) {
+      setStatus("Select an opponent.");
+      setLoading(false);
+      return;
+    }
+
+    if (opponent.id === meId) {
+      setStatus("You can't challenge yourself.");
+      setLoading(false);
+      return;
+    }
+
     const course = courseName.trim();
-
-    if (!opp) {
-      setStatus("Enter an opponent email.");
-      setLoading(false);
-      return;
-    }
-
-    if (opp === me) {
-      setStatus("Opponent email must be different from your email.");
-      setLoading(false);
-      return;
-    }
-
     if (!course) {
       setStatus("Pick a club/course.");
       setLoading(false);
@@ -93,15 +100,17 @@ export default function NewMatchPage() {
       roundTimeISO = new Date(`${roundDate}T${timePart}`).toISOString();
     }
 
+    const oppEmail = opponent.email ?? "";
+
     const { data, error } = await supabase
       .from("matches")
       .insert({
         creator_id: meId,
-        opponent_email: opp,
+        opponent_id: opponent.id,
+        opponent_email: oppEmail,
         course_name: course,
         status: "proposed",
         round_time: roundTimeISO,
-
         format,
         use_handicap: useHandicap,
         terms_status: "pending",
@@ -118,23 +127,24 @@ export default function NewMatchPage() {
     }
 
     // Send invite email to opponent
-    const matchUrl = `${window.location.origin}/matches/${data.id}`;
-    try {
-      await fetch("/api/send-invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: opp,
-          matchUrl,
-          courseName: course,
-          roundTime: roundTimeISO,
-          hostEmail: meEmail,
-          guestFee: guestFee,
-        }),
-      });
-    } catch {
-      // Don't block match creation if email fails
-      console.warn("Invite email failed to send");
+    if (oppEmail) {
+      const matchUrl = `${window.location.origin}/matches/${data.id}`;
+      try {
+        await fetch("/api/send-invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: oppEmail,
+            matchUrl,
+            courseName: course,
+            roundTime: roundTimeISO,
+            hostEmail: meEmail,
+            guestFee: guestFee,
+          }),
+        });
+      } catch {
+        console.warn("Invite email failed to send");
+      }
     }
 
     setLoading(false);
@@ -151,23 +161,13 @@ export default function NewMatchPage() {
       </div>
 
       <form onSubmit={createMatch} className="space-y-5">
-        <div className="space-y-1">
-          <label className="text-xs font-medium tracking-[0.18em] text-[var(--muted)]">
-            OPPONENT EMAIL
-          </label>
-          <input
-            className="w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
-            type="email"
-            value={opponentEmail}
-            onChange={(e) => setOpponentEmail(e.target.value)}
-            placeholder="opponent@email.com"
-            required
-            autoComplete="email"
-          />
-          <div className="text-xs text-[var(--muted)]">
-            They'll get an email invite with a link to the match.
+        {meId ? (
+          <OpponentPicker meId={meId} value={opponent} onChange={setOpponent} />
+        ) : (
+          <div className="rounded-xl border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
+            Loading...
           </div>
-        </div>
+        )}
 
         {meId ? (
           <div>
