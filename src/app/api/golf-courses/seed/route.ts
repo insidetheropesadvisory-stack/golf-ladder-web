@@ -38,14 +38,23 @@ export async function POST(request: Request) {
     page = startPage;
 
     while (true) {
-      // Fetch a page from the external API
-      const res = await fetch(`${BASE_URL}/courses?page=${page}`, {
-        headers: { Authorization: `Key ${API_KEY}` },
-      });
+      // Fetch a page from the external API with retry on 429
+      let res: Response | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        res = await fetch(`${BASE_URL}/courses?page=${page}`, {
+          headers: { Authorization: `Key ${API_KEY}` },
+        });
+        if (res.status === 429) {
+          // Rate limited — wait and retry
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
+        break;
+      }
 
-      if (!res.ok) {
+      if (!res || !res.ok) {
         return NextResponse.json({
-          message: `Stopped at page ${page} (API returned ${res.status})`,
+          message: `Stopped at page ${page} (API returned ${res?.status ?? "no response"})`,
           totalInserted,
           totalSkipped,
           lastPage: page,
@@ -89,10 +98,8 @@ export async function POST(request: Request) {
       totalInserted += rows.length;
       page++;
 
-      // Rate limit: small delay every 20 pages
-      if (page % 20 === 0) {
-        await new Promise((r) => setTimeout(r, 200));
-      }
+      // Rate limit: delay between every request to avoid 429s
+      await new Promise((r) => setTimeout(r, 150));
     }
 
     return NextResponse.json({
