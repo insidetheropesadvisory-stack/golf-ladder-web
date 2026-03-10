@@ -436,6 +436,32 @@ export default function MatchScoringPage() {
   const isCompleted = match?.completed === true || match?.status === "completed";
   const isActive = match?.terms_status === "accepted" || match?.status === "active";
 
+  // Scoring locked until tee time (if a round_time is set)
+  const scoringLocked = useMemo(() => {
+    if (!match?.round_time) return false; // No time set = scoring open
+    try {
+      return new Date(match.round_time).getTime() > Date.now();
+    } catch {
+      return false;
+    }
+  }, [match?.round_time]);
+
+  const teeTimeLabel = useMemo(() => {
+    if (!match?.round_time) return null;
+    try {
+      const d = new Date(match.round_time);
+      return d.toLocaleString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    } catch {
+      return match.round_time;
+    }
+  }, [match?.round_time]);
+
   // Count opponent scored holes
   const oppScoredCount = useMemo(() => {
     if (!oppId) return 0;
@@ -876,8 +902,24 @@ export default function MatchScoringPage() {
         </div>
       )}
 
-      {/* Scoring input area - only show when match is not completed */}
-      {!isCompleted && (
+      {/* Scoring locked until tee time */}
+      {!isCompleted && scoringLocked && (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--pine)]/10">
+            <svg className="h-6 w-6 text-[var(--pine)]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </div>
+          <div className="text-sm font-semibold text-[var(--ink)]">Scoring opens at tee time</div>
+          <div className="mt-1 text-sm text-[var(--muted)]">
+            Scoring will be available closer to your tee time on{" "}
+            <span className="font-medium text-[var(--ink)]">{teeTimeLabel}</span>.
+          </div>
+        </div>
+      )}
+
+      {/* Scoring input area - only show when match is not completed and not locked */}
+      {!isCompleted && !scoringLocked && (
         <div className="overflow-hidden rounded-2xl border-2 border-[var(--pine)]/20 bg-gradient-to-b from-white to-[var(--paper)] shadow-sm">
           <div className="border-b border-[var(--border)] bg-[var(--pine)]/5 px-5 py-3">
             <div className="flex items-center justify-between">
@@ -959,8 +1001,8 @@ export default function MatchScoringPage() {
         </div>
       )}
 
-      {/* Hole grid */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
+      {/* Hole grid - hidden when scoring is locked */}
+      {!scoringLocked && <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
         <div className="mb-4 flex items-center justify-between">
           <div className="text-sm font-bold tracking-tight">Your Holes</div>
           <div className="text-xs text-[var(--muted)]">{myScoresByHole.size}/{TOTAL_HOLES} complete</div>
@@ -1012,7 +1054,7 @@ export default function MatchScoringPage() {
             );
           })}
         </div>
-      </div>
+      </div>}
 
       {status && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
