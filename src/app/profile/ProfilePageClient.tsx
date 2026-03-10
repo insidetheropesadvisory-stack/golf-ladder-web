@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -316,8 +317,21 @@ export default function ProfilePageClient() {
 
         <div className="rounded-2xl border border-[var(--border)] bg-white/70 p-6 shadow-sm">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-sm text-[var(--muted)]">Loading...</div>
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-[220px_1fr]">
+              <div className="space-y-4">
+                <div className="h-4 w-12 rounded bg-black/[0.04]" />
+                <div className="h-40 w-40 rounded-2xl bg-black/[0.04]" />
+              </div>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <div className="h-4 w-24 rounded bg-black/[0.04]" />
+                  <div className="h-12 w-full rounded-xl bg-black/[0.04]" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 w-28 rounded bg-black/[0.04]" />
+                  <div className="h-12 w-full rounded-xl bg-black/[0.04]" />
+                </div>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-8 md:grid-cols-[220px_1fr]">
@@ -326,10 +340,13 @@ export default function ProfilePageClient() {
 
                 <div className="relative h-40 w-40 overflow-hidden rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--paper-2)] transition-colors duration-200 hover:border-[var(--pine)]/30">
                   {shownAvatar ? (
-                    <img
+                    <Image
                       src={shownAvatar}
                       alt="Avatar"
+                      width={160}
+                      height={160}
                       className="h-full w-full object-cover"
+                      unoptimized={shownAvatar.startsWith("blob:")}
                     />
                   ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2">
@@ -343,7 +360,7 @@ export default function ProfilePageClient() {
 
                 <label
                   className={cx(
-                    "inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-all duration-200",
+                    "inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors duration-200",
                     uploading ? "opacity-60 cursor-not-allowed" : "hover:bg-white hover:shadow-sm hover:border-[var(--pine)]/30"
                   )}
                 >
@@ -379,7 +396,7 @@ export default function ProfilePageClient() {
                     Display name
                   </label>
                   <input
-                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
+                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition-colors duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="e.g., Ned Roosevelt"
@@ -391,7 +408,7 @@ export default function ProfilePageClient() {
                     Handicap index
                   </label>
                   <input
-                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
+                    className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition-colors duration-200 focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
                     value={handicap}
                     onChange={(e) => setHandicap(e.target.value)}
                     placeholder="e.g., 9.8"
@@ -402,7 +419,7 @@ export default function ProfilePageClient() {
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     className={cx(
-                      "rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200",
+                      "rounded-full px-5 py-2.5 text-sm font-medium transition-colors duration-200",
                       hasChanges && !saving
                         ? "bg-[var(--pine)] text-white shadow-sm hover:shadow-md hover:-translate-y-[1px]"
                         : "bg-black/[0.04] text-[var(--muted)] cursor-not-allowed"
@@ -414,14 +431,14 @@ export default function ProfilePageClient() {
                     {saving ? "Saving..." : "Save changes"}
                   </button>
 
-                  <Link className="rounded-full px-4 py-2.5 text-sm text-[var(--muted)] transition-all duration-200 hover:bg-black/[0.04] hover:text-[var(--ink)]" href={next}>
+                  <Link className="rounded-full px-4 py-2.5 text-sm text-[var(--muted)] transition-colors duration-200 hover:bg-black/[0.04] hover:text-[var(--ink)]" href={next}>
                     Back
                   </Link>
 
                   {showNameRequired && next !== "/" && hasName ? (
                     <Link
                       href={next}
-                      className="rounded-full border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-white hover:shadow-sm"
+                      className="rounded-full border border-[var(--border)] bg-white/80 px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-white hover:shadow-sm"
                     >
                       Continue &rarr;
                     </Link>
