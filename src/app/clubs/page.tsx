@@ -209,14 +209,21 @@ export default function ClubsPage() {
 
       {status && (
         <div className="rounded-xl bg-amber-50/50 border border-amber-200/60 px-4 py-3 text-sm text-amber-800">
-          {status}
+          <div>{status}</div>
+          <button
+            type="button"
+            onClick={() => { setStatus(null); refresh(); }}
+            className="mt-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+          >
+            Retry
+          </button>
         </div>
       )}
 
       {loading ? (
         <div className="space-y-3">
-          <div className="h-24 rounded-2xl bg-black/[0.03]" />
-          <div className="h-24 rounded-2xl bg-black/[0.03]" />
+          <div className="h-24 animate-pulse rounded-2xl bg-black/[0.03]" />
+          <div className="h-24 animate-pulse rounded-2xl bg-black/[0.03]" style={{ animationDelay: "75ms" }} />
         </div>
       ) : myClubs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">

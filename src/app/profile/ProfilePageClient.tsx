@@ -306,8 +306,14 @@ export default function ProfilePageClient() {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
       const json = await res.json();
-      if (res.ok) setStats(json as StatsData);
-    } catch {}
+      if (res.ok) {
+        setStats(json as StatsData);
+      } else {
+        setStats({ wins: 0, losses: 0, ties: 0, totalRounds: 0, avgScore: null, bestScore: null, headToHead: [], byCourse: [] });
+      }
+    } catch {
+      setStats({ wins: 0, losses: 0, ties: 0, totalRounds: 0, avgScore: null, bestScore: null, headToHead: [], byCourse: [] });
+    }
     setStatsLoading(false);
   }
 
@@ -540,9 +546,9 @@ export default function ProfilePageClient() {
               {statsLoading ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-3 gap-3">
-                    {[1, 2, 3].map((i) => <div key={i} className="h-20 rounded-xl bg-black/[0.03]" />)}
+                    {[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-black/[0.03]" style={{ animationDelay: `${i * 75}ms` }} />)}
                   </div>
-                  <div className="h-32 rounded-xl bg-black/[0.03]" />
+                  <div className="h-32 animate-pulse rounded-xl bg-black/[0.03]" style={{ animationDelay: "225ms" }} />
                 </div>
               ) : stats && stats.totalRounds === 0 ? (
                 <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center">

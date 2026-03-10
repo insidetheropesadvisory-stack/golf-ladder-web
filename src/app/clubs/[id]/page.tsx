@@ -16,41 +16,77 @@ export default function ClubDetailPage() {
   const clubId = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [club, setClub] = useState<Club | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [upcoming, setUpcoming] = useState<UpcomingMatch[]>([]);
   const [tab, setTab] = useState<"members" | "leaderboard" | "upcoming">("members");
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
+  async function load() {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const res = await fetch(`/api/clubs/${clubId}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (!res.ok) return;
-        const json = await res.json();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError("You must be signed in to view this club.");
+        setLoading(false);
+        return;
+      }
 
-        setClub(json.club);
-        setMembers(json.members ?? []);
-        setLeaderboard(json.leaderboard ?? []);
-        setUpcoming(json.upcoming ?? []);
-      } catch {}
-      setLoading(false);
+      const res = await fetch(`/api/clubs/${clubId}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? `Failed to load club (${res.status})`);
+      }
+      const json = await res.json();
+
+      setClub(json.club);
+      setMembers(json.members ?? []);
+      setLeaderboard(json.leaderboard ?? []);
+      setUpcoming(json.upcoming ?? []);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load club");
     }
+    setLoading(false);
+  }
 
+  useEffect(() => {
     if (clubId) load();
   }, [clubId]);
 
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-20 rounded-2xl bg-black/[0.03]" />
-        <div className="h-10 rounded-xl bg-black/[0.03]" />
-        <div className="h-40 rounded-2xl bg-black/[0.03]" />
+        <div className="h-20 animate-pulse rounded-2xl bg-black/[0.03]" />
+        <div className="h-10 animate-pulse rounded-xl bg-black/[0.03]" style={{ animationDelay: "75ms" }} />
+        <div className="h-40 animate-pulse rounded-2xl bg-black/[0.03]" style={{ animationDelay: "150ms" }} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-8 text-center">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-50">
+          <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          </svg>
+        </div>
+        <div className="text-sm font-medium text-[var(--ink)]">{error}</div>
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => load()}
+            className="rounded-xl bg-[var(--pine)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+          >
+            Try again
+          </button>
+          <Link href="/clubs" className="text-sm text-[var(--pine)] underline">Back to memberships</Link>
+        </div>
       </div>
     );
   }

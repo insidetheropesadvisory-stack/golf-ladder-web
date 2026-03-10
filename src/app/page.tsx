@@ -299,7 +299,16 @@ export default function HomePage() {
       </div>
 
       {fatal && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{fatal}</div>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div>{fatal}</div>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
+          >
+            Reload page
+          </button>
+        </div>
       )}
 
       {/* Stat tiles */}
@@ -359,8 +368,8 @@ export default function HomePage() {
         <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Next up</h2>
         {loading ? (
           <div className="space-y-2">
-            <div className="h-16 rounded-xl bg-black/[0.03]" />
-            <div className="h-16 rounded-xl bg-black/[0.03]" />
+            <div className="h-16 animate-pulse rounded-xl bg-black/[0.03]" />
+            <div className="h-16 animate-pulse rounded-xl bg-black/[0.03]" style={{ animationDelay: "75ms" }} />
           </div>
         ) : buckets.active.length === 0 ? (
           <div className="rounded-xl border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
