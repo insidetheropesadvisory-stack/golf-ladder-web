@@ -3,6 +3,37 @@ import { getAuthedUser, adminClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
+async function sendEmail(apiKey: string, from: string, to: string, subject: string, html: string) {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to, subject, html }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    console.error("Resend error:", res.status, data);
+    return { ok: false, status: res.status, data };
+  }
+  return { ok: true, status: res.status, data };
+}
+
+async function createInAppNotification(
+  admin: ReturnType<typeof adminClient>,
+  userId: string,
+  message: string,
+  matchId?: string
+) {
+  await admin.from("notifications").insert({
+    user_id: userId,
+    message,
+    match_id: matchId || null,
+    read: false,
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const { user, error: userErr } = await getAuthedUser(request);
@@ -90,16 +121,20 @@ export async function POST(request: Request) {
         </div>
       `;
 
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ from, to: recipientEmail, subject, html }),
-      });
+      // In-app notification
+      await createInAppNotification(
+        admin, recipientId,
+        `${senderName} finished scoring at ${courseName} — your turn!`,
+        matchId
+      );
 
-      return NextResponse.json({ ok: true });
+      // Email (best-effort)
+      let emailResult = { ok: false } as any;
+      if (apiKey) {
+        emailResult = await sendEmail(apiKey, from, recipientEmail, subject, html);
+      }
+
+      return NextResponse.json({ ok: true, emailSent: emailResult.ok });
     }
 
     // --- Type: pending_reminder ---
@@ -181,16 +216,23 @@ export async function POST(request: Request) {
         </div>
       `;
 
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ from, to: recipientEmail, subject, html }),
-      });
+      // In-app notification
+      const oppId = match.opponent_id;
+      if (oppId) {
+        await createInAppNotification(
+          admin, oppId,
+          `${senderName} is waiting for your response — ${courseName}${ladderLabel}`,
+          matchId
+        );
+      }
 
-      return NextResponse.json({ ok: true });
+      // Email (best-effort)
+      let emailResult = { ok: false } as any;
+      if (apiKey) {
+        emailResult = await sendEmail(apiKey, from, recipientEmail, subject, html);
+      }
+
+      return NextResponse.json({ ok: true, emailSent: emailResult.ok });
     }
 
     return NextResponse.json({ error: "Unknown notification type" }, { status: 400 });

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx } from "@/lib/utils";
 
@@ -107,6 +107,12 @@ export function AppShell({
   const [email, setEmail] = useState((userEmail ?? "").trim());
   const [checkedSession, setCheckedSession] = useState(Boolean(userEmail));
 
+  type Notif = { id: string; message: string; match_id: string | null; read: boolean; created_at: string };
+  const [notifications, setNotifications] = useState<Notif[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
   const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth"];
   const isAuthRoute = authRoutes.some(
     (r) => pathname === r || pathname.startsWith(r + "/")
@@ -140,6 +146,58 @@ export function AppShell({
       subscription.unsubscribe();
     };
   }, [isAuthRoute, router]);
+
+  // Fetch notifications
+  useEffect(() => {
+    if (!email) return;
+    let mounted = true;
+
+    async function fetchNotifs() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const res = await fetch("/api/notifications", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok || !mounted) return;
+        const json = await res.json();
+        setNotifications(json.notifications ?? []);
+        setUnreadCount(json.unreadCount ?? 0);
+      } catch {}
+    }
+
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000); // poll every 30s
+    return () => { mounted = false; clearInterval(interval); };
+  }, [email]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifs(false);
+      }
+    }
+    if (showNotifs) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showNotifs]);
+
+  async function markAllRead() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      await fetch("/api/notifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action: "mark_read" }),
+      });
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch {}
+  }
 
   const isAuthed = email.length > 0;
 
@@ -183,6 +241,70 @@ export function AppShell({
                 >
                   New match
                 </Link>
+
+                {/* Notification bell */}
+                <div className="relative" ref={notifRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowNotifs(!showNotifs)}
+                    className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(246,241,231,.22)] transition hover:bg-[rgba(246,241,231,.08)]"
+                  >
+                    <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                    </svg>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {showNotifs && (
+                    <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] shadow-xl z-50">
+                      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+                        <span className="text-sm font-semibold text-[var(--ink)]">Notifications</span>
+                        {unreadCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={markAllRead}
+                            className="text-xs text-[var(--pine)] font-medium"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-72 overflow-auto">
+                        {notifications.length === 0 ? (
+                          <div className="px-4 py-6 text-center text-xs text-[var(--muted)]">No notifications yet</div>
+                        ) : (
+                          notifications.map((n) => (
+                            <Link
+                              key={n.id}
+                              href={n.match_id ? `/matches/${n.match_id}` : "#"}
+                              onClick={() => setShowNotifs(false)}
+                              className={cx(
+                                "block px-4 py-3 text-sm border-b border-[var(--border)]/50 transition hover:bg-black/[0.02]",
+                                !n.read && "bg-[var(--pine)]/[0.04]"
+                              )}
+                            >
+                              <div className="flex items-start gap-2">
+                                {!n.read && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-[var(--pine)]" />}
+                                <div className="min-w-0">
+                                  <div className={cx("text-sm", !n.read ? "font-medium text-[var(--ink)]" : "text-[var(--muted)]")}>
+                                    {n.message}
+                                  </div>
+                                  <div className="mt-0.5 text-[10px] text-[var(--muted)]">
+                                    {new Date(n.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                                  </div>
+                                </div>
+                              </div>
+                            </Link>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <Link
                   href={logoutHref}
