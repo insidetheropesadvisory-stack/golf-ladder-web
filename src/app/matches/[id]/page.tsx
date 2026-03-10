@@ -435,6 +435,39 @@ export default function MatchScoringPage() {
       return next;
     });
 
+    // Check if player just completed all 18 holes — notify opponent
+    const updatedHoles = [...holes];
+    for (const row of saved) {
+      const idx = updatedHoles.findIndex(
+        (r) => r.match_id === row.match_id && r.hole_no === row.hole_no && r.player_id === row.player_id
+      );
+      if (idx >= 0) updatedHoles[idx] = row;
+      else updatedHoles.push(row);
+    }
+    const myHolesScored = new Set(
+      updatedHoles.filter((r) => r.player_id === meId && r.strokes != null).map((r) => r.hole_no)
+    );
+    const wasComplete = myScoresByHole.size >= TOTAL_HOLES;
+    const nowComplete = myHolesScored.size >= TOTAL_HOLES;
+
+    if (nowComplete && !wasComplete && matchId) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        fetch("/api/send-notification", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            type: "scoring_complete",
+            matchId,
+            matchUrl: window.location.href,
+          }),
+        }).catch(() => {});
+      } catch {}
+    }
+
     if (holeNo < TOTAL_HOLES) {
       const nextHole = holeNo + 1;
       setHoleNo(nextHole);
@@ -590,6 +623,8 @@ export default function MatchScoringPage() {
   }
 
   const [deletingMatch, setDeletingMatch] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [reminderSent, setReminderSent] = useState(false);
 
   const isProposed =
     match?.status === "proposed" || match?.terms_status === "pending";
@@ -694,14 +729,43 @@ export default function MatchScoringPage() {
         </div>
 
         {canDelete && (
-          <button
-            type="button"
-            onClick={deleteMatch}
-            disabled={deletingMatch}
-            className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
-          >
-            {deletingMatch ? "Deleting..." : "Delete"}
-          </button>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                setSendingReminder(true);
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  await fetch("/api/send-notification", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                    },
+                    body: JSON.stringify({
+                      type: "pending_reminder",
+                      matchId,
+                      matchUrl: window.location.href,
+                    }),
+                  });
+                  setReminderSent(true);
+                } catch {}
+                setSendingReminder(false);
+              }}
+              disabled={sendingReminder || reminderSent}
+              className="rounded-lg border border-[var(--pine)]/20 bg-[var(--pine)]/5 px-3 py-1.5 text-xs font-semibold text-[var(--pine)] transition hover:bg-[var(--pine)]/10 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+            >
+              {reminderSent ? "Reminder sent" : sendingReminder ? "Sending..." : "Send reminder"}
+            </button>
+            <button
+              type="button"
+              onClick={deleteMatch}
+              disabled={deletingMatch}
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 hover:border-red-300 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+            >
+              {deletingMatch ? "Deleting..." : "Delete"}
+            </button>
+          </div>
         )}
       </div>
 
