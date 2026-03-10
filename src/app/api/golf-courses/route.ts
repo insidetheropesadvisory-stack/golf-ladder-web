@@ -99,6 +99,9 @@ export async function GET(request: Request) {
 function normalizeCourse(data: any) {
   const tees: Record<string, any> = {};
 
+  // USGA handicap hole allocation (1 = hardest, 18 = easiest)
+  const handicaps: number[] = data.handicapsMen ?? data.handicapMen ?? data.handicapsWomen ?? [];
+
   for (const tee of (data.tees ?? []) as any[]) {
     // Sum hole lengths for total yards
     let totalYards = 0;
@@ -107,10 +110,12 @@ function normalizeCourse(data: any) {
       const yards = tee[`length${h}`] ?? 0;
       totalYards += Number(yards) || 0;
       const par = data.parsMen?.[h - 1] ?? data.parsWomen?.[h - 1] ?? null;
+      const hdcp = handicaps[h - 1] ?? null;
       holes.push({
         number: h,
         par,
         yardage: Number(yards) || 0,
+        handicap: hdcp != null ? Number(hdcp) : null,
       });
     }
 

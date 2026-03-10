@@ -21,8 +21,9 @@ type MatchRow = {
   round_time: string | null;
   guest_fee: number | null;
   is_ladder_match: boolean;
-  golf_course_api_id?: number | null;
+  golf_course_api_id?: string | number | null;
   selected_tee?: string | null;
+  opponent_tee?: string | null;
 };
 
 type TeeData = {
@@ -39,6 +40,7 @@ type TeeData = {
     par?: number;
     yardage?: number;
     yards?: number;
+    handicap?: number | null;
   }>;
 };
 
@@ -58,6 +60,49 @@ function getHolePar(tee: TeeData, holeNo: number) {
 function getHoleYards(tee: TeeData, holeNo: number) {
   const h = tee.holes?.find(h => (h.number ?? h.hole) === holeNo);
   return h?.yardage ?? h?.yards ?? null;
+}
+function getHoleHandicap(tee: TeeData, holeNo: number) {
+  const h = tee.holes?.find(h => (h.number ?? h.hole) === holeNo);
+  return h?.handicap ?? null;
+}
+
+/**
+ * Build a set of hole numbers where the receiver gets a stroke,
+ * based on USGA handicap hole allocation.
+ * handicap index 1 = hardest hole, 18 = easiest.
+ * If diff > 18, wrap around (2 strokes on hardest holes).
+ */
+function buildStrokeHoles(tee: TeeData | null, strokeDiff: number): Map<number, number> {
+  const strokeMap = new Map<number, number>(); // holeNo → strokes received
+  if (!tee?.holes || strokeDiff <= 0) return strokeMap;
+
+  // Build sorted list of holes by handicap index (1 = hardest first)
+  const holesWithHdcp = tee.holes
+    .filter(h => h.handicap != null)
+    .sort((a, b) => (a.handicap ?? 99) - (b.handicap ?? 99));
+
+  if (holesWithHdcp.length === 0) {
+    // Fallback: distribute strokes sequentially holes 1..N
+    for (let i = 0; i < strokeDiff && i < 18; i++) {
+      strokeMap.set(i + 1, (strokeMap.get(i + 1) ?? 0) + 1);
+    }
+    return strokeMap;
+  }
+
+  // Distribute strokes: first pass = 1 stroke per hole in handicap order,
+  // second pass (if diff > 18) = 2nd stroke per hole, etc.
+  let remaining = strokeDiff;
+  while (remaining > 0) {
+    for (const h of holesWithHdcp) {
+      if (remaining <= 0) break;
+      const holeNo = h.number ?? h.hole ?? 0;
+      if (holeNo < 1 || holeNo > 18) continue;
+      strokeMap.set(holeNo, (strokeMap.get(holeNo) ?? 0) + 1);
+      remaining--;
+    }
+  }
+
+  return strokeMap;
 }
 
 type HoleRow = {
@@ -106,18 +151,18 @@ function matchPlayResult(
   return { p1Holes, p2Holes, halved };
 }
 
-/** Compute match play result with net scoring (handicap strokes distributed) */
+/** Compute match play result with net scoring (handicap strokes distributed by hole handicap index) */
 function matchPlayNetResult(
   rows: HoleRow[],
   player1: string,
   player2: string,
   hcp1: number,
-  hcp2: number
+  hcp2: number,
+  tee: TeeData | null
 ): { p1Holes: number; p2Holes: number; halved: number } {
-  // Strokes given = difference in handicaps, distributed evenly across holes
-  // Lower handicap player gives strokes to the higher
   const diff = Math.round(Math.abs(hcp1 - hcp2));
   const receiverId = hcp1 > hcp2 ? player1 : player2;
+  const strokeHoles = buildStrokeHoles(tee, diff);
 
   let p1Holes = 0;
   let p2Holes = 0;
@@ -128,10 +173,11 @@ function matchPlayNetResult(
     let s2 = rows.find((r) => r.player_id === player2 && r.hole_no === h)?.strokes;
     if (s1 == null || s2 == null) continue;
 
-    // Apply handicap stroke: holes 1..diff get one stroke each
-    if (h <= diff) {
-      if (receiverId === player1) s1 = s1 - 1;
-      else s2 = s2 - 1;
+    // Apply handicap strokes based on hole difficulty ranking
+    const strokesOnHole = strokeHoles.get(h) ?? 0;
+    if (strokesOnHole > 0) {
+      if (receiverId === player1) s1 = s1 - strokesOnHole;
+      else s2 = s2 - strokesOnHole;
     }
 
     if (s1 < s2) p1Holes++;
@@ -199,6 +245,7 @@ export default function MatchScoringPage() {
   const [strokesInput, setStrokesInput] = useState<string>("");
   const [strokeToast, setStrokeToast] = useState<string | null>(null);
   const [responding, setResponding] = useState(false);
+  const [acceptTee, setAcceptTee] = useState<string | null>(null);
   const [showDecline, setShowDecline] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [myHandicap, setMyHandicap] = useState<number | null>(null);
@@ -239,7 +286,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match, golf_course_api_id, selected_tee"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match, golf_course_api_id, selected_tee, opponent_tee"
           )
           .eq("id", matchId)
           .single();
@@ -317,8 +364,12 @@ export default function MatchScoringPage() {
               if (course && course.tees) {
                 setCourseData(course as CourseData);
                 const teeNames = Object.keys(course.tees);
-                // Use stored tee preference, fallback to first available
-                if (m.selected_tee && teeNames.includes(m.selected_tee)) {
+                // Use per-player tee: creator uses selected_tee, opponent uses opponent_tee
+                const isCreator = sessionUser.id === m.creator_id;
+                const myTee = isCreator ? m.selected_tee : m.opponent_tee;
+                if (myTee && teeNames.includes(myTee)) {
+                  setSelectedTee(myTee);
+                } else if (m.selected_tee && teeNames.includes(m.selected_tee)) {
                   setSelectedTee(m.selected_tee);
                 } else if (teeNames.length > 0) {
                   setSelectedTee(teeNames[0]);
@@ -401,14 +452,40 @@ export default function MatchScoringPage() {
     return Math.round(oppTotal - oppHandicap);
   }, [oppTotal, oppHandicap, useHcp]);
 
+  // Current tee data for course info display
+  const activeTee: TeeData | null = useMemo(() => {
+    if (!courseData?.tees || !selectedTee) return null;
+    return courseData.tees[selectedTee] ?? null;
+  }, [courseData, selectedTee]);
+
+  const teeNames = useMemo(() => {
+    if (!courseData?.tees) return [];
+    return Object.keys(courseData.tees);
+  }, [courseData]);
+
+  // Handicap stroke distribution for match play
+  const strokeHolesMap = useMemo(() => {
+    if (!isMatchPlay || !useHcp || myHandicap == null || oppHandicap == null) return new Map<number, number>();
+    const diff = Math.round(Math.abs(myHandicap - oppHandicap));
+    return buildStrokeHoles(activeTee, diff);
+  }, [isMatchPlay, useHcp, myHandicap, oppHandicap, activeTee]);
+
+  // Who receives strokes
+  const strokeReceiver = useMemo(() => {
+    if (!useHcp || myHandicap == null || oppHandicap == null) return null;
+    if (myHandicap > oppHandicap) return "me";
+    if (oppHandicap > myHandicap) return "opp";
+    return null;
+  }, [useHcp, myHandicap, oppHandicap]);
+
   // Match play hole-by-hole results
   const matchPlayData = useMemo(() => {
     if (!isMatchPlay || !meId || !oppId) return null;
     if (useHcp && myHandicap != null && oppHandicap != null) {
-      return matchPlayNetResult(holes, meId, oppId, myHandicap, oppHandicap);
+      return matchPlayNetResult(holes, meId, oppId, myHandicap, oppHandicap, activeTee);
     }
     return matchPlayResult(holes, meId, oppId);
-  }, [holes, meId, oppId, isMatchPlay, useHcp, myHandicap, oppHandicap]);
+  }, [holes, meId, oppId, isMatchPlay, useHcp, myHandicap, oppHandicap, activeTee]);
 
   // The "display" totals depend on format
   const myDisplayTotal = isMatchPlay ? null : (useHcp ? myNetTotal : myTotal);
@@ -433,17 +510,6 @@ export default function MatchScoringPage() {
       isTie: mdt === odt,
     };
   }, [isMatchPlay, matchPlayData, myTotal, oppTotal, myNetTotal, oppNetTotal, useHcp]);
-
-  // Current tee data for course info display
-  const activeTee: TeeData | null = useMemo(() => {
-    if (!courseData?.tees || !selectedTee) return null;
-    return courseData.tees[selectedTee] ?? null;
-  }, [courseData, selectedTee]);
-
-  const teeNames = useMemo(() => {
-    if (!courseData?.tees) return [];
-    return Object.keys(courseData.tees);
-  }, [courseData]);
 
   // Keyboard navigation for scorecard
   const navigateToHole = useCallback((h: number) => {
@@ -774,7 +840,7 @@ export default function MatchScoringPage() {
 
         if (match.format === "match_play") {
           const mp = match.use_handicap && myHandicap != null && oppHandicap != null
-            ? matchPlayNetResult(holes, meId!, oppId!, myHandicap, oppHandicap)
+            ? matchPlayNetResult(holes, meId!, oppId!, myHandicap, oppHandicap, activeTee)
             : matchPlayResult(holes, meId!, oppId!);
           if (mp.p1Holes > mp.p2Holes) { winnerId = meId; loserId = oppId; }
           else if (mp.p2Holes > mp.p1Holes) { winnerId = oppId; loserId = meId; }
@@ -916,6 +982,7 @@ export default function MatchScoringPage() {
         matchId,
         action,
         ...(action === "decline" && declineReason ? { reason: declineReason } : {}),
+        ...(action === "accept" && acceptTee ? { opponent_tee: acceptTee } : {}),
       }),
     });
     const json = await res.json();
@@ -1149,6 +1216,49 @@ export default function MatchScoringPage() {
               <li><span className="font-medium text-[var(--muted)]">Guest fee:</span> <span className="font-semibold">${match.guest_fee}</span> <span className="text-xs text-[var(--muted)]">(payable at the club)</span></li>
             )}
           </ul>
+          {/* Tee selection for opponent on accept */}
+          {teeNames.length > 0 && (
+            <div className="mt-4 rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3">
+              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+                Select your tees
+                {match?.selected_tee && <span className="ml-2 normal-case font-normal">(Creator is playing {match.selected_tee})</span>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {teeNames.map((name) => {
+                  const tee = courseData?.tees?.[name];
+                  const isActive = acceptTee === name;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => setAcceptTee(name)}
+                      className={cx(
+                        "rounded-xl px-3 py-1.5 text-sm font-semibold transition",
+                        isActive
+                          ? "bg-[var(--pine)] text-white shadow-sm"
+                          : "border border-[var(--border)] bg-white text-[var(--ink)] hover:bg-[var(--paper)]"
+                      )}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+              {acceptTee && (() => {
+                const tee = courseData?.tees?.[acceptTee];
+                if (!tee) return null;
+                return (
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--muted)]">
+                    {tee.slope != null && <span>Slope: <span className="font-semibold text-[var(--ink)]">{tee.slope}</span></span>}
+                    {getTeeRating(tee) != null && <span>Rating: <span className="font-semibold text-[var(--ink)]">{getTeeRating(tee)}</span></span>}
+                    {tee.par != null && <span>Par: <span className="font-semibold text-[var(--ink)]">{tee.par}</span></span>}
+                    {getTeeTotalYards(tee) != null && <span>Yards: <span className="font-semibold text-[var(--ink)]">{getTeeTotalYards(tee)}</span></span>}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <button
@@ -1221,6 +1331,12 @@ export default function MatchScoringPage() {
             Net Scoring (Handicap)
           </span>
         )}
+        {useHcp && isMatchPlay && myHandicap != null && oppHandicap != null && Math.round(Math.abs(myHandicap - oppHandicap)) > 0 && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+            {strokeReceiver === "me" ? "You" : opponentLabel} get{strokeReceiver === "me" ? "" : "s"} {Math.round(Math.abs(myHandicap - oppHandicap))} stroke{Math.round(Math.abs(myHandicap - oppHandicap)) !== 1 ? "s" : ""}
+          </span>
+        )}
         {match?.guest_fee != null && (
           <span className="inline-flex items-center rounded-full bg-emerald-100/80 px-3 py-1 text-xs font-medium text-emerald-800">
             Guest fee: ${match.guest_fee}
@@ -1228,13 +1344,12 @@ export default function MatchScoringPage() {
         )}
       </div>
 
-      {/* Tee selector */}
+      {/* Tee info */}
       {teeNames.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-white/60 px-5 py-3">
-          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Tees</div>
+          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Your Tees</div>
           <div className="flex flex-wrap gap-2">
             {teeNames.map((name) => {
-              const tee = courseData?.tees?.[name];
               const isActive = selectedTee === name;
               return (
                 <button
@@ -1261,6 +1376,20 @@ export default function MatchScoringPage() {
               {getTeeTotalYards(activeTee) != null && <span>Yards: <span className="font-semibold text-[var(--ink)]">{getTeeTotalYards(activeTee)}</span></span>}
             </div>
           )}
+          {/* Show opponent's tee if different */}
+          {(() => {
+            const oppTeeName = meId === match?.creator_id ? match?.opponent_tee : match?.selected_tee;
+            if (oppTeeName && oppTeeName !== selectedTee) {
+              const oppTee = courseData?.tees?.[oppTeeName];
+              return (
+                <div className="mt-2 text-xs text-[var(--muted)]">
+                  {opponentLabel} is playing <span className="font-semibold text-[var(--ink)]">{oppTeeName}</span> tees
+                  {oppTee && getTeeRating(oppTee) != null && <span className="ml-2">(Rating: {getTeeRating(oppTee)}, Slope: {oppTee.slope})</span>}
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
       )}
 
@@ -1512,6 +1641,21 @@ export default function MatchScoringPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Yards row */}
+                  {activeTee && getHoleYards(activeTee, 1) != null && (
+                    <tr className="border-b border-[var(--border)] bg-slate-50/30">
+                      <td className="sticky left-0 z-10 bg-slate-50/50 px-3 py-1 font-semibold text-[var(--muted)] text-[10px]">Yards</td>
+                      {front.map(h => (
+                        <td key={h} className="px-2 py-1 text-center text-[10px] text-[var(--muted)]">{getHoleYards(activeTee, h) ?? ""}</td>
+                      ))}
+                      <td className="px-3 py-1 text-center text-[10px] font-bold text-[var(--ink)] bg-slate-100/30"></td>
+                      {back.map(h => (
+                        <td key={h} className="px-2 py-1 text-center text-[10px] text-[var(--muted)]">{getHoleYards(activeTee, h) ?? ""}</td>
+                      ))}
+                      <td className="px-3 py-1 text-center text-[10px] font-bold text-[var(--ink)] bg-slate-100/30"></td>
+                      <td className="px-3 py-1 text-center text-[10px] font-bold text-[var(--ink)] bg-slate-100/30">{getTeeTotalYards(activeTee) ?? ""}</td>
+                    </tr>
+                  )}
                   {/* Par row */}
                   {activeTee && (
                     <tr className="border-b border-[var(--border)] bg-slate-50/50">
@@ -1525,6 +1669,27 @@ export default function MatchScoringPage() {
                       ))}
                       <td className="px-3 py-1.5 text-center font-bold text-[var(--ink)] bg-slate-100/50">{parIn ?? ""}</td>
                       <td className="px-3 py-1.5 text-center font-bold text-[var(--ink)] bg-slate-100/50">{parOut != null && parIn != null ? parOut + parIn : ""}</td>
+                    </tr>
+                  )}
+                  {/* HDCP row */}
+                  {activeTee && getHoleHandicap(activeTee, 1) != null && (
+                    <tr className="border-b border-[var(--border)] bg-slate-50/30">
+                      <td className="sticky left-0 z-10 bg-slate-50/50 px-3 py-1 font-semibold text-[var(--muted)] text-[10px]">HDCP</td>
+                      {front.map(h => (
+                        <td key={h} className={cx("px-2 py-1 text-center text-[10px]", strokeHolesMap.has(h) ? "font-bold text-amber-700" : "text-[var(--muted)]")}>
+                          {getHoleHandicap(activeTee, h) ?? ""}
+                          {strokeHolesMap.has(h) && <span className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500 align-middle" />}
+                        </td>
+                      ))}
+                      <td className="px-3 py-1 bg-slate-100/30"></td>
+                      {back.map(h => (
+                        <td key={h} className={cx("px-2 py-1 text-center text-[10px]", strokeHolesMap.has(h) ? "font-bold text-amber-700" : "text-[var(--muted)]")}>
+                          {getHoleHandicap(activeTee, h) ?? ""}
+                          {strokeHolesMap.has(h) && <span className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500 align-middle" />}
+                        </td>
+                      ))}
+                      <td className="px-3 py-1 bg-slate-100/30"></td>
+                      <td className="px-3 py-1 bg-slate-100/30"></td>
                     </tr>
                   )}
                   {/* My scores */}
@@ -1580,6 +1745,9 @@ export default function MatchScoringPage() {
                 <span className="inline-flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm border border-[var(--border)]" /> Par</span>
                 <span className="inline-flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm bg-[var(--pine)]/15" /> Bogey</span>
                 <span className="inline-flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm bg-[var(--pine)]/30" /> Double+</span>
+                {strokeHolesMap.size > 0 && (
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-full bg-amber-500" /> Stroke given</span>
+                )}
               </div>
             )}
           </div>
@@ -1679,6 +1847,17 @@ export default function MatchScoringPage() {
                 {getHoleYards(activeTee, holeNo) != null && (
                   <div className="text-xs text-[var(--muted)]">
                     <span className="font-bold text-[var(--ink)]">{getHoleYards(activeTee, holeNo)}</span> yds
+                  </div>
+                )}
+                {getHoleHandicap(activeTee, holeNo) != null && (
+                  <div className="text-xs text-[var(--muted)]">
+                    HDCP <span className="font-bold text-[var(--ink)]">{getHoleHandicap(activeTee, holeNo)}</span>
+                  </div>
+                )}
+                {isMatchPlay && useHcp && strokeHolesMap.has(holeNo) && (
+                  <div className="flex items-center gap-1 text-xs font-semibold text-amber-700">
+                    <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                    {strokeReceiver === "me" ? "You get" : "Opp gets"} {strokeHolesMap.get(holeNo)} stroke{(strokeHolesMap.get(holeNo) ?? 0) > 1 ? "s" : ""}
                   </div>
                 )}
                 <div className="ml-auto text-[10px] text-[var(--muted)]">{selectedTee} tees</div>
@@ -1806,6 +1985,13 @@ export default function MatchScoringPage() {
                 </div>
                 {activeTee && getHolePar(activeTee, h) != null && (
                   <div className="text-[9px] text-[var(--muted)]/60">P{getHolePar(activeTee, h)}</div>
+                )}
+                {strokeHolesMap.has(h) && (
+                  <div className="flex justify-center gap-0.5">
+                    {Array.from({ length: strokeHolesMap.get(h) ?? 0 }).map((_, i) => (
+                      <span key={i} className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    ))}
+                  </div>
                 )}
                 <div className={cx(
                   "text-sm font-bold sm:text-base",

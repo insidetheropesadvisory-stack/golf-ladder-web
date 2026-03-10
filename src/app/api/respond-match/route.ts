@@ -11,6 +11,7 @@ export async function POST(request: Request) {
       typeof body?.matchId === "string" ? body.matchId.trim() : "";
     const action = typeof body?.action === "string" ? body.action.trim() : "";
     const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
+    const opponentTee = typeof body?.opponent_tee === "string" ? body.opponent_tee.trim() : null;
 
     if (!matchId) {
       return NextResponse.json({ error: "Missing matchId" }, { status: 400 });
@@ -66,13 +67,16 @@ export async function POST(request: Request) {
 
     // Perform the update
     if (action === "accept") {
-      const { error: updateErr } = await supabaseAdmin
-        .from("matches")
-        .update({
+      const updateFields: Record<string, any> = {
           terms_status: "accepted",
           status: "active",
           opponent_id: user.id,
-        })
+        };
+      if (opponentTee) updateFields.opponent_tee = opponentTee;
+
+      const { error: updateErr } = await supabaseAdmin
+        .from("matches")
+        .update(updateFields)
         .eq("id", matchId);
 
       if (updateErr) {
