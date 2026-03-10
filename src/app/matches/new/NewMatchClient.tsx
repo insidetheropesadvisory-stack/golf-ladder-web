@@ -174,27 +174,6 @@ export default function NewMatchPage() {
       return;
     }
 
-    // Send invite email to opponent (existing users)
-    if (oppEmail) {
-      const matchUrl = `${window.location.origin}/matches/${data.id}`;
-      try {
-        await fetch("/api/send-invite", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to: oppEmail,
-            matchUrl,
-            courseName: course,
-            roundTime: roundTimeISO,
-            hostEmail: meEmail,
-            guestFee: guestFee,
-          }),
-        });
-      } catch {
-        console.warn("Invite email failed to send");
-      }
-    }
-
     setLoading(false);
     router.push(`/matches/${data.id}`);
   }

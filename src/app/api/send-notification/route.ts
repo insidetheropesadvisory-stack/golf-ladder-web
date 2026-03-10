@@ -4,23 +4,6 @@ import { sendPushToUser } from "@/lib/pushSend";
 
 export const runtime = "nodejs";
 
-async function sendEmail(apiKey: string, from: string, to: string, subject: string, html: string) {
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to, subject, html }),
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    console.error("Resend error:", res.status, data);
-    return { ok: false, status: res.status, data };
-  }
-  return { ok: true, status: res.status, data };
-}
-
 async function createInAppNotification(
   admin: ReturnType<typeof adminClient>,
   userId: string,
@@ -42,27 +25,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
 
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.INVITE_FROM_EMAIL || "onboarding@resend.dev";
-
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing RESEND_API_KEY" }, { status: 500 });
-    }
-
     const body = (await request.json().catch(() => ({}))) as any;
     const type = String(body.type ?? "").trim();
 
     const admin = adminClient();
 
     // --- Type: scoring_complete ---
-    // Sent when a player finishes scoring all their holes
     if (type === "scoring_complete") {
       const matchId = String(body.matchId ?? "").trim();
       if (!matchId) {
         return NextResponse.json({ error: "Missing matchId" }, { status: 400 });
       }
 
-      // Fetch match
       const { data: match } = await admin
         .from("matches")
         .select("id, creator_id, opponent_id, course_name, is_ladder_match")
@@ -73,7 +47,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Match not found" }, { status: 404 });
       }
 
-      // Determine who to notify (the other player)
       const recipientId =
         user.id === match.creator_id ? match.opponent_id : match.creator_id;
 
@@ -81,52 +54,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "No opponent to notify" }, { status: 400 });
       }
 
-      // Get recipient email via auth admin
-      const { data: recipientData } = await admin.auth.admin.getUserById(recipientId);
-      const recipientEmail = recipientData?.user?.email;
-
-      if (!recipientEmail) {
-        return NextResponse.json({ error: "Recipient email not found" }, { status: 404 });
-      }
-
-      // Get sender display name
       const { data: senderProfile } = await admin
         .from("profiles")
         .select("display_name")
         .eq("id", user.id)
         .single();
 
-      const senderName = senderProfile?.display_name || user.email || "Your opponent";
+      const senderName = senderProfile?.display_name || "Your opponent";
       const courseName = match.course_name || "Golf Match";
-      const matchUrl = body.matchUrl || "";
-      const ladderLabel = match.is_ladder_match ? " (Ladder)" : "";
 
-      const subject = `${senderName} finished scoring — your turn!`;
-
-      const html = `
-        <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height:1.5; max-width:480px">
-          <h2 style="margin-bottom:4px">Scores are in</h2>
-          <p style="color:#555;margin-top:0">${senderName} has completed their scorecard for <b>${courseName}</b>${ladderLabel}.</p>
-          <p>It's your turn to enter your scores so the match can be finalized.</p>
-          ${matchUrl ? `
-          <p style="margin-top:16px">
-            <a href="${matchUrl}" style="display:inline-block;padding:10px 20px;background:#0b3b2e;color:#fff;border-radius:10px;text-decoration:none;font-weight:600">
-              Enter your scores
-            </a>
-          </p>
-          <p style="margin-top:12px;font-size:12px;color:#888">
-            Or copy this link: ${matchUrl}
-          </p>
-          ` : ""}
-          <p style="margin-top:24px;font-size:12px;color:#888">Reciprocity</p>
-        </div>
-      `;
-
-      // In-app notification
       const inAppMsg = `${senderName} finished scoring at ${courseName} — your turn!`;
       await createInAppNotification(admin, recipientId, inAppMsg, matchId);
 
-      // Push notification (best-effort)
       sendPushToUser(recipientId, {
         title: "Scores are in",
         body: inAppMsg,
@@ -134,17 +73,10 @@ export async function POST(request: Request) {
         matchId,
       }).catch(() => {});
 
-      // Email (best-effort)
-      let emailResult = { ok: false } as any;
-      if (apiKey) {
-        emailResult = await sendEmail(apiKey, from, recipientEmail, subject, html);
-      }
-
-      return NextResponse.json({ ok: true, emailSent: emailResult.ok });
+      return NextResponse.json({ ok: true });
     }
 
     // --- Type: pending_reminder ---
-    // Remind opponent they have a pending challenge
     if (type === "pending_reminder") {
       const matchId = String(body.matchId ?? "").trim();
       if (!matchId) {
@@ -153,7 +85,7 @@ export async function POST(request: Request) {
 
       const { data: match } = await admin
         .from("matches")
-        .select("id, creator_id, opponent_id, opponent_email, course_name, round_time, guest_fee, is_ladder_match, status, terms_status")
+        .select("id, creator_id, opponent_id, course_name, is_ladder_match, status, terms_status")
         .eq("id", matchId)
         .single();
 
@@ -161,74 +93,29 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Match not found" }, { status: 404 });
       }
 
-      // Only the creator can send a reminder
       if (user.id !== match.creator_id) {
         return NextResponse.json({ error: "Only the challenger can send a reminder" }, { status: 403 });
       }
 
-      // Only for pending matches
       if (match.status !== "proposed" && match.terms_status !== "pending") {
         return NextResponse.json({ error: "Match is not pending" }, { status: 400 });
       }
 
-      // Get opponent email
-      let recipientEmail = match.opponent_email;
-      if (!recipientEmail && match.opponent_id) {
-        const { data: oppData } = await admin.auth.admin.getUserById(match.opponent_id);
-        recipientEmail = oppData?.user?.email ?? null;
-      }
-
-      if (!recipientEmail) {
-        return NextResponse.json({ error: "Opponent email not found" }, { status: 404 });
-      }
-
-      // Get sender name
       const { data: senderProfile } = await admin
         .from("profiles")
         .select("display_name")
         .eq("id", user.id)
         .single();
 
-      const senderName = senderProfile?.display_name || user.email || "A player";
+      const senderName = senderProfile?.display_name || "A player";
       const courseName = match.course_name || "Golf Match";
-      const matchUrl = body.matchUrl || "";
       const ladderLabel = match.is_ladder_match ? " (Ladder)" : "";
-      const feeLine = match.guest_fee != null ? `<p><b>Guest fee:</b> $${match.guest_fee}</p>` : "";
-      const timeLine = match.round_time
-        ? `<p><b>Tee time:</b> ${new Date(match.round_time).toLocaleString()}</p>`
-        : "";
 
-      const subject = `Reminder: ${senderName} is waiting for your response`;
-
-      const html = `
-        <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height:1.5; max-width:480px">
-          <h2 style="margin-bottom:4px">You have a pending challenge</h2>
-          <p style="color:#555;margin-top:0">${senderName} challenged you to a match${ladderLabel}.</p>
-          <p><b>Course:</b> ${courseName}</p>
-          ${timeLine}
-          ${feeLine}
-          <p style="margin-top:8px">Accept or decline before the tee time.</p>
-          ${matchUrl ? `
-          <p style="margin-top:16px">
-            <a href="${matchUrl}" style="display:inline-block;padding:10px 20px;background:#0b3b2e;color:#fff;border-radius:10px;text-decoration:none;font-weight:600">
-              View challenge
-            </a>
-          </p>
-          <p style="margin-top:12px;font-size:12px;color:#888">
-            Or copy this link: ${matchUrl}
-          </p>
-          ` : ""}
-          <p style="margin-top:24px;font-size:12px;color:#888">Reciprocity</p>
-        </div>
-      `;
-
-      // In-app notification
       const oppId = match.opponent_id;
       const inAppMsg = `${senderName} is waiting for your response — ${courseName}${ladderLabel}`;
       if (oppId) {
         await createInAppNotification(admin, oppId, inAppMsg, matchId);
 
-        // Push notification (best-effort)
         sendPushToUser(oppId, {
           title: "Pending challenge",
           body: inAppMsg,
@@ -237,13 +124,7 @@ export async function POST(request: Request) {
         }).catch(() => {});
       }
 
-      // Email (best-effort)
-      let emailResult = { ok: false } as any;
-      if (apiKey) {
-        emailResult = await sendEmail(apiKey, from, recipientEmail, subject, html);
-      }
-
-      return NextResponse.json({ ok: true, emailSent: emailResult.ok });
+      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ error: "Unknown notification type" }, { status: 400 });

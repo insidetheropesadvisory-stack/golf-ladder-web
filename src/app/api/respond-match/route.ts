@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthedUser, adminClient } from "@/lib/supabase/server";
+import { sendPushToUser } from "@/lib/pushSend";
 
 export const runtime = "nodejs";
 
@@ -81,8 +82,8 @@ export async function POST(request: Request) {
         );
       }
     } else {
-      // Send notification email BEFORE deleting so we still have match data
-      await sendCreatorNotification(supabaseAdmin, match, action, userEmail, reason);
+      // Decline path — notify creator before deleting
+      await notifyCreator(supabaseAdmin, match, action, userEmail, reason);
 
       // If ladder match, trigger decline-swap (challenger takes decliner's spot)
       if (match.is_ladder_match && match.creator_id) {
@@ -132,8 +133,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Send notification email to the match creator (accept path)
-    await sendCreatorNotification(supabaseAdmin, match, action, userEmail, reason);
+    // Accept path — notify creator
+    await notifyCreator(supabaseAdmin, match, action, userEmail, reason);
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
@@ -145,82 +146,42 @@ export async function POST(request: Request) {
   }
 }
 
-async function sendCreatorNotification(
+async function notifyCreator(
   supabaseAdmin: any,
   match: any,
   action: "accept" | "decline",
   opponentEmail: string,
   reason?: string
 ) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.INVITE_FROM_EMAIL || "onboarding@resend.dev";
-
-  if (!apiKey) {
-    console.error("respond-match: Missing RESEND_API_KEY, skipping notification email");
-    return;
-  }
-
-  // Look up creator email via Supabase auth admin
-  const { data: creatorData, error: creatorErr } =
-    await supabaseAdmin.auth.admin.getUserById(match.creator_id);
-
-  if (creatorErr || !creatorData?.user?.email) {
-    console.error("respond-match: Could not look up creator email", creatorErr);
-    return;
-  }
-
-  const creatorEmail = creatorData.user.email;
-  const courseName = match.course_name || "Golf Ladder Match";
-  const accepted = action === "accept";
-
-  const subject = accepted
-    ? "Match accepted: " + courseName
-    : "Match declined: " + courseName;
-
-  const statusLabel = accepted ? "accepted" : "declined";
-  const statusColor = accepted ? "#16a34a" : "#dc2626";
-
-  const reasonHtml = !accepted && reason
-    ? "  <p style=\"margin-top:12px;padding:12px 16px;background:#fef2f2;border-radius:10px;color:#991b1b;font-size:14px\"><b>Reason:</b> " + reason.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"
-    : "";
-
-  const html = [
-    "<div style=\"font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height:1.5; max-width:480px\">",
-    "  <h2 style=\"margin-bottom:4px\">Match " + statusLabel + "</h2>",
-    "  <p style=\"color:#555;margin-top:0\">Private club competition, refined.</p>",
-    "  <p><b>Course:</b> " + courseName + "</p>",
-    "  <p><b>Opponent:</b> " + opponentEmail + "</p>",
-    "  <p style=\"margin-top:12px\">",
-    "    <span style=\"display:inline-block;padding:8px 16px;border-radius:10px;color:#fff;background:" + statusColor + ";font-weight:600\">" + statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1) + "</span>",
-    "  </p>",
-    reasonHtml,
-    accepted
-      ? "  <p style=\"margin-top:16px\">The match is now active. Good luck!</p>"
-      : "  <p style=\"margin-top:16px\">The opponent has declined this match and it has been removed.</p>",
-    "  <p style=\"margin-top:24px;font-size:12px;color:#888\">Reciprocity</p>",
-    "</div>",
-  ].join("\n");
-
   try {
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: creatorEmail,
-        subject,
-        html,
-      }),
+    const { data: oppProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("display_name")
+      .eq("id", match.opponent_id ?? "")
+      .maybeSingle();
+
+    const oppName = oppProfile?.display_name || opponentEmail || "Your opponent";
+    const courseName = match.course_name || "Golf Match";
+    const accepted = action === "accept";
+
+    const message = accepted
+      ? `${oppName} accepted your match at ${courseName}!`
+      : `${oppName} declined your match at ${courseName}.${reason ? ` Reason: ${reason}` : ""}`;
+
+    await supabaseAdmin.from("notifications").insert({
+      user_id: match.creator_id,
+      message,
+      match_id: accepted ? match.id : null,
+      read: false,
     });
 
-    if (!r.ok) {
-      const data = await r.json().catch(() => null);
-      console.error("respond-match: Resend error", r.status, data);
-    }
-  } catch (emailErr) {
-    console.error("respond-match: Failed to send notification email", emailErr);
+    await sendPushToUser(match.creator_id, {
+      title: accepted ? "Match accepted!" : "Match declined",
+      body: message,
+      url: accepted ? `/matches/${match.id}` : "/matches",
+      matchId: match.id,
+    });
+  } catch {
+    // Non-critical
   }
 }
