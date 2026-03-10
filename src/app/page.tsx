@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
-import { initials } from "@/lib/utils";
+import { cx, initials, emailToName } from "@/lib/utils";
 
 type MatchRow = {
   id: string;
@@ -30,10 +30,28 @@ type PlayerLite = {
   handicap_index: number | null;
 };
 
+type TournamentLite = {
+  id: string;
+  name: string;
+  period_type: "weekly" | "monthly";
+  period_count: number;
+  start_date: string;
+  end_date: string;
+  status: string;
+};
+
+type LadderRank = {
+  position: number;
+  type: string;
+};
+
+const DEADLINE_MS = 12 * 60 * 60 * 1000;
+
 function deriveBucket(r: MatchRow): "proposal" | "active" | "completed" {
-  if (r.completed) return "completed";
+  if (r.completed || r.status === "completed") return "completed";
+  if (r.status === "expired") return "completed";
   const ts = String(r.terms_status ?? "").toLowerCase();
-  if (ts === "accepted") return "active";
+  if (ts === "accepted" || r.status === "active") return "active";
   if (ts === "pending" || ts === "denied") return "proposal";
   const s = String(r.status ?? "").toLowerCase();
   if (["proposed", "proposal", "pending", "invite", "invited"].includes(s)) return "proposal";
@@ -52,108 +70,56 @@ function needsMyAction(r: MatchRow, meId: string) {
   return false;
 }
 
-function fmtFormat(f: string) {
-  if (f === "match_play") return "Match Play";
-  if (f === "stroke_play") return "Stroke Play";
-  return f ? f.replaceAll("_", " ") : "—";
+function currentPeriod(t: TournamentLite): number {
+  const now = new Date();
+  const start = new Date(t.start_date + "T00:00:00");
+  if (t.period_type === "weekly") {
+    const diffMs = now.getTime() - start.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return Math.max(1, Math.min(Math.floor(diffDays / 7) + 1, t.period_count));
+  } else {
+    const months =
+      (now.getFullYear() - start.getFullYear()) * 12 +
+      (now.getMonth() - start.getMonth()) +
+      1;
+    return Math.max(1, Math.min(months, t.period_count));
+  }
 }
 
-function statusChip(row: MatchRow, meId: string) {
-  const bucket = deriveBucket(row);
-  if (bucket === "completed") return { label: "Final", tone: "quiet" as const };
-  if (bucket === "active") return { label: "Active", tone: "active" as const };
-  if (needsMyAction(row, meId)) return { label: "Needs response", tone: "warn" as const };
-  return { label: "Waiting", tone: "quiet" as const };
+function countdownText(isoDate: string): string {
+  const diff = new Date(isoDate).getTime() - Date.now();
+  if (diff <= 0) return "Now";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  if (days > 0) return `${days}d ${hours}h`;
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
 }
 
-function primaryCta(row: MatchRow, meId: string) {
-  const bucket = deriveBucket(row);
-  if (bucket === "completed") return "View result";
-  if (bucket === "active") return "View match";
-  return needsMyAction(row, meId) ? "Review" : "Open";
-}
-
-function Pill({ tone, label }: { tone: "active" | "warn" | "quiet"; label: string }) {
-  const cls =
-    tone === "active"
-      ? "bg-[rgba(11,59,46,.12)] text-[var(--pine)]"
-      : tone === "warn"
-      ? "bg-[rgba(180,140,60,.16)] text-[rgba(120,82,18,.95)]"
-      : "bg-[rgba(17,19,18,.06)] text-[rgba(17,19,18,.70)]";
-
-  return <span className={`rounded-full px-3 py-1 text-xs font-medium ${cls}`}>{label}</span>;
-}
-
-function MatchCard({
-  row,
-  meId,
-  opponent,
-  clubMap,
-}: {
-  row: MatchRow;
-  meId: string;
-  opponent: { name: string; avatarUrl: string | null };
-  clubMap: Record<string, string>;
-}) {
-  const router = useRouter();
-  const chip = statusChip(row, meId);
-  const when = row.round_time
-    ? new Date(row.round_time).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-    : null;
-
-  return (
-    <Link
-      href={`/matches/${row.id}`}
-      className="group flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
-    >
-      <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
-        {opponent.avatarUrl ? (
-          <img src={opponent.avatarUrl} alt={opponent.name} className="h-full w-full object-cover" />
-        ) : (
-          <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
-            {initials(opponent.name)}
-          </div>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-semibold">{opponent.name}</span>
-          {row.is_ladder_match && (
-            <span className="hidden rounded-full bg-amber-100/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 sm:inline">Ladder</span>
-          )}
-        </div>
-        <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
-          {(() => {
-            const cid = clubMap[row.course_name?.toLowerCase()];
-            return cid ? (
-              <span
-                role="link"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/clubs/${cid}`); }}
-                className="underline decoration-[var(--pine)]/30 hover:decoration-[var(--pine)] hover:text-[var(--pine)] cursor-pointer transition"
-              >
-                {row.course_name}
-              </span>
-            ) : row.course_name;
-          })()} &middot; {fmtFormat(row.format)}{row.use_handicap ? " (Net)" : ""}
-          {when ? ` — ${when}` : ""}
-        </div>
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <Pill tone={chip.tone} label={chip.label} />
-      </div>
-    </Link>
-  );
+function deadlineText(roundTime: string): string {
+  const deadline = new Date(roundTime).getTime() + DEADLINE_MS;
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) return "Expired";
+  const hours = Math.floor(remaining / (1000 * 60 * 60));
+  const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `${hours}h ${mins}m to score`;
+  return `${mins}m to score`;
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [fatal, setFatal] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("Player");
+  const [handicap, setHandicap] = useState<number | null>(null);
   const [hasName, setHasName] = useState(false);
   const [rows, setRows] = useState<MatchRow[]>([]);
   const [players, setPlayers] = useState<Record<string, PlayerLite>>({});
   const [clubMap, setClubMap] = useState<Record<string, string>>({});
+  const [tournaments, setTournaments] = useState<TournamentLite[]>([]);
+  const [ladderRanks, setLadderRanks] = useState<LadderRank[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -170,7 +136,7 @@ export default function HomePage() {
 
         const { data: prof } = await supabase
           .from("profiles")
-          .select("display_name")
+          .select("display_name, handicap_index")
           .eq("id", sessionUser.id)
           .maybeSingle();
 
@@ -178,8 +144,10 @@ export default function HomePage() {
         if (mounted) {
           setDisplayName(nameRaw || metaName || "Player");
           setHasName(Boolean(nameRaw || metaName));
+          setHandicap((prof as any)?.handicap_index ?? null);
         }
 
+        // Fetch matches, tournaments, ladder in parallel
         const email = (sessionUser.email ?? "").trim();
         const orClause = [
           `creator_id.eq.${sessionUser.id}`,
@@ -187,17 +155,52 @@ export default function HomePage() {
           email ? `opponent_email.ilike.${email}` : null,
         ].filter(Boolean).join(",");
 
-        const { data: m, error: mErr } = await supabase
-          .from("matches")
-          .select("id,created_at,creator_id,opponent_id,opponent_email,course_name,completed,status,format,use_handicap,terms_status,terms_last_proposed_by,round_time,is_ladder_match")
-          .or(orClause)
-          .order("created_at", { ascending: false });
+        const [matchResult, tournamentResult, ladderResult, clubResult] = await Promise.all([
+          supabase
+            .from("matches")
+            .select("id,created_at,creator_id,opponent_id,opponent_email,course_name,completed,status,format,use_handicap,terms_status,terms_last_proposed_by,round_time,is_ladder_match")
+            .or(orClause)
+            .order("created_at", { ascending: false }),
+          // Tournaments: fetch via API
+          (async () => {
+            if (!authToken) return [];
+            try {
+              const res = await fetch("/api/tournaments", {
+                headers: { Authorization: `Bearer ${authToken}` },
+              });
+              if (!res.ok) return [];
+              const json = await res.json();
+              return (json.tournaments ?? []).filter((t: any) => t.status === "active" && t.my_status === "accepted");
+            } catch { return []; }
+          })(),
+          // Ladder position
+          supabase
+            .from("ladder_rankings")
+            .select("position, type")
+            .eq("user_id", sessionUser.id),
+          // Clubs for name->id map
+          supabase
+            .from("clubs")
+            .select("id, name")
+            .limit(50),
+        ]);
 
-        if (mErr) throw new Error(mErr.message);
-        const matchRows = (m ?? []) as MatchRow[];
+        if (matchResult.error) throw new Error(matchResult.error.message);
+        const matchRows = (matchResult.data ?? []) as MatchRow[];
         if (!mounted) return;
         setRows(matchRows);
+        setTournaments(tournamentResult as TournamentLite[]);
+        setLadderRanks((ladderResult.data ?? []) as LadderRank[]);
 
+        if (clubResult.data && mounted) {
+          const map: Record<string, string> = {};
+          for (const c of clubResult.data) {
+            if (c.name && c.id) map[String(c.name).toLowerCase()] = c.id;
+          }
+          setClubMap(map);
+        }
+
+        // Fetch player profiles for opponents
         const ids = Array.from(
           new Set(
             matchRows
@@ -219,19 +222,6 @@ export default function HomePage() {
           if (res.ok && json?.players && mounted) {
             setPlayers(json.players as Record<string, PlayerLite>);
           }
-        }
-
-        // Fetch clubs for name→id map
-        const { data: clubData } = await supabase
-          .from("clubs")
-          .select("id, name")
-          .limit(50);
-        if (clubData && mounted) {
-          const map: Record<string, string> = {};
-          for (const c of clubData) {
-            if (c.name && c.id) map[String(c.name).toLowerCase()] = c.id;
-          }
-          setClubMap(map);
         }
 
         if (mounted) setLoading(false);
@@ -261,7 +251,7 @@ export default function HomePage() {
     const myId = meId ?? "";
     const oppId = myId === row.creator_id ? row.opponent_id : row.creator_id;
     const p = oppId ? players[String(oppId)] : null;
-    const name = p?.display_name?.trim() || (myId === row.creator_id && !row.opponent_id ? "Invite pending" : "Opponent");
+    const name = p?.display_name?.trim() || (myId === row.creator_id && !row.opponent_id ? "Invite pending" : emailToName(row.opponent_email || "Opponent"));
     return { name, avatarUrl: p?.avatar_url ?? null };
   }
 
@@ -285,8 +275,79 @@ export default function HomePage() {
     return { proposed, active: nextUp, completed: recent, actionNeeded };
   }, [rows, meId]);
 
+  const grossRank = ladderRanks.find((r) => r.type === "gross");
+  const netRank = ladderRanks.find((r) => r.type === "net");
+
+  // Upcoming matches (sorted by round_time, future only)
+  const upcoming = useMemo(() => {
+    const now = Date.now();
+    return buckets.active
+      .filter((m) => m.round_time && new Date(m.round_time).getTime() > now)
+      .sort((a, b) => new Date(a.round_time!).getTime() - new Date(b.round_time!).getTime())
+      .slice(0, 3);
+  }, [buckets.active]);
+
+  // Active scoring window matches (round_time passed, within 12h)
+  const scoringNow = useMemo(() => {
+    const now = Date.now();
+    return buckets.active.filter((m) => {
+      if (!m.round_time) return false;
+      const rt = new Date(m.round_time).getTime();
+      return now >= rt && now <= rt + DEADLINE_MS;
+    });
+  }, [buckets.active]);
+
   const canCreateMatch = hasName;
   const newMatchHref = canCreateMatch ? "/matches/new" : "/profile?next=/matches/new&reason=name_required";
+
+  // Build activity feed from recent matches + tournaments
+  const activityFeed = useMemo(() => {
+    const items: { id: string; type: "match_result" | "tournament" | "ladder"; text: string; subtext: string; href: string; time: number; icon: "trophy" | "medal" | "chart" }[] = [];
+
+    // Recent completed matches (last 5)
+    for (const m of buckets.completed.slice(0, 5)) {
+      const opp = opponentFor(m);
+      items.push({
+        id: `m-${m.id}`,
+        type: "match_result",
+        text: `Match vs ${opp.name}`,
+        subtext: `${m.course_name || "Course"} — ${m.format === "match_play" ? "Match Play" : "Stroke Play"}`,
+        href: `/matches/${m.id}`,
+        time: new Date(m.created_at).getTime(),
+        icon: "trophy",
+      });
+    }
+
+    // Active tournaments
+    for (const t of tournaments) {
+      const p = currentPeriod(t);
+      const unit = t.period_type === "weekly" ? "Week" : "Month";
+      items.push({
+        id: `t-${t.id}`,
+        type: "tournament",
+        text: t.name,
+        subtext: `${unit} ${p} of ${t.period_count}`,
+        href: `/tournaments/${t.id}`,
+        time: new Date(t.start_date).getTime(),
+        icon: "medal",
+      });
+    }
+
+    // Ladder position
+    if (grossRank) {
+      items.push({
+        id: "ladder-gross",
+        type: "ladder",
+        text: `Ladder Position: #${grossRank.position}`,
+        subtext: netRank ? `Net: #${netRank.position}` : "Gross ranking",
+        href: "/ladder",
+        time: Date.now(),
+        icon: "chart",
+      });
+    }
+
+    return items.sort((a, b) => b.time - a.time).slice(0, 8);
+  }, [buckets.completed, tournaments, grossRank, netRank, players, meId]);
 
   return (
     <div className="space-y-6">
@@ -296,6 +357,11 @@ export default function HomePage() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
           Welcome back{displayName !== "Player" ? `, ${displayName}` : ""}
         </h1>
+        {handicap != null && (
+          <div className="mt-0.5 text-xs text-[var(--muted)]">
+            Handicap: <span className="font-semibold text-[var(--ink)]">{handicap}</span>
+          </div>
+        )}
       </div>
 
       {fatal && (
@@ -312,11 +378,12 @@ export default function HomePage() {
       )}
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         {[
           { label: "Needs action", value: buckets.actionNeeded.length, href: "/matches" },
-          { label: "Active", value: buckets.active.length, href: "/matches" },
-          { label: "Completed", value: buckets.completed.length, href: "/matches" },
+          { label: "Active matches", value: buckets.active.length, href: "/matches" },
+          { label: "Tournaments", value: tournaments.length, href: "/tournaments" },
+          { label: "Ladder rank", value: grossRank ? `#${grossRank.position}` : "—", href: "/ladder" },
         ].map((t) => (
           <Link
             key={t.label}
@@ -330,42 +397,189 @@ export default function HomePage() {
       </div>
 
       {/* Quick actions */}
-      <div className="flex gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         <Link
           href={newMatchHref}
-          className="flex-1 rounded-xl bg-[var(--pine)] px-3 py-2.5 text-center text-sm font-semibold text-[var(--paper)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.18)] sm:px-4 sm:py-3"
+          className="rounded-xl bg-[var(--pine)] px-3 py-2.5 text-center text-sm font-semibold text-[var(--paper)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.18)] sm:py-3"
         >
           New match
         </Link>
         <Link
           href="/matches/new?mode=link"
-          className="flex-1 rounded-xl border-2 border-[var(--pine)]/30 bg-[var(--pine)]/5 px-3 py-2.5 text-center text-sm font-semibold text-[var(--pine)] transition hover:-translate-y-[1px] hover:shadow-sm sm:px-4 sm:py-3"
+          className="rounded-xl border-2 border-[var(--pine)]/30 bg-[var(--pine)]/5 px-3 py-2.5 text-center text-sm font-semibold text-[var(--pine)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3"
         >
-          Invite a friend
+          Invite friend
+        </Link>
+        <Link
+          href="/tournaments/new"
+          className="rounded-xl border-2 border-[var(--pine)]/30 bg-[var(--pine)]/5 px-3 py-2.5 text-center text-sm font-semibold text-[var(--pine)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3"
+        >
+          New tournament
+        </Link>
+        <Link
+          href="/ladder"
+          className="rounded-xl border border-[var(--border)] bg-white/60 px-3 py-2.5 text-center text-sm font-semibold text-[var(--ink)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3"
+        >
+          View ladder
         </Link>
       </div>
-      <Link
-        href="/ladder"
-        className="block rounded-xl border border-[var(--border)] bg-white/60 px-4 py-2.5 text-center text-sm font-semibold text-[var(--ink)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3"
-      >
-        View ladder
-      </Link>
+
+      {/* Scoring now — matches in the 12h window */}
+      {!loading && scoringNow.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Score now</h2>
+          <div className="space-y-2">
+            {scoringNow.map((m) => {
+              const opp = opponentFor(m);
+              return (
+                <Link
+                  key={m.id}
+                  href={`/matches/${m.id}`}
+                  className="group flex items-center gap-3 rounded-xl border-2 border-amber-200/60 bg-amber-50/30 p-3 transition hover:border-amber-300 hover:shadow-sm sm:p-4"
+                >
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-[var(--ink)]">
+                      vs {opp.name} — {m.course_name || "Course"}
+                    </div>
+                    <div className="mt-0.5 text-xs text-amber-700 font-medium">
+                      {deadlineText(m.round_time!)}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200/60">
+                    Enter scores
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Needs action */}
       {!loading && buckets.actionNeeded.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Needs action</h2>
           <div className="space-y-2">
-            {buckets.actionNeeded.slice(0, 4).map((r) => (
-              <MatchCard key={r.id} row={r} meId={meId ?? ""} opponent={opponentFor(r)} clubMap={clubMap} />
-            ))}
+            {buckets.actionNeeded.slice(0, 4).map((r) => {
+              const opp = opponentFor(r);
+              return (
+                <Link
+                  key={r.id}
+                  href={`/matches/${r.id}`}
+                  className="group flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
+                >
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
+                    {opp.avatarUrl ? (
+                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
+                        {initials(opp.name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">{opp.name}</div>
+                    <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+                      {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[rgba(180,140,60,.16)] px-3 py-1 text-xs font-medium text-[rgba(120,82,18,.95)]">
+                    Needs response
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
 
-      {/* Next up */}
+      {/* Upcoming matches with countdown */}
+      {!loading && upcoming.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Upcoming</h2>
+          <div className="space-y-2">
+            {upcoming.map((m) => {
+              const opp = opponentFor(m);
+              const dt = new Date(m.round_time!);
+              return (
+                <Link
+                  key={m.id}
+                  href={`/matches/${m.id}`}
+                  className="group flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-blue-200 hover:shadow-sm sm:p-4"
+                >
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-blue-100 text-blue-700 sm:h-10 sm:w-10">
+                    <div className="grid h-full w-full place-items-center text-[10px] font-bold sm:text-xs">
+                      {dt.toLocaleDateString(undefined, { day: "numeric" })}
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-[var(--ink)]">
+                      vs {opp.name}
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+                      {m.course_name} &middot; {dt.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-sm font-bold text-blue-700 tabular-nums">{countdownText(m.round_time!)}</div>
+                    <div className="text-[10px] text-[var(--muted)]">until tee time</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Active tournaments */}
+      {!loading && tournaments.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Your tournaments</h2>
+          <div className="space-y-2">
+            {tournaments.slice(0, 3).map((t) => {
+              const p = currentPeriod(t);
+              const unit = t.period_type === "weekly" ? "Week" : "Month";
+              return (
+                <Link
+                  key={t.id}
+                  href={`/tournaments/${t.id}`}
+                  className="group flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:p-4"
+                >
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[var(--pine)]">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                      <circle cx="12" cy="8" r="6" />
+                      <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-[var(--ink)] group-hover:text-[var(--pine)] transition-colors">{t.name}</div>
+                    <div className="mt-0.5 text-xs text-[var(--muted)]">
+                      {unit} {p} of {t.period_count}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 border border-emerald-200/60">
+                    {unit} {p}
+                  </span>
+                </Link>
+              );
+            })}
+            {tournaments.length > 3 && (
+              <Link href="/tournaments" className="block text-center text-xs font-medium text-[var(--pine)]">
+                View all {tournaments.length} tournaments →
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Next up — active matches without specific time */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Next up</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Active matches</h2>
         {loading ? (
           <div className="space-y-2">
             <div className="h-16 animate-pulse rounded-xl bg-black/[0.03]" />
@@ -380,10 +594,39 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {buckets.active.slice(0, 3).map((r) => (
-              <MatchCard key={r.id} row={r} meId={meId ?? ""} opponent={opponentFor(r)} clubMap={clubMap} />
-            ))}
-            {buckets.active.length > 3 && (
+            {buckets.active.slice(0, 4).map((r) => {
+              const opp = opponentFor(r);
+              return (
+                <Link
+                  key={r.id}
+                  href={`/matches/${r.id}`}
+                  className="group flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
+                >
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
+                    {opp.avatarUrl ? (
+                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
+                        {initials(opp.name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold">{opp.name}</span>
+                      {r.is_ladder_match && (
+                        <span className="hidden rounded-full bg-amber-100/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 sm:inline">Ladder</span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+                      {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}{r.use_handicap ? " (Net)" : ""}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[rgba(11,59,46,.12)] px-3 py-1 text-xs font-medium text-[var(--pine)]">Active</span>
+                </Link>
+              );
+            })}
+            {buckets.active.length > 4 && (
               <Link href="/matches" className="block text-center text-xs font-medium text-[var(--pine)]">
                 View all {buckets.active.length} active matches →
               </Link>
@@ -392,19 +635,49 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Recent results */}
-      {!loading && buckets.completed.length > 0 && (
+      {/* Activity feed */}
+      {!loading && activityFeed.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Recent results</h2>
-          <div className="space-y-2">
-            {buckets.completed.slice(0, 3).map((r) => (
-              <MatchCard key={r.id} row={r} meId={meId ?? ""} opponent={opponentFor(r)} clubMap={clubMap} />
-            ))}
-            {buckets.completed.length > 3 && (
-              <Link href="/matches" className="block text-center text-xs font-medium text-[var(--pine)]">
-                View all results →
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Recent activity</h2>
+          <div className="rounded-2xl border border-[var(--border)] bg-white/60 divide-y divide-[var(--border)]">
+            {activityFeed.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="flex items-center gap-3 px-4 py-3 transition hover:bg-black/[0.02] first:rounded-t-2xl last:rounded-b-2xl"
+              >
+                <div className={cx(
+                  "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full",
+                  item.icon === "trophy" && "bg-emerald-100 text-emerald-600",
+                  item.icon === "medal" && "bg-[var(--pine)]/10 text-[var(--pine)]",
+                  item.icon === "chart" && "bg-blue-100 text-blue-600",
+                )}>
+                  {item.icon === "trophy" && (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 7 7 7 7M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 17 7 17 7M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.24 7 20v2M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.24 17 20v2M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                    </svg>
+                  )}
+                  {item.icon === "medal" && (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <circle cx="12" cy="8" r="6" />
+                      <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+                    </svg>
+                  )}
+                  {item.icon === "chart" && (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20V10M18 20V4M6 20v-4" />
+                    </svg>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-[var(--ink)]">{item.text}</div>
+                  <div className="truncate text-xs text-[var(--muted)]">{item.subtext}</div>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 text-[var(--muted)] opacity-0 transition group-hover:opacity-100">
+                  <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </Link>
-            )}
+            ))}
           </div>
         </section>
       )}
