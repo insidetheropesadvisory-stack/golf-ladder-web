@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { CT_CLUBS } from "@/lib/data/ctClubs";
+
+type ApiCourse = {
+  id: number;
+  club_name: string;
+  city: string | null;
+  state: string | null;
+};
 
 type ClubRow = {
   id: string;
@@ -30,6 +37,9 @@ export default function ClubsPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [addQuery, setAddQuery] = useState("");
+  const [apiResults, setApiResults] = useState<ApiCourse[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function refresh(sessionUser?: { id: string; email?: string | null }) {
     try {
@@ -151,7 +161,7 @@ export default function ClubsPage() {
     setMyClubFees((prev) => ({ ...prev, [clubId]: fee }));
   }
 
-  const suggestions = useMemo(() => {
+  const ctSuggestions = useMemo(() => {
     const q = addQuery.trim().toLowerCase();
     if (q.length < 2) return [];
     const myNames = new Set(myClubs.map((c) => c.name.toLowerCase()));
@@ -159,6 +169,21 @@ export default function ClubsPage() {
       (name) => name.toLowerCase().includes(q) && !myNames.has(name.toLowerCase())
     ).slice(0, 8);
   }, [addQuery, myClubs]);
+
+  function searchApi(q: string) {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const trimmed = q.trim();
+    if (trimmed.length < 2) { setApiResults([]); setSearching(false); return; }
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/golf-courses?q=${encodeURIComponent(trimmed)}&limit=8`);
+        const json = await res.json();
+        setApiResults(json.courses ?? []);
+      } catch { setApiResults([]); }
+      setSearching(false);
+    }, 400);
+  }
 
   return (
     <div className="space-y-6">
@@ -201,8 +226,7 @@ export default function ClubsPage() {
             return (
               <div
                 key={c.id}
-                onClick={() => router.push(`/clubs/${c.id}`)}
-                className="group cursor-pointer rounded-2xl border border-[var(--border)] bg-white/60 p-5 transition hover:border-[var(--pine)]/20 hover:shadow-sm"
+                className="rounded-2xl border border-[var(--border)] bg-white/60 p-5"
               >
                 <div className="flex items-center gap-4">
                   <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-[var(--pine)] text-white shadow-sm">
@@ -213,7 +237,7 @@ export default function ClubsPage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-base font-semibold text-[var(--ink)] group-hover:text-[var(--pine)] transition-colors">
+                    <div className="truncate text-base font-semibold text-[var(--ink)]">
                       {c.name}
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--muted)]">
@@ -222,13 +246,10 @@ export default function ClubsPage() {
                       {count > 0 && <span>{count} member{count !== 1 ? "s" : ""}</span>}
                     </div>
                   </div>
-                  <svg className="h-4 w-4 text-[var(--muted)] opacity-0 group-hover:opacity-100 transition" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6" />
-                  </svg>
                 </div>
 
-                {/* Guest fee row */}
-                <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/50 pt-3" onClick={(e) => e.stopPropagation()}>
+                {/* Guest fee & remove */}
+                <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/50 pt-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-[var(--muted)]">Guest fee</span>
                     {editingFeeClub === c.id ? (
@@ -280,14 +301,14 @@ export default function ClubsPage() {
 
       {/* Add club modal */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowAdd(false); setAddQuery(""); } }}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowAdd(false); setAddQuery(""); setApiResults([]); } }}>
           <div className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div className="text-lg font-semibold">Add a club</div>
               <button
                 type="button"
                 className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:bg-black/5"
-                onClick={() => { setShowAdd(false); setAddQuery(""); }}
+                onClick={() => { setShowAdd(false); setAddQuery(""); setApiResults([]); }}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -298,8 +319,8 @@ export default function ClubsPage() {
             <input
               className="w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
               value={addQuery}
-              onChange={(e) => setAddQuery(e.target.value)}
-              placeholder="Search CT golf clubs..."
+              onChange={(e) => { setAddQuery(e.target.value); searchApi(e.target.value); }}
+              placeholder="Search golf clubs..."
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && addQuery.trim()) addClub(addQuery);
@@ -307,19 +328,48 @@ export default function ClubsPage() {
             />
 
             <div className="mt-3 max-h-[280px] overflow-auto space-y-1">
-              {suggestions.map((name) => (
+              {/* CT clubs — instant */}
+              {ctSuggestions.map((name) => (
                 <button
-                  key={name}
+                  key={`ct-${name}`}
                   type="button"
                   onClick={() => addClub(name)}
-                  className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium transition hover:bg-[var(--pine)]/5"
+                  className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
                 >
-                  {name}
+                  <div className="text-sm font-medium">{name}</div>
+                  <div className="text-xs text-[var(--muted)]">Connecticut</div>
                 </button>
               ))}
-              {addQuery.trim().length >= 2 && suggestions.length === 0 && (
+
+              {/* API results — after debounce */}
+              {ctSuggestions.length > 0 && apiResults.length > 0 && (
+                <div className="px-3 pt-2 pb-1 text-[10px] font-medium tracking-wider text-[var(--muted)] uppercase">Other courses</div>
+              )}
+              {apiResults
+                .filter((c) => !ctSuggestions.some((ct) => ct.toLowerCase() === c.club_name.toLowerCase()))
+                .map((c) => {
+                  const loc = [c.city, c.state].filter(Boolean).join(", ");
+                  return (
+                    <button
+                      key={`api-${c.id}`}
+                      type="button"
+                      onClick={() => addClub(c.club_name)}
+                      className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
+                    >
+                      <div className="text-sm font-medium">{c.club_name}</div>
+                      {loc && <div className="text-xs text-[var(--muted)]">{loc}</div>}
+                    </button>
+                  );
+                })}
+
+              {searching && (
+                <div className="px-3 py-2.5 text-xs text-[var(--muted)]">Searching nationwide...</div>
+              )}
+
+              {addQuery.trim().length >= 2 && ctSuggestions.length === 0 && !searching && apiResults.length === 0 && (
                 <div className="px-3 py-2.5 text-xs text-[var(--muted)]">No matching clubs found.</div>
               )}
+
               {addQuery.trim() && (
                 <button
                   type="button"
