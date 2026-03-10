@@ -854,6 +854,51 @@ export default function MatchScoringPage() {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [reminderSent, setReminderSent] = useState(false);
 
+  // Dispute state
+  const [showDispute, setShowDispute] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeDetails, setDisputeDetails] = useState("");
+  const [submittingDispute, setSubmittingDispute] = useState(false);
+  const [disputeFiled, setDisputeFiled] = useState(false);
+
+  const DISPUTE_REASONS = [
+    "Incorrect score entered",
+    "Opponent did not play the round",
+    "Wrong course or tees used",
+    "Handicap index is inaccurate",
+    "Rules violation during play",
+    "Other",
+  ];
+
+  async function submitDispute() {
+    if (!matchId || !disputeReason) return;
+    setSubmittingDispute(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const fullReason = disputeDetails
+        ? `${disputeReason} — ${disputeDetails}`
+        : disputeReason;
+      const res = await fetch("/api/send-notification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ type: "dispute", matchId, reason: fullReason }),
+      });
+      if (res.ok) {
+        setDisputeFiled(true);
+        setShowDispute(false);
+      } else {
+        const json = await res.json();
+        setStatus(json.error || "Failed to submit dispute");
+      }
+    } catch (e: any) {
+      setStatus(e?.message || "Failed to submit dispute");
+    }
+    setSubmittingDispute(false);
+  }
+
   // Reschedule state
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
@@ -2117,6 +2162,83 @@ export default function MatchScoringPage() {
           </div>
         );
       })()}
+
+      {/* Dispute match */}
+      {(isActive || isCompleted) && !disputeFiled && (
+        <div className="pt-2">
+          {!showDispute ? (
+            <button
+              type="button"
+              onClick={() => setShowDispute(true)}
+              className="text-xs font-medium text-[var(--muted)]/60 underline decoration-dotted underline-offset-2 transition hover:text-red-500"
+            >
+              Flag this match
+            </button>
+          ) : (
+            <div className="rounded-2xl border border-red-200/60 bg-red-50/30 p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-red-800">Dispute this match</div>
+                  <div className="mt-0.5 text-xs text-red-600/70">Both players and a platform admin will be notified.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setShowDispute(false); setDisputeReason(""); setDisputeDetails(""); }}
+                  className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-red-700 mb-1.5">Reason</label>
+                <select
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-300 focus:ring-1 focus:ring-red-200"
+                >
+                  <option value="">Select a reason...</option>
+                  {DISPUTE_REASONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              {disputeReason && (
+                <div>
+                  <label className="block text-xs font-medium text-red-700 mb-1.5">Details (optional)</label>
+                  <textarea
+                    className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm outline-none placeholder:text-red-300 focus:border-red-300 focus:ring-1 focus:ring-red-200"
+                    rows={2}
+                    placeholder="Add any additional context..."
+                    value={disputeDetails}
+                    onChange={(e) => setDisputeDetails(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="rounded-xl bg-red-100/60 px-4 py-3 text-[11px] text-red-700 leading-relaxed">
+                <span className="font-semibold">Warning:</span> Filing a false or frivolous dispute is a violation of platform rules and may result in removal from Reciprocity.
+              </div>
+
+              <button
+                type="button"
+                onClick={submitDispute}
+                disabled={!disputeReason || submittingDispute}
+                className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+              >
+                {submittingDispute ? "Submitting..." : "Submit Dispute"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {disputeFiled && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Dispute filed. Both players and a platform admin have been notified.
+        </div>
+      )}
 
       {status && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
