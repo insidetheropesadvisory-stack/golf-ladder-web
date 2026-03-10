@@ -467,6 +467,12 @@ export default function MatchScoringPage() {
     });
   }, [courseData]);
 
+  // Tee locks once the player has entered any score or match is done
+  const teeLocked = useMemo(() => {
+    if (match?.completed || match?.status === "completed") return true;
+    return myScoresByHole.size > 0;
+  }, [match?.completed, match?.status, myScoresByHole.size]);
+
   // Handicap stroke distribution for match play
   const strokeHolesMap = useMemo(() => {
     if (!isMatchPlay || !useHcp || myHandicap == null || oppHandicap == null) return new Map<number, number>();
@@ -1360,7 +1366,23 @@ export default function MatchScoringPage() {
       {/* Tee info */}
       {teeNames.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-white/60 px-5 py-3">
-          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Your Tees</div>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Your Tees</span>
+            {teeLocked && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                Locked
+              </span>
+            )}
+          </div>
+          {!teeLocked && !isCompleted && (
+            <div className="mb-2 text-[11px] text-amber-600">
+              Tee selection locks once you enter your first score.
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             {teeNames.map((name) => {
               const isActive = selectedTee === name;
@@ -1368,12 +1390,25 @@ export default function MatchScoringPage() {
                 <button
                   key={name}
                   type="button"
-                  onClick={() => setSelectedTee(name)}
+                  onClick={() => {
+                    if (teeLocked) return;
+                    setSelectedTee(name);
+                    // Persist tee selection to match record
+                    if (matchId && meId && match) {
+                      const field = meId === match.creator_id ? "selected_tee" : "opponent_tee";
+                      supabase.from("matches").update({ [field]: name }).eq("id", matchId).then(() => {
+                        setMatch((prev) => prev ? { ...prev, [field]: name } : prev);
+                      });
+                    }
+                  }}
+                  disabled={teeLocked}
                   className={cx(
                     "rounded-xl px-3 py-1.5 text-sm font-semibold transition",
                     isActive
                       ? "bg-[var(--pine)] text-white shadow-sm"
-                      : "border border-[var(--border)] bg-white text-[var(--ink)] hover:bg-[var(--paper)]"
+                      : teeLocked
+                        ? "border border-[var(--border)] bg-slate-50 text-slate-400 cursor-not-allowed"
+                        : "border border-[var(--border)] bg-white text-[var(--ink)] hover:bg-[var(--paper)]"
                   )}
                 >
                   {name}

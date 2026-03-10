@@ -116,6 +116,7 @@ export default function MatchesPage() {
   const [myHoleCounts, setMyHoleCounts] = useState<Record<string, number>>({});
   const [clubMap, setClubMap] = useState<Record<string, string>>({});
   const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
+  const [handicaps, setHandicaps] = useState<Record<string, number>>({});
   const [hasMoreCompleted, setHasMoreCompleted] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -189,23 +190,27 @@ export default function MatchesPage() {
         console.warn("clubs load error:", clubErr.message);
       }
 
-      // Fetch display names for all opponents
-      const opponentIds = new Set<string>();
+      // Fetch display names and handicaps for all players
+      const playerIds = new Set<string>();
+      playerIds.add(sessionUser.id);
       for (const row of m) {
-        const oppId = sessionUser.id === row.creator_id ? row.opponent_id : row.creator_id;
-        if (oppId) opponentIds.add(oppId);
+        if (row.creator_id) playerIds.add(row.creator_id);
+        if (row.opponent_id) playerIds.add(row.opponent_id);
       }
-      if (opponentIds.size > 0) {
+      if (playerIds.size > 0) {
         const { data: profData } = await supabase
           .from("profiles")
-          .select("id, display_name")
-          .in("id", [...opponentIds]);
+          .select("id, display_name, handicap_index")
+          .in("id", [...playerIds]);
         if (profData) {
           const names: Record<string, string> = {};
+          const hcps: Record<string, number> = {};
           for (const p of profData as any[]) {
             if (p.display_name) names[p.id] = p.display_name;
+            if (typeof p.handicap_index === "number") hcps[p.id] = p.handicap_index;
           }
           setDisplayNames(names);
+          setHandicaps(hcps);
         }
       }
 
@@ -333,22 +338,29 @@ export default function MatchesPage() {
       setMatches((prev) => [...prev, ...newRows]);
       setHasMoreCompleted(newRows.length >= PAGE_SIZE);
 
-      // Fetch display names for new opponents
-      const newOppIds = new Set<string>();
+      // Fetch display names and handicaps for new players
+      const newPlayerIds = new Set<string>();
       for (const row of newRows) {
-        const oppId = me.id === row.creator_id ? row.opponent_id : row.creator_id;
-        if (oppId && !displayNames[oppId]) newOppIds.add(oppId);
+        if (row.creator_id && !displayNames[row.creator_id]) newPlayerIds.add(row.creator_id);
+        if (row.opponent_id && !displayNames[row.opponent_id]) newPlayerIds.add(row.opponent_id);
       }
-      if (newOppIds.size > 0) {
+      if (newPlayerIds.size > 0) {
         const { data: profData } = await supabase
           .from("profiles")
-          .select("id, display_name")
-          .in("id", [...newOppIds]);
+          .select("id, display_name, handicap_index")
+          .in("id", [...newPlayerIds]);
         if (profData) {
           setDisplayNames((prev) => {
             const next = { ...prev };
             for (const p of profData as any[]) {
               if (p.display_name) next[p.id] = p.display_name;
+            }
+            return next;
+          });
+          setHandicaps((prev) => {
+            const next = { ...prev };
+            for (const p of profData as any[]) {
+              if (typeof p.handicap_index === "number") next[p.id] = p.handicap_index;
             }
             return next;
           });
@@ -385,6 +397,17 @@ export default function MatchesPage() {
     const oppId = me?.id === m.creator_id ? m.opponent_id : m.creator_id;
     if (oppId && displayNames[oppId]) return displayNames[oppId];
     return emailToName(String(m.opponent_email ?? ""));
+  }
+
+  function handicapLabel(m: AnyRow) {
+    if (!m.use_handicap) return null;
+    const myHcp = me?.id ? handicaps[me.id] : undefined;
+    const oppId = me?.id === m.creator_id ? m.opponent_id : m.creator_id;
+    const oppHcp = oppId ? handicaps[oppId] : undefined;
+    if (myHcp == null && oppHcp == null) return null;
+    const myStr = myHcp != null ? myHcp.toFixed(1) : "–";
+    const oppStr = oppHcp != null ? oppHcp.toFixed(1) : "–";
+    return `${myStr} vs ${oppStr}`;
   }
 
   function matchText(m: AnyRow) {
@@ -549,6 +572,12 @@ export default function MatchesPage() {
                         <span className="truncate">vs {opponentName(m)}</span>
                         <span className="text-[var(--border)]">/</span>
                         <span>{formatLabel(m.format)}</span>
+                        {handicapLabel(m) && (
+                          <>
+                            <span className="text-[var(--border)]">/</span>
+                            <span className="font-medium text-amber-700">HCP {handicapLabel(m)}</span>
+                          </>
+                        )}
                         {holesPlayed > 0 && (
                           <>
                             <span className="text-[var(--border)]">/</span>
@@ -602,6 +631,12 @@ export default function MatchesPage() {
                         <span className="truncate">vs {opponentName(m)}</span>
                         <span className="text-[var(--border)]">&middot;</span>
                         <span>{formatLabel(m.format)}</span>
+                        {handicapLabel(m) && (
+                          <>
+                            <span className="text-[var(--border)]">&middot;</span>
+                            <span className="font-medium text-amber-700">HCP {handicapLabel(m)}</span>
+                          </>
+                        )}
                         {m.round_time && (
                           <>
                             <span className="text-[var(--border)]">&middot;</span>
@@ -659,6 +694,12 @@ export default function MatchesPage() {
                       <span className="truncate">vs {opponentName(m)}</span>
                       <span className="text-[var(--border)]">/</span>
                       <span>{formatLabel(m.format)}</span>
+                      {handicapLabel(m) && (
+                        <>
+                          <span className="text-[var(--border)]">/</span>
+                          <span className="font-medium text-amber-700">HCP {handicapLabel(m)}</span>
+                        </>
+                      )}
                       {m.round_time && (
                         <>
                           <span className="text-[var(--border)]">/</span>
@@ -707,6 +748,12 @@ export default function MatchesPage() {
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
                       <span className="truncate">vs {opponentName(m)}</span>
+                      {handicapLabel(m) && (
+                        <>
+                          <span className="text-[var(--border)]">/</span>
+                          <span className="font-medium text-amber-700">HCP {handicapLabel(m)}</span>
+                        </>
+                      )}
                       {m.round_time && (
                         <>
                           <span className="text-[var(--border)]">/</span>
