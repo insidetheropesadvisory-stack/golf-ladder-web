@@ -58,11 +58,20 @@ async function fetchMyClubs(userId: string): Promise<Club[]> {
   return [];
 }
 
+export type ApiTeeInfo = {
+  name: string;
+  par?: number;
+  slope?: number;
+  rating?: number;
+  yards?: number;
+};
+
 export function ClubPicker({
   value,
   onChange,
   onGuestFeeChange,
   onCourseApiIdChange,
+  onTeesChange,
   userId,
   placeholder = "Search clubs…",
 }: {
@@ -70,6 +79,7 @@ export function ClubPicker({
   onChange: (next: string) => void;
   onGuestFeeChange?: (fee: number | null) => void;
   onCourseApiIdChange?: (id: number | null) => void;
+  onTeesChange?: (tees: ApiTeeInfo[]) => void;
   userId: string;
   placeholder?: string;
 }) {
@@ -218,7 +228,7 @@ export function ClubPicker({
     return { mine, ct, other, api: dedupedApiClubs };
   }, [filtered, dedupedApiClubs]);
 
-  function pick(name: string, guestFee?: number | null, apiCourseId?: number | null) {
+  async function pick(name: string, guestFee?: number | null, apiCourseId?: number | null) {
     const n = name.trim();
     if (!n) return;
     onChange(n);
@@ -226,6 +236,29 @@ export function ClubPicker({
     setOpen(false);
     onGuestFeeChange?.(guestFee ?? null);
     onCourseApiIdChange?.(apiCourseId ?? null);
+
+    // Fetch tee data for API courses
+    if (apiCourseId && onTeesChange) {
+      try {
+        const res = await fetch(`/api/golf-courses?id=${apiCourseId}`);
+        if (res.ok) {
+          const json = await res.json();
+          const course = json.course ?? json;
+          if (course?.tees) {
+            const tees: ApiTeeInfo[] = Object.entries(course.tees).map(([tName, t]: [string, any]) => ({
+              name: tName,
+              par: t.par ?? undefined,
+              slope: t.slope ?? undefined,
+              rating: t.course_rating ?? t.courseRating ?? undefined,
+              yards: t.total_yards ?? t.totalYards ?? undefined,
+            }));
+            onTeesChange(tees);
+            return;
+          }
+        }
+      } catch {}
+    }
+    onTeesChange?.([]);
   }
 
   return (

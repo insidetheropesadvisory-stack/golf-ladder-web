@@ -4,8 +4,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
-import { ClubPicker } from "@/app/components/ClubPicker";
+import { ClubPicker, type ApiTeeInfo } from "@/app/components/ClubPicker";
 import { OpponentPicker } from "@/app/components/OpponentPicker";
+import { cx } from "@/lib/utils";
 
 type SelectedOpponent = {
   id: string;
@@ -29,6 +30,8 @@ export default function NewMatchPage() {
   const [roundTime, setRoundTime] = useState("");
 
   const [courseApiId, setCourseApiId] = useState<number | null>(null);
+  const [courseTees, setCourseTees] = useState<ApiTeeInfo[]>([]);
+  const [selectedTee, setSelectedTee] = useState<string | null>(null);
   const [guestFee, setGuestFee] = useState<number | null>(null);
   const [format, setFormat] = useState<"stroke_play" | "match_play">("stroke_play");
   const [useHandicap, setUseHandicap] = useState(false);
@@ -139,6 +142,7 @@ export default function NewMatchPage() {
         opponent_email: oppEmail,
         course_name: course,
         golf_course_api_id: courseApiId,
+        selected_tee: selectedTee,
         status: "proposed",
         round_time: roundTimeISO,
         format,
@@ -203,7 +207,48 @@ export default function NewMatchPage() {
 
         {meId ? (
           <div>
-            <ClubPicker value={courseName} onChange={setCourseName} onGuestFeeChange={setGuestFee} onCourseApiIdChange={setCourseApiId} userId={meId} />
+            <ClubPicker
+              value={courseName}
+              onChange={(name) => { setCourseName(name); }}
+              onGuestFeeChange={setGuestFee}
+              onCourseApiIdChange={(id) => { setCourseApiId(id); if (!id) { setCourseTees([]); setSelectedTee(null); } }}
+              onTeesChange={(tees) => { setCourseTees(tees); setSelectedTee(tees.length > 0 ? tees[0].name : null); }}
+              userId={meId}
+            />
+            {courseTees.length > 0 && (
+              <div className="mt-3 rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3">
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Select tees</div>
+                <div className="flex flex-wrap gap-2">
+                  {courseTees.map((t) => (
+                    <button
+                      key={t.name}
+                      type="button"
+                      onClick={() => setSelectedTee(t.name)}
+                      className={cx(
+                        "rounded-lg px-3 py-1.5 text-sm font-semibold transition",
+                        selectedTee === t.name
+                          ? "bg-[var(--pine)] text-white shadow-sm"
+                          : "border border-[var(--border)] bg-white text-[var(--ink)] hover:bg-[var(--paper)]"
+                      )}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+                {selectedTee && (() => {
+                  const t = courseTees.find((t) => t.name === selectedTee);
+                  if (!t) return null;
+                  return (
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--muted)]">
+                      {t.slope != null && <span>Slope: <span className="font-semibold text-[var(--ink)]">{t.slope}</span></span>}
+                      {t.rating != null && <span>Rating: <span className="font-semibold text-[var(--ink)]">{t.rating}</span></span>}
+                      {t.par != null && <span>Par: <span className="font-semibold text-[var(--ink)]">{t.par}</span></span>}
+                      {t.yards != null && <span>Yards: <span className="font-semibold text-[var(--ink)]">{t.yards}</span></span>}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
             {guestFee != null && (
               <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50/50 px-3 py-2 text-sm">
                 <span className="text-emerald-700 font-medium">Guest fee:</span>

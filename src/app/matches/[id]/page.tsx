@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx } from "@/lib/utils";
@@ -21,6 +21,7 @@ type MatchRow = {
   guest_fee: number | null;
   is_ladder_match: boolean;
   golf_course_api_id?: number | null;
+  selected_tee?: string | null;
 };
 
 type TeeData = {
@@ -203,6 +204,7 @@ export default function MatchScoringPage() {
   const [oppDisplayName, setOppDisplayName] = useState<string | null>(null);
   const [courseData, setCourseData] = useState<CourseData | null>(null);
   const [selectedTee, setSelectedTee] = useState<string | null>(null);
+  const strokesInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!matchId) return;
@@ -235,7 +237,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match, golf_course_api_id"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match, golf_course_api_id, selected_tee"
           )
           .eq("id", matchId)
           .single();
@@ -300,9 +302,13 @@ export default function MatchScoringPage() {
               const course = cJson.course ?? cJson;
               if (course && course.tees) {
                 setCourseData(course as CourseData);
-                // Auto-select first tee
                 const teeNames = Object.keys(course.tees);
-                if (teeNames.length > 0) setSelectedTee(teeNames[0]);
+                // Use stored tee preference, fallback to first available
+                if (m.selected_tee && teeNames.includes(m.selected_tee)) {
+                  setSelectedTee(m.selected_tee);
+                } else if (teeNames.length > 0) {
+                  setSelectedTee(teeNames[0]);
+                }
               }
             }
           } catch {
@@ -424,6 +430,64 @@ export default function MatchScoringPage() {
     if (!courseData?.tees) return [];
     return Object.keys(courseData.tees);
   }, [courseData]);
+
+  // Keyboard navigation for scorecard
+  const navigateToHole = useCallback((h: number) => {
+    if (!meId || h < 1 || h > TOTAL_HOLES) return;
+    setHoleNo(h);
+    const existing = holes.find((r) => r.player_id === meId && r.hole_no === h);
+    setStrokesInput(existing?.strokes != null ? String(existing.strokes) : "");
+    setStatus(null);
+    // Refocus the input after navigation
+    setTimeout(() => strokesInputRef.current?.focus(), 50);
+  }, [meId, holes]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Only handle when not in a text input other than the strokes input
+      const target = e.target as HTMLElement;
+      const isStrokesInput = target === strokesInputRef.current;
+      const isOtherInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
+      if (isOtherInput && !isStrokesInput) return;
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        navigateToHole(holeNo - 1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        navigateToHole(holeNo + 1);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [holeNo, navigateToHole]);
+
+  function clearHole() {
+    if (!matchId || !meId) return;
+    setStrokesInput("");
+    strokesInputRef.current?.focus();
+  }
+
+  async function deleteHoleScore() {
+    if (!matchId || !meId) return;
+    const existing = holes.find((r) => r.player_id === meId && r.hole_no === holeNo);
+    if (!existing || existing.strokes == null) return;
+
+    const { error } = await supabase
+      .from("holes")
+      .delete()
+      .eq("match_id", matchId)
+      .eq("hole_no", holeNo)
+      .eq("player_id", meId);
+
+    if (error) { setStatus(error.message); return; }
+
+    setHoles((prev) => prev.filter(
+      (r) => !(r.match_id === matchId && r.hole_no === holeNo && r.player_id === meId)
+    ));
+    setStrokesInput("");
+    strokesInputRef.current?.focus();
+  }
 
   function goPrev() {
     if (!meId) return;
@@ -1217,10 +1281,14 @@ export default function MatchScoringPage() {
               <div className="flex-1">
                 <label className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Your strokes</label>
                 <input
+                  ref={strokesInputRef}
                   className="mt-2 w-full rounded-xl border-2 border-[var(--border)] bg-white px-4 py-3.5 text-center text-2xl font-bold tracking-tight outline-none transition focus:border-[var(--pine)] focus:ring-2 focus:ring-[var(--pine)]/20"
                   inputMode="numeric"
                   value={strokesInput}
                   onChange={(e) => setStrokesInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); saveHole(); }
+                  }}
                   placeholder="0"
                 />
               </div>
@@ -1232,14 +1300,29 @@ export default function MatchScoringPage() {
               >
                 {saving ? "Saving..." : "Save"}
               </button>
+              {myScoresByHole.has(holeNo) && !isCompleted && (
+                <button
+                  type="button"
+                  onClick={deleteHoleScore}
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-3.5 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+                  title="Remove score for this hole"
+                >
+                  Undo
+                </button>
+              )}
             </div>
             {strokeToast && (
               <div className="mt-3 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 shadow-sm">
                 {strokeToast}
               </div>
             )}
-            <div className="mt-2 text-[11px] text-[var(--muted)]">
-              Save to advance. Next is locked until scored.
+            <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--muted)]">
+              <span>Enter to save. Arrow keys to navigate holes.</span>
+              {strokesInput && (
+                <button type="button" onClick={clearHole} className="text-[var(--muted)] hover:text-[var(--ink)] transition">
+                  Clear
+                </button>
+              )}
             </div>
 
             <div className="mt-5 flex items-center justify-between gap-3">
