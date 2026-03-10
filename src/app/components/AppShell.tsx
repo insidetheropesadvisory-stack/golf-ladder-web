@@ -11,7 +11,7 @@ const NAV: NavItem[] = [
   { label: "Home", href: "/", icon: "home" },
   { label: "Matches", href: "/matches", icon: "matches" },
   { label: "Ladder", href: "/ladder", icon: "ladder" },
-  { label: "Clubs", href: "/clubs", icon: "clubs" },
+  { label: "Memberships", href: "/clubs", icon: "clubs" },
   { label: "Profile", href: "/profile", icon: "profile" },
 ];
 
@@ -24,7 +24,7 @@ function titleFromPath(pathname: string) {
   if (hit) return hit.label;
   if (pathname.startsWith("/matches")) return "Matches";
   if (pathname.startsWith("/ladder")) return "Ladder";
-  if (pathname.startsWith("/clubs")) return "Clubs";
+  if (pathname.startsWith("/clubs")) return "Memberships";
   if (pathname.startsWith("/profile")) return "Profile";
   return "Home";
 }
@@ -53,16 +53,9 @@ function NavIcon({ name, size = 18 }: { name: string; size?: number }) {
     case "ladder":
       return (
         <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 21h18" />
-          <path d="M3 10h18" />
-          <path d="M3 16h12" />
-          <path d="M3 4h6" />
-          <rect x="5" y="4" width="14" height="17" rx="1" fill="none" />
-          <path d="M8 4v17" />
-          <path d="M16 4v17" />
-          <path d="M8 8h8" />
-          <path d="M8 12h8" />
-          <path d="M8 16h8" />
+          <path d="M12 20V10" />
+          <path d="M18 20V4" />
+          <path d="M6 20v-4" />
         </svg>
       );
     case "clubs":
