@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { CT_CLUBS } from "@/lib/data/ctClubs";
 
@@ -87,6 +88,7 @@ function Badge({ children }: { children: React.ReactNode }) {
 }
 
 export default function ClubsPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("my");
   const [query, setQuery] = useState("");
 
@@ -272,11 +274,21 @@ export default function ClubsPage() {
     setMyClubFees((prev) => ({ ...prev, [clubId]: fee }));
   }
 
+  async function ensureProfile(userId: string, email: string | null) {
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, email: email }, { onConflict: "id" });
+    if (error) console.warn("ensureProfile:", error.message);
+  }
+
   async function addToMyClubs(club: ClubRow) {
     if (!meId) {
       setStatus("Auth session missing");
       return;
     }
+
+    // Ensure profile row exists (FK constraint requires it)
+    await ensureProfile(meId, meEmail);
 
     const realId = await ensureClubId(club);
     if (!realId) return;
@@ -322,6 +334,7 @@ export default function ClubsPage() {
     }
 
     if (meId) {
+      await ensureProfile(meId, meEmail);
       await supabase
         .from("club_memberships")
         .insert({ user_id: meId, club_id: data.id });
@@ -432,10 +445,16 @@ export default function ClubsPage() {
               const crest = initials(c.name);
               const loc = [c.city, c.state].filter(Boolean).join(", ");
 
+              const hasProfile = !c.id.startsWith("ct::");
+
               return (
                 <div
                   key={c.id}
-                  className="group rounded-xl border border-[var(--border)] bg-white/70 p-4 transition-all duration-200 hover:bg-white hover:shadow-sm hover:border-[var(--border)]"
+                  onClick={() => { if (hasProfile) router.push(`/clubs/${c.id}`); }}
+                  className={cx(
+                    "group rounded-xl border border-[var(--border)] bg-white/70 p-4 transition-all duration-200 hover:bg-white hover:shadow-sm",
+                    hasProfile && "cursor-pointer"
+                  )}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
@@ -454,21 +473,14 @@ export default function ClubsPage() {
                       </div>
 
                       <div className="min-w-0">
-                        {c.id.startsWith("ct::") ? (
-                          <div className="truncate text-sm font-semibold text-[var(--ink)]">{c.name}</div>
-                        ) : (
-                          <Link
-                            href={`/clubs/${c.id}`}
-                            className="truncate text-sm font-semibold text-[var(--ink)] hover:text-[var(--pine)] transition-colors"
-                          >
-                            {c.name}
-                          </Link>
-                        )}
+                        <div className={cx("truncate text-sm font-semibold text-[var(--ink)]", hasProfile && "group-hover:text-[var(--pine)] transition-colors")}>
+                          {c.name}
+                        </div>
                         <div className="truncate text-xs text-[var(--muted)]">
                           {loc || (tab === "ct" ? "Connecticut" : "\u2014")}
                         </div>
                         {isMember && (
-                          <div className="mt-1 flex items-center gap-1.5">
+                          <div className="mt-1 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                             <span className="text-[10px] font-medium text-[var(--muted)]">Guest fee:</span>
                             {editingFeeClub === c.id ? (
                               <input
@@ -517,6 +529,7 @@ export default function ClubsPage() {
                         "flex items-center gap-2 transition-all duration-200",
                         "md:opacity-0 md:group-hover:opacity-100"
                       )}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Link
                         href={`/matches/new?course=${encodeURIComponent(c.name)}`}
