@@ -14,6 +14,33 @@ type ProfileRow = {
   avatar_url: string | null;
 };
 
+type H2HRecord = {
+  opponentId: string;
+  opponentName: string;
+  wins: number;
+  losses: number;
+  ties: number;
+  total: number;
+};
+
+type CourseStats = {
+  course: string;
+  rounds: number;
+  avgScore: number;
+  bestScore: number | null;
+};
+
+type StatsData = {
+  wins: number;
+  losses: number;
+  ties: number;
+  totalRounds: number;
+  avgScore: number | null;
+  bestScore: number | null;
+  headToHead: H2HRecord[];
+  byCourse: CourseStats[];
+};
+
 function cx(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -53,6 +80,10 @@ export default function ProfilePageClient() {
   const [handicap, setHandicap] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  const [showStats, setShowStats] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [stats, setStats] = useState<StatsData | null>(null);
 
   const hasChanges = useMemo(() => {
     const nextHandicap = safeNum(handicap);
@@ -268,6 +299,21 @@ export default function ProfilePageClient() {
     }
   }
 
+  async function openStats() {
+    setShowStats(true);
+    if (stats) return; // already loaded
+    setStatsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/stats", {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      const json = await res.json();
+      if (res.ok) setStats(json as StatsData);
+    } catch {}
+    setStatsLoading(false);
+  }
+
   async function logout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -454,6 +500,155 @@ export default function ProfilePageClient() {
             </div>
           )}
         </div>
+
+        {/* Stats button */}
+        {!loading && (
+          <button
+            type="button"
+            onClick={openStats}
+            className="group w-full rounded-2xl border border-[var(--border)] bg-white/70 p-5 text-left shadow-sm transition hover:border-[var(--pine)]/20 hover:shadow-md"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-[var(--ink)]">Match Statistics</div>
+                <div className="mt-0.5 text-xs text-[var(--muted)]">Win/loss record, head-to-head, scoring averages</div>
+              </div>
+              <svg className="h-5 w-5 text-[var(--muted)] transition group-hover:text-[var(--pine)]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6" />
+              </svg>
+            </div>
+          </button>
+        )}
+
+        {/* Stats modal */}
+        {showStats && (
+          <div
+            className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowStats(false); }}
+          >
+            <div className="w-full max-w-md max-h-[85vh] overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5 shadow-2xl">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-lg font-semibold">Match Statistics</h2>
+                <button
+                  type="button"
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:bg-black/5"
+                  onClick={() => setShowStats(false)}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {statsLoading ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    {[1, 2, 3].map((i) => <div key={i} className="h-20 rounded-xl bg-black/[0.03]" />)}
+                  </div>
+                  <div className="h-32 rounded-xl bg-black/[0.03]" />
+                </div>
+              ) : stats && stats.totalRounds === 0 ? (
+                <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center">
+                  <div className="text-sm font-medium text-[var(--ink)]">No completed matches yet</div>
+                  <div className="mt-1 text-xs text-[var(--muted)]">Stats will appear after you finish a match.</div>
+                </div>
+              ) : stats ? (
+                <div className="space-y-5">
+                  {/* Overview tiles */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-[var(--border)] bg-white/60 p-3 text-center">
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Record</div>
+                      <div className="mt-1 text-lg font-semibold tabular-nums">
+                        <span className="text-green-700">{stats.wins}</span>
+                        <span className="text-[var(--muted)]">-</span>
+                        <span className="text-red-600">{stats.losses}</span>
+                        {stats.ties > 0 && <><span className="text-[var(--muted)]">-</span><span className="text-[var(--muted)]">{stats.ties}</span></>}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-white/60 p-3 text-center">
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Avg Score</div>
+                      <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--ink)]">
+                        {stats.avgScore ?? "—"}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-white/60 p-3 text-center">
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Best</div>
+                      <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--ink)]">
+                        {stats.bestScore ?? "—"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Win percentage bar */}
+                  {(stats.wins + stats.losses) > 0 && (
+                    <div>
+                      <div className="mb-1.5 text-xs text-[var(--muted)]">
+                        Win rate: {Math.round((stats.wins / (stats.wins + stats.losses + stats.ties)) * 100)}%
+                        <span className="ml-1 text-[var(--border)]">&middot;</span>
+                        <span className="ml-1">{stats.totalRounds} round{stats.totalRounds !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div className="flex h-2 overflow-hidden rounded-full bg-black/[0.04]">
+                        <div className="bg-green-500 transition-all" style={{ width: `${(stats.wins / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
+                        {stats.ties > 0 && (
+                          <div className="bg-gray-300 transition-all" style={{ width: `${(stats.ties / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
+                        )}
+                        <div className="bg-red-400 transition-all" style={{ width: `${(stats.losses / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Head to head */}
+                  {stats.headToHead.length > 0 && (
+                    <div>
+                      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Head to Head</div>
+                      <div className="space-y-1.5">
+                        {stats.headToHead.map((h) => (
+                          <div key={h.opponentId} className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-white/60 px-3 py-2.5">
+                            <span className="text-sm font-medium truncate mr-3">{h.opponentName}</span>
+                            <span className="text-sm tabular-nums flex-shrink-0">
+                              <span className="text-green-700">{h.wins}W</span>
+                              <span className="text-[var(--muted)] mx-1">-</span>
+                              <span className="text-red-600">{h.losses}L</span>
+                              {h.ties > 0 && (
+                                <>
+                                  <span className="text-[var(--muted)] mx-1">-</span>
+                                  <span className="text-[var(--muted)]">{h.ties}T</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* By course */}
+                  {stats.byCourse.length > 0 && (
+                    <div>
+                      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--muted)]">By Course</div>
+                      <div className="space-y-1.5">
+                        {stats.byCourse.map((c) => (
+                          <div key={c.course} className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-white/60 px-3 py-2.5">
+                            <div className="min-w-0 mr-3">
+                              <div className="text-sm font-medium truncate">{c.course}</div>
+                              <div className="text-[10px] text-[var(--muted)]">{c.rounds} round{c.rounds !== 1 ? "s" : ""}</div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className="text-sm font-semibold tabular-nums">{c.avgScore}</div>
+                              {c.bestScore != null && (
+                                <div className="text-[10px] text-[var(--muted)]">Best: {c.bestScore}</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
     </div>
   );
 }
