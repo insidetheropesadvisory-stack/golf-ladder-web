@@ -163,6 +163,7 @@ export default function MatchScoringPage() {
   const [declineReason, setDeclineReason] = useState("");
   const [myHandicap, setMyHandicap] = useState<number | null>(null);
   const [oppHandicap, setOppHandicap] = useState<number | null>(null);
+  const [oppDisplayName, setOppDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!matchId) return;
@@ -230,18 +231,23 @@ export default function MatchScoringPage() {
         );
         setStrokesInput(existing?.strokes != null ? String(existing.strokes) : "");
 
-        // Load handicaps for both players
+        // Load profiles for both players
         const m = matchData as MatchRow;
-        const playerIds = [sessionUser.id, m.opponent_id].filter(Boolean) as string[];
+        const otherPlayerId = sessionUser.id === m.creator_id ? m.opponent_id : m.creator_id;
+        const playerIds = [sessionUser.id, otherPlayerId].filter(Boolean) as string[];
         if (playerIds.length > 0) {
           const { data: profData } = await supabase
             .from("profiles")
-            .select("id, handicap_index")
+            .select("id, handicap_index, display_name")
             .in("id", playerIds);
           if (profData) {
             for (const p of profData as any[]) {
-              if (p.id === sessionUser.id) setMyHandicap(p.handicap_index ?? null);
-              else setOppHandicap(p.handicap_index ?? null);
+              if (p.id === sessionUser.id) {
+                setMyHandicap(p.handicap_index ?? null);
+              } else {
+                setOppHandicap(p.handicap_index ?? null);
+                setOppDisplayName(p.display_name ?? null);
+              }
             }
           }
         }
@@ -283,19 +289,28 @@ export default function MatchScoringPage() {
   }, [holes, meId]);
 
   const myTotal = useMemo(() => sumStrokes(holes, meId), [holes, meId]);
+
+  // The "other player" is whoever the current user is NOT
+  const oppId = useMemo(() => {
+    if (!meId || !match) return null;
+    if (meId === match.creator_id) return match.opponent_id;
+    return match.creator_id;
+  }, [meId, match]);
+
   const oppTotal = useMemo(
-    () => sumStrokes(holes, match?.opponent_id ?? null),
-    [holes, match?.opponent_id]
+    () => sumStrokes(holes, oppId),
+    [holes, oppId]
   );
 
-  const opponentLabel = useMemo(
-    () => match?.opponent_email || "Opponent",
-    [match]
-  );
+  const opponentLabel = useMemo(() => {
+    if (oppDisplayName) return oppDisplayName;
+    if (!meId || !match) return "Opponent";
+    if (meId === match.creator_id) return match.opponent_email || "Opponent";
+    return "Opponent";
+  }, [meId, match, oppDisplayName]);
 
   const isMatchPlay = match?.format === "match_play";
   const useHcp = match?.use_handicap === true;
-  const oppId = match?.opponent_id ?? null;
 
   // Net totals (stroke play with handicap)
   const myNetTotal = useMemo(() => {
