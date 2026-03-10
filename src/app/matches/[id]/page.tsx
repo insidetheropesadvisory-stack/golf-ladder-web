@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx } from "@/lib/utils";
@@ -1099,40 +1100,59 @@ export default function MatchScoringPage() {
                 )}
               </div>
 
-              <div className={cx(
-                "rounded-2xl border p-5",
-                isCompleted && oppWins
-                  ? "border-slate-300 bg-gradient-to-br from-slate-100 to-slate-50 ring-2 ring-slate-300/50"
-                  : "border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-slate-50/30"
-              )}>
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Opponent {isCompleted && oppWins ? "- Winner" : isCompleted && isTie ? "- Tie" : ""}
+              {oppId ? (
+                <Link
+                  href={`/players/${oppId}`}
+                  className={cx(
+                    "rounded-2xl border p-5 block transition hover:shadow-md hover:-translate-y-px",
+                    isCompleted && oppWins
+                      ? "border-slate-300 bg-gradient-to-br from-slate-100 to-slate-50 ring-2 ring-slate-300/50"
+                      : "border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-slate-50/30"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Opponent {isCompleted && oppWins ? "- Winner" : isCompleted && isTie ? "- Tie" : ""}
+                    </div>
+                    <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
                   </div>
-                </div>
-                {isMatchPlay ? (
-                  <>
-                    <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">
-                      {matchPlayData ? matchPlayData.p2Holes : "--"}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-400">holes won</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">
-                      {useHcp ? (oppNetTotal ?? "--") : (oppTotal ?? "--")}
-                    </div>
-                    {useHcp && oppTotal != null && oppHandicap != null && (
-                      <div className="mt-0.5 text-xs text-slate-400/80">
-                        Gross: {oppTotal} &middot; HCP: {oppHandicap}
+                  {isMatchPlay ? (
+                    <>
+                      <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">
+                        {matchPlayData ? matchPlayData.p2Holes : "--"}
                       </div>
-                    )}
-                    <div className="mt-1 truncate text-xs text-slate-400">
-                      {match?.opponent_id ? opponentLabel : "Not linked yet"}
-                    </div>
-                  </>
-                )}
-              </div>
+                      <div className="mt-1 text-xs text-slate-400">holes won</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">
+                        {useHcp ? (oppNetTotal ?? "--") : (oppTotal ?? "--")}
+                      </div>
+                      {useHcp && oppTotal != null && oppHandicap != null && (
+                        <div className="mt-0.5 text-xs text-slate-400/80">
+                          Gross: {oppTotal} &middot; HCP: {oppHandicap}
+                        </div>
+                      )}
+                      <div className="mt-1 truncate text-xs text-slate-400">
+                        {opponentLabel}
+                      </div>
+                    </>
+                  )}
+                </Link>
+              ) : (
+                <div className={cx(
+                  "rounded-2xl border p-5",
+                  "border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-slate-50/30"
+                )}>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Opponent
+                  </div>
+                  <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">--</div>
+                  <div className="mt-1 text-xs text-slate-400">Not linked yet</div>
+                </div>
+              )}
             </>
           );
         })()}
