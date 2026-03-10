@@ -17,6 +17,7 @@ type MatchRow = {
   format: "stroke_play" | "match_play";
   use_handicap: boolean;
   round_time: string | null;
+  guest_fee: number | null;
 };
 
 type HoleRow = {
@@ -194,7 +195,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee"
           )
           .eq("id", matchId)
           .single();
@@ -628,6 +629,9 @@ export default function MatchScoringPage() {
             {match?.round_time && (
               <li><span className="font-medium text-[var(--muted)]">Round time:</span> {new Date(match.round_time).toLocaleString()}</li>
             )}
+            {match?.guest_fee != null && (
+              <li><span className="font-medium text-[var(--muted)]">Guest fee:</span> <span className="font-semibold">${match.guest_fee}</span> <span className="text-xs text-[var(--muted)]">(payable at the club)</span></li>
+            )}
           </ul>
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex items-center gap-3">
@@ -699,6 +703,11 @@ export default function MatchScoringPage() {
         {useHcp && (
           <span className="inline-flex items-center rounded-full bg-amber-100/80 px-3 py-1 text-xs font-medium text-amber-800">
             Net Scoring (Handicap)
+          </span>
+        )}
+        {match?.guest_fee != null && (
+          <span className="inline-flex items-center rounded-full bg-emerald-100/80 px-3 py-1 text-xs font-medium text-emerald-800">
+            Guest fee: ${match.guest_fee}
           </span>
         )}
       </div>

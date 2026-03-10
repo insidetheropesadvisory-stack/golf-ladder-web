@@ -113,6 +113,7 @@ export default function NewMatchPage() {
         round_time: roundTimeISO,
         format,
         use_handicap: useHandicap,
+        guest_fee: guestFee,
         terms_status: "pending",
         terms_last_proposed_by: meId,
         terms_last_proposed_at: new Date().toISOString(),
