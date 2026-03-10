@@ -386,9 +386,9 @@ export default function MatchesPage() {
 
   const filterTabs: { key: typeof filterStatus; label: string; count: number }[] = [
     { key: "all", label: "All", count: upcoming.length + active.length + proposed.length + completed.length },
-    { key: "upcoming", label: "Upcoming", count: upcoming.length },
     { key: "active", label: "Active", count: active.length },
     { key: "proposed", label: "Proposed", count: proposed.length },
+    { key: "upcoming", label: "Upcoming", count: upcoming.length },
     { key: "completed", label: "Completed", count: completed.length },
   ];
 
@@ -420,50 +420,6 @@ export default function MatchesPage() {
           ))}
         </div>
       </div>
-
-      {/* Upcoming matches */}
-      {showUpcoming && upcoming.length > 0 && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold tracking-tight">Upcoming</div>
-            <Badge tone="upcoming">{upcoming.length}</Badge>
-          </div>
-          <div className="mt-3 grid gap-2 sm:mt-4 sm:gap-3">
-            {upcoming.map((m) => (
-              <Link
-                key={m.id}
-                href={`/matches/${m.id}`}
-                className="group rounded-2xl border border-[var(--border)] bg-white/70 p-3 transition hover:border-blue-200 hover:shadow-md sm:p-4"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold tracking-tight group-hover:text-blue-800 transition-colors">
-                      <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
-                    </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
-                      <span className="truncate">vs {opponentName(m)}</span>
-                      <span className="text-[var(--border)]">/</span>
-                      <span>{formatLabel(m.format)}</span>
-                      {m.round_time && (
-                        <>
-                          <span className="text-[var(--border)]">/</span>
-                          <span className="font-medium text-blue-600">{formatDateTime(m.round_time)}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="shrink-0 flex items-center gap-2">
-                    <Badge tone="upcoming">Scheduled</Badge>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="hidden text-[var(--muted)] sm:block opacity-0 transition group-hover:opacity-100">
-                      <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Active matches */}
       {showActive && active.length > 0 && (
@@ -534,8 +490,16 @@ export default function MatchesPage() {
                       <div className="truncate text-[13px] font-semibold tracking-tight sm:text-sm">
                         <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
                       </div>
-                      <div className="mt-0.5 truncate text-[11px] text-[var(--muted)] sm:text-xs">
-                        vs {opponentName(m)} &middot; {formatLabel(m.format)}
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-[var(--muted)] sm:text-xs">
+                        <span className="truncate">vs {opponentName(m)}</span>
+                        <span className="text-[var(--border)]">&middot;</span>
+                        <span>{formatLabel(m.format)}</span>
+                        {m.round_time && (
+                          <>
+                            <span className="text-[var(--border)]">&middot;</span>
+                            <span className="font-medium text-amber-600">{formatDateTime(m.round_time)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     {isCreator ? (
@@ -554,6 +518,50 @@ export default function MatchesPage() {
                 </Link>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming matches */}
+      {showUpcoming && upcoming.length > 0 && (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold tracking-tight">Upcoming</div>
+            <Badge tone="upcoming">{upcoming.length}</Badge>
+          </div>
+          <div className="mt-3 grid gap-2 sm:mt-4 sm:gap-3">
+            {upcoming.map((m) => (
+              <Link
+                key={m.id}
+                href={`/matches/${m.id}`}
+                className="group rounded-2xl border border-[var(--border)] bg-white/70 p-3 transition hover:border-blue-200 hover:shadow-md sm:p-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold tracking-tight group-hover:text-blue-800 transition-colors">
+                      <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
+                      <span className="truncate">vs {opponentName(m)}</span>
+                      <span className="text-[var(--border)]">/</span>
+                      <span>{formatLabel(m.format)}</span>
+                      {m.round_time && (
+                        <>
+                          <span className="text-[var(--border)]">/</span>
+                          <span className="font-medium text-blue-600">{formatDateTime(m.round_time)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <Badge tone="upcoming">Scheduled</Badge>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="hidden text-[var(--muted)] sm:block opacity-0 transition group-hover:opacity-100">
+                      <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       )}
