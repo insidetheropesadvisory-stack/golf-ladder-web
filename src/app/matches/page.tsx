@@ -8,6 +8,8 @@ import { cx, initials, emailToName } from "@/lib/utils";
 
 type AnyRow = Record<string, any>;
 
+const DEADLINE_MS = 12 * 60 * 60 * 1000; // 12 hours
+
 function formatLabel(format?: string) {
   if (format === "match_play") return "Match Play";
   return "Stroke Play";
@@ -18,13 +20,14 @@ function Badge({
   tone = "neutral",
 }: {
   children: React.ReactNode;
-  tone?: "neutral" | "active" | "proposed" | "done";
+  tone?: "neutral" | "active" | "proposed" | "done" | "upcoming";
 }) {
   const tones: Record<string, string> = {
     neutral: "bg-gray-100 text-gray-600 border-gray-200/60",
     active: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
     proposed: "bg-amber-50 text-amber-700 border-amber-200/60",
     done: "bg-slate-100 text-slate-600 border-slate-200/60",
+    upcoming: "bg-blue-50 text-blue-700 border-blue-200/60",
   };
 
   return (
@@ -54,6 +57,51 @@ function ClubName({ name, clubMap }: { name: string; clubMap: Record<string, str
   );
 }
 
+/** Compute time-aware match display bucket */
+function matchBucket(m: AnyRow): "upcoming" | "active" | "proposed" | "completed" | "expired" {
+  if (Boolean(m.completed) || m.status === "completed") return "completed";
+  if (m.status === "expired") return "expired";
+  if (m.status === "proposed" || m.terms_status === "pending") return "proposed";
+
+  // Active match — check round_time for upcoming vs active vs expired
+  if (m.round_time) {
+    const now = Date.now();
+    const roundTime = new Date(m.round_time).getTime();
+    const deadline = roundTime + DEADLINE_MS;
+
+    if (now < roundTime) return "upcoming";
+    if (now > deadline) return "expired"; // Will be resolved by the API
+    return "active";
+  }
+
+  // No round_time set — always "active"
+  return "active";
+}
+
+function formatDateTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function deadlineLabel(roundTime: string) {
+  const deadline = new Date(roundTime).getTime() + DEADLINE_MS;
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) return "Expired";
+  const hours = Math.floor(remaining / (60 * 60 * 1000));
+  const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+  if (hours > 0) return `${hours}h ${mins}m left`;
+  return `${mins}m left`;
+}
+
 export default function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
@@ -64,7 +112,7 @@ export default function MatchesPage() {
   const [clubs, setClubs] = useState<AnyRow[]>([]);
   const [showProposed, setShowProposed] = useState(false);
   const [query, setQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "proposed" | "completed">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "upcoming" | "active" | "proposed" | "completed">("all");
   const [myHoleCounts, setMyHoleCounts] = useState<Record<string, number>>({});
   const [clubMap, setClubMap] = useState<Record<string, string>>({});
 
@@ -74,6 +122,19 @@ export default function MatchesPage() {
       setStatus(null);
       setSignedOut(false);
       setMe({ id: sessionUser.id, email: sessionUser.email ?? null });
+
+      // Fire-and-forget: resolve expired matches & send reminders
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.access_token) {
+          fetch("/api/matches/resolve", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }).catch(() => {});
+        }
+      });
 
       const { data: matchData, error: matchErr } = await supabase
         .from("matches")
@@ -203,12 +264,6 @@ export default function MatchesPage() {
     }
   }
 
-  function matchBucket(m: AnyRow): "active" | "proposed" | "completed" {
-    if (Boolean(m.completed) || m.status === "completed") return "completed";
-    if (m.status === "proposed" || m.terms_status === "pending") return "proposed";
-    return "active";
-  }
-
   function matchText(m: AnyRow) {
     return [
       m.opponent_email ?? "",
@@ -217,24 +272,26 @@ export default function MatchesPage() {
     ].join(" ").toLowerCase();
   }
 
-  const { proposed, active, completed } = useMemo(() => {
+  const { proposed, upcoming, active, completed } = useMemo(() => {
     const proposed: AnyRow[] = [];
-    const completed: AnyRow[] = [];
+    const upcoming: AnyRow[] = [];
     const active: AnyRow[] = [];
+    const completed: AnyRow[] = [];
 
     const q = query.trim().toLowerCase();
 
     for (const m of matches) {
-      // Text filter
       if (q && !matchText(m).includes(q)) continue;
 
       const bucket = matchBucket(m);
       if (bucket === "completed") completed.push(m);
       else if (bucket === "proposed") proposed.push(m);
-      else active.push(m);
+      else if (bucket === "upcoming") upcoming.push(m);
+      else if (bucket === "active") active.push(m);
+      // "expired" matches are hidden from UX
     }
 
-    return { proposed, active, completed };
+    return { proposed, upcoming, active, completed };
   }, [matches, query]);
 
 
@@ -287,12 +344,14 @@ export default function MatchesPage() {
     );
   }
 
+  const showUpcoming = filterStatus === "all" || filterStatus === "upcoming";
   const showActive = filterStatus === "all" || filterStatus === "active";
   const showProposedSection = filterStatus === "all" || filterStatus === "proposed";
   const showCompleted = filterStatus === "all" || filterStatus === "completed";
 
   const filterTabs: { key: typeof filterStatus; label: string; count: number }[] = [
-    { key: "all", label: "All", count: active.length + proposed.length + completed.length },
+    { key: "all", label: "All", count: upcoming.length + active.length + proposed.length + completed.length },
+    { key: "upcoming", label: "Upcoming", count: upcoming.length },
     { key: "active", label: "Active", count: active.length },
     { key: "proposed", label: "Proposed", count: proposed.length },
     { key: "completed", label: "Completed", count: completed.length },
@@ -327,6 +386,51 @@ export default function MatchesPage() {
         </div>
       </div>
 
+      {/* Upcoming matches */}
+      {showUpcoming && upcoming.length > 0 && (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold tracking-tight">Upcoming</div>
+            <Badge tone="upcoming">{upcoming.length}</Badge>
+          </div>
+          <div className="mt-3 grid gap-2 sm:mt-4 sm:gap-3">
+            {upcoming.map((m) => (
+              <Link
+                key={m.id}
+                href={`/matches/${m.id}`}
+                className="group rounded-2xl border border-[var(--border)] bg-white/70 p-3 transition hover:border-blue-200 hover:shadow-md sm:p-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold tracking-tight group-hover:text-blue-800 transition-colors">
+                      <ClubName name={m.course_name ?? "Course"} clubMap={clubMap} />
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
+                      <span className="truncate">vs {emailToName(String(m.opponent_email ?? ""))}</span>
+                      <span className="text-[var(--border)]">/</span>
+                      <span>{formatLabel(m.format)}</span>
+                      {m.round_time && (
+                        <>
+                          <span className="text-[var(--border)]">/</span>
+                          <span className="font-medium text-blue-600">{formatDateTime(m.round_time)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <Badge tone="upcoming">Scheduled</Badge>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="hidden text-[var(--muted)] sm:block opacity-0 transition group-hover:opacity-100">
+                      <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active matches */}
       {showActive && active.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">
@@ -360,11 +464,11 @@ export default function MatchesPage() {
                         )}
                       </div>
                     </div>
-                    <div className="shrink-0 flex items-center gap-2">
+                    <div className="shrink-0 flex flex-col items-end gap-1">
                       <Badge tone="active">Active</Badge>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="hidden text-[var(--muted)] sm:block opacity-0 transition group-hover:opacity-100">
-                        <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      {m.round_time && (
+                        <span className="text-[10px] font-medium text-amber-600">{deadlineLabel(m.round_time)}</span>
+                      )}
                     </div>
                   </div>
                 </Link>
@@ -374,6 +478,7 @@ export default function MatchesPage() {
         </div>
       )}
 
+      {/* Proposed */}
       {showProposedSection && proposed.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">
@@ -418,6 +523,7 @@ export default function MatchesPage() {
         </div>
       )}
 
+      {/* Completed */}
       {showCompleted && completed.length > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-5">
           <div className="flex items-center justify-between">

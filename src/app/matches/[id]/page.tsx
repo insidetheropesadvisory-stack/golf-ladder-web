@@ -649,6 +649,8 @@ export default function MatchScoringPage() {
   const isCompleted = match?.completed === true || match?.status === "completed";
   const isActive = match?.terms_status === "accepted" || match?.status === "active";
 
+  const DEADLINE_MS = 12 * 60 * 60 * 1000;
+
   // Scoring locked until tee time (if a round_time is set)
   const scoringLocked = useMemo(() => {
     if (!match?.round_time) return false; // No time set = scoring open
@@ -658,6 +660,34 @@ export default function MatchScoringPage() {
       return false;
     }
   }, [match?.round_time]);
+
+  // Match is expired if past the 12h deadline
+  const isExpired = useMemo(() => {
+    if (!match?.round_time) return false;
+    if (match.status === "expired") return true;
+    try {
+      const deadline = new Date(match.round_time).getTime() + DEADLINE_MS;
+      return Date.now() > deadline && !match.completed && match.status !== "completed";
+    } catch {
+      return false;
+    }
+  }, [match?.round_time, match?.status, match?.completed]);
+
+  // Deadline label for active matches
+  const deadlineLabel = useMemo(() => {
+    if (!match?.round_time || scoringLocked || isExpired) return null;
+    try {
+      const deadline = new Date(match.round_time).getTime() + DEADLINE_MS;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return "Expired";
+      const hours = Math.floor(remaining / (60 * 60 * 1000));
+      const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+      if (hours > 0) return `${hours}h ${mins}m remaining to score`;
+      return `${mins}m remaining to score`;
+    } catch {
+      return null;
+    }
+  }, [match?.round_time, scoringLocked, isExpired]);
 
   const teeTimeLabel = useMemo(() => {
     if (!match?.round_time) return null;
@@ -1196,6 +1226,40 @@ export default function MatchScoringPage() {
         </div>
       )}
 
+      {/* Expired banner */}
+      {isExpired && !isCompleted && (
+        <div className="rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-white p-5 text-center shadow-sm">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </div>
+          <div className="text-sm font-semibold text-red-800">Match Expired</div>
+          <div className="mt-1 text-sm text-red-600/80">
+            The 12-hour scoring window has closed. Scores were not submitted in time.
+          </div>
+          <Link
+            href="/matches"
+            className="mt-4 inline-flex items-center rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+          >
+            Back to matches
+          </Link>
+        </div>
+      )}
+
+      {/* Scoring deadline countdown */}
+      {!isCompleted && !isExpired && !scoringLocked && deadlineLabel && (
+        <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 px-5 py-3 flex items-center gap-3">
+          <svg className="h-5 w-5 flex-shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+          <div>
+            <div className="text-sm font-semibold text-amber-800">{deadlineLabel}</div>
+            <div className="text-xs text-amber-700/70">Scores must be entered within 12 hours of tee time or the match expires.</div>
+          </div>
+        </div>
+      )}
+
       {/* Completed banner */}
       {isCompleted && (
         <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 text-center shadow-sm">
@@ -1369,7 +1433,7 @@ export default function MatchScoringPage() {
       })()}
 
       {/* Complete match button */}
-      {!isCompleted && isActive && canComplete && (
+      {!isCompleted && !isExpired && isActive && canComplete && (
         <div className="rounded-2xl border-2 border-[var(--pine)]/30 bg-gradient-to-br from-[var(--pine)]/5 to-white p-5 text-center">
           <div className="text-sm font-semibold text-[var(--ink)]">
             {isMatchPlay && matchPlayClinched ? "Match clinched!" : "All holes scored!"}
@@ -1398,7 +1462,7 @@ export default function MatchScoringPage() {
       )}
 
       {/* Waiting for opponent scores */}
-      {!isCompleted && isActive && allScoredByMe && !canComplete && (
+      {!isCompleted && !isExpired && isActive && allScoredByMe && !canComplete && (
         <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 px-5 py-4 text-center">
           <div className="text-sm font-semibold text-amber-800">Waiting for opponent</div>
           <div className="mt-1 text-xs text-amber-700/70">
@@ -1423,8 +1487,8 @@ export default function MatchScoringPage() {
         </div>
       )}
 
-      {/* Scoring input area - only show when match is not completed and not locked */}
-      {!isCompleted && !scoringLocked && (
+      {/* Scoring input area - only show when match is not completed, not locked, and not expired */}
+      {!isCompleted && !scoringLocked && !isExpired && (
         <div className="overflow-hidden rounded-2xl border-2 border-[var(--pine)]/20 bg-gradient-to-b from-white to-[var(--paper)] shadow-sm">
           <div className="border-b border-[var(--border)] bg-[var(--pine)]/5 px-5 py-3">
             <div className="flex items-center justify-between">
@@ -1545,8 +1609,8 @@ export default function MatchScoringPage() {
         </div>
       )}
 
-      {/* Hole grid - hidden when scoring is locked */}
-      {!scoringLocked && <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
+      {/* Hole grid - hidden when scoring is locked or expired */}
+      {!scoringLocked && !isExpired && <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-5">
         <div className="mb-4 flex items-center justify-between">
           <div className="text-sm font-bold tracking-tight">Your Holes</div>
           <div className="text-xs text-[var(--muted)]">{myScoresByHole.size}/{TOTAL_HOLES} complete</div>
