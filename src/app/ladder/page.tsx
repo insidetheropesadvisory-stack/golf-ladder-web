@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
@@ -205,13 +206,19 @@ export default function LadderPage() {
               const name = prof?.display_name || "Unknown";
               const isMe = r.user_id === meId;
 
+              const Wrapper = isMe ? "div" as const : Link;
+              const wrapperProps = isMe
+                ? {}
+                : { href: `/players/${r.user_id}` };
+
               return (
-                <div
+                <Wrapper
                   key={r.id}
+                  {...wrapperProps as any}
                   className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition ${
                     isMe
                       ? "border-[var(--pine)]/30 bg-[var(--pine)]/5"
-                      : "border-[var(--border)] bg-white/60"
+                      : "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20 hover:shadow-sm cursor-pointer"
                   }`}
                 >
                   {/* Position */}
@@ -274,17 +281,19 @@ export default function LadderPage() {
                   {/* Challenge button */}
                   {canChallenge(r) && (
                     <button
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         router.push(
                           `/matches/new?opponent=${r.user_id}&ladder=true`
-                        )
-                      }
+                        );
+                      }}
                       className="flex-shrink-0 rounded-xl border border-[var(--pine)]/30 bg-[var(--pine)]/5 px-3 py-1.5 text-xs font-semibold text-[var(--pine)] transition hover:bg-[var(--pine)]/10 hover:shadow-sm"
                     >
                       Challenge
                     </button>
                   )}
-                </div>
+                </Wrapper>
               );
             })}
           </div>
