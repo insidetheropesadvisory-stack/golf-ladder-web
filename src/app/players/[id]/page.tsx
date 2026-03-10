@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/supabase";
+import { initials } from "@/lib/utils";
 
 type Profile = {
   id: string;
@@ -32,11 +33,6 @@ type HoleRow = {
   player_id: string;
   strokes: number | null;
 };
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase()).join("");
-}
 
 function toStringParam(v: unknown): string | null {
   if (typeof v === "string") return v;

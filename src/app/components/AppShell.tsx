@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/supabase";
+import { cx } from "@/lib/utils";
 
 type NavItem = { label: string; href: string; icon: string };
 
@@ -14,10 +15,6 @@ const NAV: NavItem[] = [
   { label: "Memberships", href: "/clubs", icon: "clubs" },
   { label: "Profile", href: "/profile", icon: "profile" },
 ];
-
-function cx(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 function titleFromPath(pathname: string) {
   const hit = NAV.find((n) => n.href === pathname);

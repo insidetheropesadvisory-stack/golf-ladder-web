@@ -1,36 +1,7 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
+import { getAuthedUser, adminClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-async function getAuthedUser(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const bearer =
-    authHeader && authHeader.startsWith("Bearer ")
-      ? authHeader.slice("Bearer ".length).trim()
-      : null;
-
-  if (bearer) {
-    const sb = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data, error } = await sb.auth.getUser(bearer);
-    return { user: data.user, error };
-  }
-
-  const cookieStore = await cookies();
-  const sb = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} },
-  });
-  const { data, error } = await sb.auth.getUser();
-  return { user: data.user, error };
-}
 
 export async function POST(request: Request) {
   try {
@@ -49,9 +20,7 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as any;
     const type = String(body.type ?? "").trim();
 
-    const admin = createClient(supabaseUrl, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const admin = adminClient();
 
     // --- Type: scoring_complete ---
     // Sent when a player finishes scoring all their holes

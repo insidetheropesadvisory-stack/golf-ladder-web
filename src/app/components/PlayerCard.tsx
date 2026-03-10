@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { initials } from "@/lib/utils";
 
 export type PlayerCardData = {
   id: string;
@@ -12,11 +13,6 @@ export type PlayerCardData = {
   losses: number;
   ties: number;
 };
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase()).join("");
-}
 
 export function PlayerCard({
   player,

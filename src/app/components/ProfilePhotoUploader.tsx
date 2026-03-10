@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
+import { cx } from "@/lib/utils";
 
 type ProfileRow = {
   id: string;
@@ -12,10 +13,6 @@ type ProfileRow = {
   handicap_index: number | null;
   avatar_url: string | null;
 };
-
-function cx(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 function safeNum(v: string) {
   const s = (v ?? "").trim();

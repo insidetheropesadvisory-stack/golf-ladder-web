@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { cx } from "@/lib/utils";
 
 /**
  * Client UI for Home.
@@ -36,10 +37,6 @@ export type Profile = {
   handicap?: number | null;
   hasName?: boolean;
 };
-
-function cx(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 function formatTimeAgo(iso?: string) {
   if (!iso) return "";

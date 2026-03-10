@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
+import { cx } from "@/lib/utils";
 
 type MatchRow = {
   id: string;
@@ -138,9 +139,7 @@ function nextUnscoredHole(rows: HoleRow[], playerId: string) {
   return TOTAL_HOLES;
 }
 
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
+
 
 export default function MatchScoringPage() {
   const params = useParams();

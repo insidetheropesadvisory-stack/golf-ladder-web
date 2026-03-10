@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/supabase";
+import { initials } from "@/lib/utils";
 
 type MatchRow = {
   id: string;
@@ -27,12 +28,6 @@ type PlayerLite = {
   avatar_url: string | null;
   handicap_index: number | null;
 };
-
-function initials(name?: string) {
-  const s = (name ?? "").trim();
-  if (!s) return "GL";
-  return s.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
-}
 
 function deriveBucket(r: MatchRow): "proposal" | "active" | "completed" {
   if (r.completed) return "completed";

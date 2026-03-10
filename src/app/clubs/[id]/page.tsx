@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/supabase";
+import { cx, initials } from "@/lib/utils";
 
 type ClubRow = {
   id: string;
@@ -24,15 +25,6 @@ type PlayerProfile = {
   avatar_url: string | null;
   handicap_index: number | null;
 };
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase()).join("");
-}
 
 function toStringParam(v: unknown): string | null {
   if (typeof v === "string") return v;

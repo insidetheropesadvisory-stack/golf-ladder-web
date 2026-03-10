@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/supabase";
+import { initials } from "@/lib/utils";
 
 type Player = {
   id: string;
@@ -11,11 +12,6 @@ type Player = {
   handicap_index: number | null;
   clubs: string[];
 };
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase()).join("");
-}
 
 export function OpponentPicker({
   meId,

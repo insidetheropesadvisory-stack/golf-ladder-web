@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
+import { initials } from "@/lib/utils";
 
 type Ranking = {
   id: string;
@@ -20,15 +21,6 @@ type Profile = {
 };
 
 type WLRecord = { wins: number; losses: number };
-
-function initials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
-}
 
 export default function LadderPage() {
   const router = useRouter();

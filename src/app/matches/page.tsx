@@ -3,22 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/supabase";
+import { cx, initials, emailToName } from "@/lib/utils";
 
 type AnyRow = Record<string, any>;
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase()).join("");
-}
-
-function emailToName(email: string) {
-  const base = (email || "").split("@")[0] || "Opponent";
-  return base.replace(/[._-]+/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
-}
 
 function formatLabel(format?: string) {
   if (format === "match_play") return "Match Play";

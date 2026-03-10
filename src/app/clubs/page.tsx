@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { CT_CLUBS } from "@/lib/data/ctClubs";
+import { initials } from "@/lib/utils";
 
 type ApiCourse = {
   id: number;
@@ -19,10 +20,6 @@ type ClubRow = {
   state: string | null;
   logo_url: string | null;
 };
-
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
-}
 
 export default function ClubsPage() {
   const router = useRouter();

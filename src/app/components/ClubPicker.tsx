@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/supabase";
 import { CT_CLUBS } from "@/lib/data/ctClubs";
+import { cx, initials } from "@/lib/utils";
 
 type Club = {
   id: string;
@@ -13,15 +14,6 @@ type Club = {
   source: "my" | "db" | "ct";
   guest_fee?: number | null;
 };
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase()).join("");
-}
 
 function normalizeClubRow(row: any): Club | null {
   if (!row) return null;
