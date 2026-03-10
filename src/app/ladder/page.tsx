@@ -146,6 +146,25 @@ export default function LadderPage() {
         </p>
       </div>
 
+      {/* How it works */}
+      <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 sm:p-5">
+        <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-3">How it works</div>
+        <div className="space-y-2.5 text-sm text-[var(--ink)]">
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">1</span>
+            <span>Your starting position is based on your <span className="font-medium">handicap index</span> — lower handicaps rank higher.</span>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">2</span>
+            <span>You can challenge anyone up to <span className="font-medium">3 spots above</span> your current position.</span>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">3</span>
+            <span>Win a challenge and you <span className="font-medium">swap positions</span> with your opponent. Lose and you stay put.</span>
+          </div>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl border border-[var(--border)] bg-white/60 p-1">
         {(["gross", "net"] as const).map((t) => (
