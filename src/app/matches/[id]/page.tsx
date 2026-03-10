@@ -44,6 +44,85 @@ function sumStrokes(rows: HoleRow[], playerId: string | null) {
   return total;
 }
 
+/** Compute match play result: holes won by each player */
+function matchPlayResult(
+  rows: HoleRow[],
+  player1: string,
+  player2: string
+): { p1Holes: number; p2Holes: number; halved: number } {
+  let p1Holes = 0;
+  let p2Holes = 0;
+  let halved = 0;
+
+  for (let h = 1; h <= TOTAL_HOLES; h++) {
+    const s1 = rows.find((r) => r.player_id === player1 && r.hole_no === h)?.strokes;
+    const s2 = rows.find((r) => r.player_id === player2 && r.hole_no === h)?.strokes;
+    if (s1 == null || s2 == null) continue;
+    if (s1 < s2) p1Holes++;
+    else if (s2 < s1) p2Holes++;
+    else halved++;
+  }
+  return { p1Holes, p2Holes, halved };
+}
+
+/** Compute match play result with net scoring (handicap strokes distributed) */
+function matchPlayNetResult(
+  rows: HoleRow[],
+  player1: string,
+  player2: string,
+  hcp1: number,
+  hcp2: number
+): { p1Holes: number; p2Holes: number; halved: number } {
+  // Strokes given = difference in handicaps, distributed evenly across holes
+  // Lower handicap player gives strokes to the higher
+  const diff = Math.round(Math.abs(hcp1 - hcp2));
+  const receiverId = hcp1 > hcp2 ? player1 : player2;
+
+  let p1Holes = 0;
+  let p2Holes = 0;
+  let halved = 0;
+
+  for (let h = 1; h <= TOTAL_HOLES; h++) {
+    let s1 = rows.find((r) => r.player_id === player1 && r.hole_no === h)?.strokes;
+    let s2 = rows.find((r) => r.player_id === player2 && r.hole_no === h)?.strokes;
+    if (s1 == null || s2 == null) continue;
+
+    // Apply handicap stroke: holes 1..diff get one stroke each
+    if (h <= diff) {
+      if (receiverId === player1) s1 = s1 - 1;
+      else s2 = s2 - 1;
+    }
+
+    if (s1 < s2) p1Holes++;
+    else if (s2 < s1) p2Holes++;
+    else halved++;
+  }
+  return { p1Holes, p2Holes, halved };
+}
+
+/** Format match play score text like "3 & 2" or "1 up" */
+function matchPlayScoreText(
+  myHoles: number,
+  oppHoles: number,
+  holesPlayed: number
+): string {
+  const diff = Math.abs(myHoles - oppHoles);
+  const remaining = TOTAL_HOLES - holesPlayed;
+
+  if (diff === 0) return "All square";
+
+  const leader = myHoles > oppHoles ? "You lead" : "Opponent leads";
+
+  // If match is over (diff > remaining), show "X & Y"
+  if (diff > remaining && remaining > 0) {
+    return `${leader} ${diff} & ${remaining}`;
+  }
+  if (remaining === 0) {
+    return `${diff} ${diff === 1 ? "hole" : "holes"} ${myHoles > oppHoles ? "up" : "down"}`;
+  }
+  return `${leader} ${diff} ${diff === 1 ? "hole" : "holes"}`;
+}
+
 function nextUnscoredHole(rows: HoleRow[], playerId: string) {
   const scored = new Set<number>();
   for (const r of rows) {
@@ -81,6 +160,8 @@ export default function MatchScoringPage() {
   const [responding, setResponding] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
+  const [myHandicap, setMyHandicap] = useState<number | null>(null);
+  const [oppHandicap, setOppHandicap] = useState<number | null>(null);
 
   useEffect(() => {
     if (!matchId) return;
@@ -148,6 +229,22 @@ export default function MatchScoringPage() {
         );
         setStrokesInput(existing?.strokes != null ? String(existing.strokes) : "");
 
+        // Load handicaps for both players
+        const m = matchData as MatchRow;
+        const playerIds = [sessionUser.id, m.opponent_id].filter(Boolean) as string[];
+        if (playerIds.length > 0) {
+          const { data: profData } = await supabase
+            .from("profiles")
+            .select("id, handicap_index")
+            .in("id", playerIds);
+          if (profData) {
+            for (const p of profData as any[]) {
+              if (p.id === sessionUser.id) setMyHandicap(p.handicap_index ?? null);
+              else setOppHandicap(p.handicap_index ?? null);
+            }
+          }
+        }
+
         setLoading(false);
       } catch (e: any) {
         console.error(e);
@@ -194,6 +291,54 @@ export default function MatchScoringPage() {
     () => match?.opponent_email || "Opponent",
     [match]
   );
+
+  const isMatchPlay = match?.format === "match_play";
+  const useHcp = match?.use_handicap === true;
+  const oppId = match?.opponent_id ?? null;
+
+  // Net totals (stroke play with handicap)
+  const myNetTotal = useMemo(() => {
+    if (!useHcp || myTotal == null || myHandicap == null) return myTotal;
+    return Math.round(myTotal - myHandicap);
+  }, [myTotal, myHandicap, useHcp]);
+
+  const oppNetTotal = useMemo(() => {
+    if (!useHcp || oppTotal == null || oppHandicap == null) return oppTotal;
+    return Math.round(oppTotal - oppHandicap);
+  }, [oppTotal, oppHandicap, useHcp]);
+
+  // Match play hole-by-hole results
+  const matchPlayData = useMemo(() => {
+    if (!isMatchPlay || !meId || !oppId) return null;
+    if (useHcp && myHandicap != null && oppHandicap != null) {
+      return matchPlayNetResult(holes, meId, oppId, myHandicap, oppHandicap);
+    }
+    return matchPlayResult(holes, meId, oppId);
+  }, [holes, meId, oppId, isMatchPlay, useHcp, myHandicap, oppHandicap]);
+
+  // The "display" totals depend on format
+  const myDisplayTotal = isMatchPlay ? null : (useHcp ? myNetTotal : myTotal);
+  const oppDisplayTotal = isMatchPlay ? null : (useHcp ? oppNetTotal : oppTotal);
+
+  // Determine winner based on format
+  const resultData = useMemo(() => {
+    if (isMatchPlay && matchPlayData) {
+      const { p1Holes, p2Holes } = matchPlayData;
+      if (p1Holes > p2Holes) return { myWins: true, oppWins: false, isTie: false };
+      if (p2Holes > p1Holes) return { myWins: false, oppWins: true, isTie: false };
+      return { myWins: false, oppWins: false, isTie: true };
+    }
+
+    // Stroke play
+    const mdt = useHcp ? myNetTotal : myTotal;
+    const odt = useHcp ? oppNetTotal : oppTotal;
+    if (mdt == null || odt == null) return { myWins: false, oppWins: false, isTie: false };
+    return {
+      myWins: mdt < odt,
+      oppWins: odt < mdt,
+      isTie: mdt === odt,
+    };
+  }, [isMatchPlay, matchPlayData, myTotal, oppTotal, myNetTotal, oppNetTotal, useHcp]);
 
   function goPrev() {
     if (!meId) return;
@@ -507,12 +652,22 @@ export default function MatchScoringPage() {
         </div>
       )}
 
+      {/* Format indicator */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center rounded-full bg-black/[0.04] px-3 py-1 text-xs font-medium text-[var(--ink)]">
+          {isMatchPlay ? "Match Play" : "Stroke Play"}
+        </span>
+        {useHcp && (
+          <span className="inline-flex items-center rounded-full bg-amber-100/80 px-3 py-1 text-xs font-medium text-amber-800">
+            Net Scoring (Handicap)
+          </span>
+        )}
+      </div>
+
       {/* Score summary cards */}
       <div className="grid gap-3 sm:grid-cols-2">
         {(() => {
-          const myWins = isCompleted && myTotal != null && oppTotal != null && myTotal < oppTotal;
-          const oppWins = isCompleted && myTotal != null && oppTotal != null && oppTotal < myTotal;
-          const isTie = isCompleted && myTotal != null && oppTotal != null && myTotal === oppTotal;
+          const { myWins, oppWins, isTie } = isCompleted ? resultData : { myWins: false, oppWins: false, isTie: false };
 
           return (
             <>
@@ -526,12 +681,32 @@ export default function MatchScoringPage() {
                   <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
                     You {isCompleted && myWins ? "- Winner" : isCompleted && isTie ? "- Tie" : ""}
                   </div>
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
-                    {myScoresByHole.size}
-                  </div>
+                  {!isMatchPlay && (
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+                      {myScoresByHole.size}
+                    </div>
+                  )}
                 </div>
-                <div className="mt-2 text-4xl font-bold tracking-tight text-emerald-800">{myTotal ?? 0}</div>
-                <div className="mt-1 truncate text-xs text-emerald-600/70">{meEmail ?? ""}</div>
+                {isMatchPlay ? (
+                  <>
+                    <div className="mt-2 text-4xl font-bold tracking-tight text-emerald-800">
+                      {matchPlayData ? matchPlayData.p1Holes : 0}
+                    </div>
+                    <div className="mt-1 text-xs text-emerald-600/70">holes won</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-2 text-4xl font-bold tracking-tight text-emerald-800">
+                      {useHcp ? myNetTotal ?? 0 : myTotal ?? 0}
+                    </div>
+                    {useHcp && myTotal != null && myHandicap != null && (
+                      <div className="mt-0.5 text-xs text-emerald-600/60">
+                        Gross: {myTotal} &middot; HCP: {myHandicap}
+                      </div>
+                    )}
+                    <div className="mt-1 truncate text-xs text-emerald-600/70">{meEmail ?? ""}</div>
+                  </>
+                )}
               </div>
 
               <div className={cx(
@@ -545,34 +720,72 @@ export default function MatchScoringPage() {
                     Opponent {isCompleted && oppWins ? "- Winner" : isCompleted && isTie ? "- Tie" : ""}
                   </div>
                 </div>
-                <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">{oppTotal ?? "--"}</div>
-                <div className="mt-1 truncate text-xs text-slate-400">
-                  {match?.opponent_id ? opponentLabel : "Not linked yet"}
-                </div>
+                {isMatchPlay ? (
+                  <>
+                    <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">
+                      {matchPlayData ? matchPlayData.p2Holes : "--"}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-400">holes won</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">
+                      {useHcp ? (oppNetTotal ?? "--") : (oppTotal ?? "--")}
+                    </div>
+                    {useHcp && oppTotal != null && oppHandicap != null && (
+                      <div className="mt-0.5 text-xs text-slate-400/80">
+                        Gross: {oppTotal} &middot; HCP: {oppHandicap}
+                      </div>
+                    )}
+                    <div className="mt-1 truncate text-xs text-slate-400">
+                      {match?.opponent_id ? opponentLabel : "Not linked yet"}
+                    </div>
+                  </>
+                )}
               </div>
             </>
           );
         })()}
       </div>
 
+      {/* Match play live status */}
+      {isMatchPlay && matchPlayData && !isCompleted && (
+        <div className="rounded-2xl border border-[var(--border)] bg-white/60 px-5 py-3 text-center">
+          <div className="text-sm font-semibold text-[var(--ink)]">
+            {matchPlayScoreText(matchPlayData.p1Holes, matchPlayData.p2Holes, matchPlayData.p1Holes + matchPlayData.p2Holes + matchPlayData.halved)}
+          </div>
+          <div className="mt-0.5 text-xs text-[var(--muted)]">
+            {matchPlayData.p1Holes + matchPlayData.p2Holes + matchPlayData.halved} holes played &middot; {matchPlayData.halved} halved
+            {useHcp ? " (net)" : ""}
+          </div>
+        </div>
+      )}
+
       {/* Completed banner */}
       {isCompleted && (
         <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 text-center shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Match Complete</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+            Match Complete &middot; {isMatchPlay ? "Match Play" : "Stroke Play"}{useHcp ? " (Net)" : ""}
+          </div>
           <div className="mt-2 text-lg font-bold text-[var(--ink)]">
-            {myTotal != null && oppTotal != null ? (
-              myTotal < oppTotal ? "You won!" :
-              myTotal > oppTotal ? "You lost." :
-              "It's a tie."
+            {resultData.myWins ? "You won!" : resultData.oppWins ? "You lost." : resultData.isTie ? "It's a tie." : "Final scores are in."}
+          </div>
+          <div className="mt-1 text-sm text-[var(--muted)]">
+            {isMatchPlay && matchPlayData ? (
+              <>
+                {matchPlayData.p1Holes} - {matchPlayData.p2Holes} ({matchPlayData.halved} halved)
+                {useHcp ? " with handicap strokes" : ""}
+              </>
             ) : (
-              "Final scores are in."
+              myDisplayTotal != null && oppDisplayTotal != null && (
+                <>
+                  {myDisplayTotal} vs {oppDisplayTotal}
+                  {useHcp ? " (net)" : ""}
+                  {" "}({Math.abs(myDisplayTotal - oppDisplayTotal)} stroke{Math.abs(myDisplayTotal - oppDisplayTotal) !== 1 ? "s" : ""} {myDisplayTotal < oppDisplayTotal ? "ahead" : myDisplayTotal > oppDisplayTotal ? "behind" : "even"})
+                </>
+              )
             )}
           </div>
-          {myTotal != null && oppTotal != null && (
-            <div className="mt-1 text-sm text-[var(--muted)]">
-              {myTotal} vs {oppTotal} ({Math.abs(myTotal - oppTotal)} stroke{Math.abs(myTotal - oppTotal) !== 1 ? "s" : ""} {myTotal < oppTotal ? "ahead" : myTotal > oppTotal ? "behind" : "even"})
-            </div>
-          )}
         </div>
       )}
 
@@ -581,7 +794,11 @@ export default function MatchScoringPage() {
         <div className="rounded-2xl border-2 border-[var(--pine)]/30 bg-gradient-to-br from-[var(--pine)]/5 to-white p-5 text-center">
           <div className="text-sm font-semibold text-[var(--ink)]">All 18 holes scored!</div>
           <div className="mt-1 text-xs text-[var(--muted)]">
-            Your total: {myTotal} strokes. Ready to finalize?
+            {isMatchPlay && matchPlayData ? (
+              <>Holes won: {matchPlayData.p1Holes} - {matchPlayData.p2Holes} ({matchPlayData.halved} halved){useHcp ? " (net)" : ""}</>
+            ) : (
+              <>Your {useHcp ? "net" : ""} total: {useHcp ? myNetTotal : myTotal} strokes. Ready to finalize?</>
+            )}
           </div>
           <button
             type="button"
@@ -611,8 +828,12 @@ export default function MatchScoringPage() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Running total</div>
-                <div className="text-lg font-bold text-[var(--pine)]">{myTotal ?? 0}</div>
+                <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
+                  {isMatchPlay ? "Holes won" : useHcp ? "Net total" : "Running total"}
+                </div>
+                <div className="text-lg font-bold text-[var(--pine)]">
+                  {isMatchPlay ? (matchPlayData?.p1Holes ?? 0) : (useHcp ? myNetTotal ?? 0 : myTotal ?? 0)}
+                </div>
               </div>
             </div>
           </div>
