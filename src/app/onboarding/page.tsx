@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { CT_CLUBS } from "@/lib/data/ctClubs";
@@ -67,6 +67,14 @@ function StepIndicator({ current, steps }: { current: number; steps: readonly st
 }
 
 export default function OnboardingPage() {
+  return (
+    <Suspense>
+      <OnboardingContent />
+    </Suspense>
+  );
+}
+
+function OnboardingContent() {
   const router = useRouter();
   const sp = useSearchParams();
   const nextUrl = sp.get("next") || "/";
