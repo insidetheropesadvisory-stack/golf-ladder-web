@@ -121,6 +121,12 @@ export default function HomePage() {
   const [tournaments, setTournaments] = useState<TournamentLite[]>([]);
   const [ladderRanks, setLadderRanks] = useState<LadderRank[]>([]);
 
+  type PoolUpcoming = { id: string; course_name: string; round_time: string; creator_id: string; creator_name: string | null };
+  const [poolUpcoming, setPoolUpcoming] = useState<PoolUpcoming[]>([]);
+
+  type PoolCompleted = { id: string; course_name: string; round_time: string; creator_id: string; creator_name: string | null };
+  const [poolCompleted, setPoolCompleted] = useState<PoolCompleted[]>([]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -155,7 +161,7 @@ export default function HomePage() {
           email ? `opponent_email.ilike.${email}` : null,
         ].filter(Boolean).join(",");
 
-        const [matchResult, tournamentResult, ladderResult, clubResult] = await Promise.all([
+        const [matchResult, tournamentResult, ladderResult, clubResult, poolResult, poolCompletedResult] = await Promise.all([
           supabase
             .from("matches")
             .select("id,created_at,creator_id,opponent_id,opponent_email,course_name,completed,status,format,use_handicap,terms_status,terms_last_proposed_by,round_time,is_ladder_match")
@@ -183,6 +189,42 @@ export default function HomePage() {
             .from("clubs")
             .select("id, name")
             .limit(50),
+          // Pool upcoming rounds
+          (async () => {
+            if (!authToken) return [];
+            try {
+              const res = await fetch("/api/pool?status=upcoming", {
+                headers: { Authorization: `Bearer ${authToken}` },
+              });
+              if (!res.ok) return [];
+              const json = await res.json();
+              return (json.listings ?? []).map((l: any) => ({
+                id: l.id,
+                course_name: l.course_name,
+                round_time: l.round_time,
+                creator_id: l.creator_id,
+                creator_name: l.creator?.display_name ?? null,
+              }));
+            } catch { return []; }
+          })(),
+          // Pool completed rounds (for activity feed)
+          (async () => {
+            if (!authToken) return [];
+            try {
+              const res = await fetch("/api/pool?status=completed", {
+                headers: { Authorization: `Bearer ${authToken}` },
+              });
+              if (!res.ok) return [];
+              const json = await res.json();
+              return (json.listings ?? []).map((l: any) => ({
+                id: l.id,
+                course_name: l.course_name,
+                round_time: l.round_time,
+                creator_id: l.creator_id,
+                creator_name: l.creator?.display_name ?? null,
+              }));
+            } catch { return []; }
+          })(),
         ]);
 
         if (matchResult.error) throw new Error(matchResult.error.message);
@@ -191,6 +233,8 @@ export default function HomePage() {
         setRows(matchRows);
         setTournaments(tournamentResult as TournamentLite[]);
         setLadderRanks((ladderResult.data ?? []) as LadderRank[]);
+        setPoolUpcoming(poolResult as PoolUpcoming[]);
+        setPoolCompleted(poolCompletedResult as PoolCompleted[]);
 
         if (clubResult.data && mounted) {
           const map: Record<string, string> = {};
@@ -278,14 +322,48 @@ export default function HomePage() {
   const grossRank = ladderRanks.find((r) => r.type === "gross");
   const netRank = ladderRanks.find((r) => r.type === "net");
 
-  // Upcoming matches (sorted by round_time, future only)
+  // Upcoming: merge match upcoming + pool upcoming, sorted by round_time
+  type UpcomingItem = { id: string; type: "match" | "pool"; course_name: string; round_time: string; label: string; sublabel: string; href: string; avatarText: string };
   const upcoming = useMemo(() => {
     const now = Date.now();
-    return buckets.active
-      .filter((m) => m.round_time && new Date(m.round_time).getTime() > now)
-      .sort((a, b) => new Date(a.round_time!).getTime() - new Date(b.round_time!).getTime())
-      .slice(0, 3);
-  }, [buckets.active]);
+    const items: UpcomingItem[] = [];
+
+    // Match upcoming
+    for (const m of buckets.active) {
+      if (!m.round_time || new Date(m.round_time).getTime() <= now) continue;
+      const opp = opponentFor(m);
+      items.push({
+        id: m.id,
+        type: "match",
+        course_name: m.course_name,
+        round_time: m.round_time,
+        label: `vs ${opp.name}`,
+        sublabel: m.course_name,
+        href: `/matches/${m.id}`,
+        avatarText: initials(opp.name),
+      });
+    }
+
+    // Pool upcoming
+    for (const p of poolUpcoming) {
+      if (new Date(p.round_time).getTime() <= now) continue;
+      const isHost = p.creator_id === meId;
+      items.push({
+        id: p.id,
+        type: "pool",
+        course_name: p.course_name,
+        round_time: p.round_time,
+        label: isHost ? "Your pool round" : `Pool — ${p.creator_name ?? "Organizer"}`,
+        sublabel: p.course_name,
+        href: `/pool/${p.id}`,
+        avatarText: initials(isHost ? displayName : (p.creator_name ?? "?")),
+      });
+    }
+
+    return items
+      .sort((a, b) => new Date(a.round_time).getTime() - new Date(b.round_time).getTime())
+      .slice(0, 5);
+  }, [buckets.active, poolUpcoming, meId, players, displayName]);
 
   // Active scoring window matches (round_time passed, within 12h)
   const scoringNow = useMemo(() => {
@@ -314,6 +392,20 @@ export default function HomePage() {
         subtext: `${m.course_name || "Course"} — ${m.format === "match_play" ? "Match Play" : "Stroke Play"}`,
         href: `/matches/${m.id}`,
         time: new Date(m.created_at).getTime(),
+        icon: "trophy",
+      });
+    }
+
+    // Recent completed pool rounds (last 5)
+    for (const p of poolCompleted.slice(0, 5)) {
+      const isHost = p.creator_id === meId;
+      items.push({
+        id: `p-${p.id}`,
+        type: "match_result",
+        text: isHost ? "Hosted pool round" : `Pool round — ${p.creator_name ?? "Organizer"}`,
+        subtext: `${p.course_name} — Pool`,
+        href: `/pool/${p.id}`,
+        time: new Date(p.round_time).getTime(),
         icon: "trophy",
       });
     }
@@ -347,7 +439,7 @@ export default function HomePage() {
     }
 
     return items.sort((a, b) => b.time - a.time).slice(0, 8);
-  }, [buckets.completed, tournaments, grossRank, netRank, players, meId]);
+  }, [buckets.completed, poolCompleted, tournaments, grossRank, netRank, players, meId]);
 
   return (
     <div className="space-y-6">
@@ -498,39 +590,49 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Upcoming matches with countdown */}
+      {/* Upcoming matches + pool rounds with countdown */}
       {!loading && upcoming.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Upcoming</h2>
           <div className="space-y-2">
-            {upcoming.map((m) => {
-              const opp = opponentFor(m);
-              const dt = new Date(m.round_time!);
+            {upcoming.map((item) => {
+              const dt = new Date(item.round_time);
               return (
                 <Link
-                  key={m.id}
-                  href={`/matches/${m.id}`}
+                  key={`${item.type}-${item.id}`}
+                  href={item.href}
                   className="group flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-blue-200 hover:shadow-sm sm:p-4"
                 >
-                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
-                    {opp.avatarUrl ? (
-                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
-                        {initials(opp.name)}
-                      </div>
-                    )}
+                  <div className={cx(
+                    "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full text-white sm:h-10 sm:w-10",
+                    item.type === "pool" ? "bg-blue-600" : "bg-[var(--pine)]"
+                  )}>
+                    <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
+                      {item.type === "pool" ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                      ) : item.avatarText}
+                    </div>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-[var(--ink)]">
-                      vs {opp.name}
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold text-[var(--ink)]">
+                        {item.label}
+                      </span>
+                      {item.type === "pool" && (
+                        <span className="shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">Pool</span>
+                      )}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
-                      {m.course_name} &middot; {dt.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                      {item.course_name} &middot; {dt.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="text-sm font-bold text-blue-700 tabular-nums">{countdownText(m.round_time!)}</div>
+                    <div className="text-sm font-bold text-blue-700 tabular-nums">{countdownText(item.round_time)}</div>
                     <div className="text-[10px] text-[var(--muted)]">until tee time</div>
                   </div>
                 </Link>

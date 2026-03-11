@@ -34,10 +34,18 @@ export async function GET(request: Request) {
     let query = admin
       .from("pool_listings")
       .select("*")
-      .eq("status", statusFilter)
-      .gte("round_time", new Date().toISOString())
       .order("round_time", { ascending: true })
       .limit(50);
+
+    if (statusFilter === "upcoming") {
+      // Upcoming = open or full, with accepted application from this user, round_time in future
+      query = query.in("status", ["open", "full"]).gte("round_time", new Date().toISOString());
+    } else if (statusFilter === "completed") {
+      query = query.eq("status", "completed");
+    } else {
+      // Default: open listings, future only
+      query = query.eq("status", statusFilter).gte("round_time", new Date().toISOString());
+    }
 
     const { data: listings, error: listErr } = await query;
 
@@ -107,6 +115,14 @@ export async function GET(request: Request) {
           myApplications[a.listing_id] = a.status;
         }
       }
+    }
+
+    // For "upcoming" and "completed": only show listings where user is creator or accepted
+    if (statusFilter === "upcoming" || statusFilter === "completed") {
+      filtered = filtered.filter((l: any) => {
+        if (l.creator_id === user.id) return true;
+        return myApplications[l.id] === "accepted";
+      });
     }
 
     const enriched = filtered.map((l: any) => {

@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     // Compute per-match results
     let wins = 0, losses = 0, ties = 0;
     const h2hMap = new Map<string, { wins: number; losses: number; ties: number }>();
-    const courseMap = new Map<string, { totalStrokes: number; rounds: number; best: number | null }>();
+    const courseMap = new Map<string, { totalStrokes: number; scoredRounds: number; rounds: number; best: number | null }>();
     const allScores: number[] = [];
 
     for (const m of matchRows) {
@@ -102,8 +102,9 @@ export async function GET(request: Request) {
       // Track my score (only count rounds with 9+ holes)
       if (myCount >= 9) {
         allScores.push(myTotal);
-        const courseEntry = courseMap.get(m.course_name) ?? { totalStrokes: 0, rounds: 0, best: null };
+        const courseEntry = courseMap.get(m.course_name) ?? { totalStrokes: 0, scoredRounds: 0, rounds: 0, best: null };
         courseEntry.totalStrokes += myTotal;
+        courseEntry.scoredRounds++;
         courseEntry.rounds++;
         if (courseEntry.best === null || myTotal < courseEntry.best) courseEntry.best = myTotal;
         courseMap.set(m.course_name, courseEntry);
@@ -159,11 +160,57 @@ export async function GET(request: Request) {
       }))
       .sort((a, b) => b.total - a.total);
 
+    // --- Pool completed rounds ---
+    let poolRounds = 0;
+
+    // As creator
+    const { data: createdPools } = await admin
+      .from("pool_listings")
+      .select("id, course_name")
+      .eq("creator_id", uid)
+      .eq("status", "completed");
+
+    if (createdPools) {
+      poolRounds += createdPools.length;
+      for (const p of createdPools as any[]) {
+        const entry = courseMap.get(p.course_name) ?? { totalStrokes: 0, scoredRounds: 0, rounds: 0, best: null };
+        entry.rounds++;
+        courseMap.set(p.course_name, entry);
+      }
+    }
+
+    // As accepted guest
+    const { data: guestApps } = await admin
+      .from("pool_applications")
+      .select("listing_id")
+      .eq("applicant_id", uid)
+      .eq("status", "accepted");
+
+    if (guestApps && guestApps.length > 0) {
+      const guestListingIds = (guestApps as any[]).map((a: any) => a.listing_id);
+      const { data: guestPools } = await admin
+        .from("pool_listings")
+        .select("id, course_name")
+        .in("id", guestListingIds)
+        .eq("status", "completed");
+
+      if (guestPools) {
+        poolRounds += guestPools.length;
+        for (const p of guestPools as any[]) {
+          const entry = courseMap.get(p.course_name) ?? { totalStrokes: 0, scoredRounds: 0, rounds: 0, best: null };
+          entry.rounds++;
+          courseMap.set(p.course_name, entry);
+        }
+      }
+    }
+
     const byCourse = Array.from(courseMap.entries())
       .map(([course, data]) => ({
         course,
         rounds: data.rounds,
-        avgScore: Math.round((data.totalStrokes / data.rounds) * 10) / 10,
+        avgScore: data.scoredRounds > 0
+          ? Math.round((data.totalStrokes / data.scoredRounds) * 10) / 10
+          : null,
         bestScore: data.best,
       }))
       .sort((a, b) => b.rounds - a.rounds);
@@ -176,7 +223,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       wins, losses, ties,
-      totalRounds: allScores.length,
+      totalRounds: allScores.length + poolRounds,
+      poolRounds,
       avgScore,
       bestScore,
       headToHead,

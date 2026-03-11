@@ -60,8 +60,12 @@ export default function PoolPage() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "ready" | "none">("idle");
   const [meId, setMeId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"open" | "my">("open");
+  const [tab, setTab] = useState<"open" | "my" | "upcoming" | "completed">("open");
   const [credits, setCredits] = useState<number | null>(null);
+  const [upcomingListings, setUpcomingListings] = useState<PoolListing[]>([]);
+  const [completedListings, setCompletedListings] = useState<PoolListing[]>([]);
+  const [upcomingLoading, setUpcomingLoading] = useState(false);
+  const [completedLoading, setCompletedLoading] = useState(false);
 
   // Load user session + profile city/state, then resolve coordinates
   useEffect(() => {
@@ -126,10 +130,50 @@ export default function PoolPage() {
     setLoading(false);
   }
 
+  useEffect(() => {
+    if (tab === "upcoming") loadUpcoming();
+    if (tab === "completed") loadCompleted();
+  }, [tab]);
+
+  async function loadUpcoming() {
+    setUpcomingLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/pool?status=upcoming", {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      const json = await res.json();
+      if (res.ok) setUpcomingListings(json.listings ?? []);
+    } catch {}
+    setUpcomingLoading(false);
+  }
+
+  async function loadCompleted() {
+    setCompletedLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/pool?status=completed", {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      const json = await res.json();
+      if (res.ok) setCompletedListings(json.listings ?? []);
+    } catch {}
+    setCompletedLoading(false);
+  }
+
   const openListings = listings.filter((l) => l.creator_id !== meId);
   const myListings = listings.filter((l) => l.creator_id === meId);
 
-  const displayedListings = tab === "my" ? myListings : openListings;
+  const displayedListings =
+    tab === "my" ? myListings :
+    tab === "upcoming" ? upcomingListings :
+    tab === "completed" ? completedListings :
+    openListings;
+
+  const isTabLoading =
+    tab === "upcoming" ? upcomingLoading :
+    tab === "completed" ? completedLoading :
+    loading;
 
   return (
     <div className="space-y-6">
@@ -181,25 +225,30 @@ export default function PoolPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1.5">
-        {(["open", "my"] as const).map((t) => (
+      <div className="flex flex-wrap gap-1.5">
+        {([
+          { key: "open" as const, label: `Open (${openListings.length})` },
+          { key: "my" as const, label: `My Listings (${myListings.length})` },
+          { key: "upcoming" as const, label: "Upcoming" },
+          { key: "completed" as const, label: "Completed" },
+        ]).map((t) => (
           <button
-            key={t}
+            key={t.key}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => setTab(t.key)}
             className={cx(
               "rounded-full px-3 py-1.5 text-xs font-medium transition",
-              tab === t
+              tab === t.key
                 ? "bg-[var(--pine)] text-white"
                 : "bg-black/[0.04] text-[var(--muted)] hover:bg-black/[0.07]"
             )}
           >
-            {t === "open" ? `Open (${openListings.length})` : `My Listings (${myListings.length})`}
+            {t.label}
           </button>
         ))}
       </div>
 
-      {/* Distance filter */}
+      {/* Distance filter (only for Open tab) */}
       {tab === "open" && (
         <div className="space-y-1.5">
           <div className="flex items-center gap-3">
@@ -242,7 +291,7 @@ export default function PoolPage() {
       )}
 
       {/* Listings */}
-      {loading ? (
+      {isTabLoading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
             <div
@@ -255,11 +304,18 @@ export default function PoolPage() {
       ) : displayedListings.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
           <div className="text-sm font-medium text-[var(--ink)]">
-            {tab === "my" ? "You haven't offered any slots yet" : "No open slots nearby"}
+            {tab === "my" ? "You haven't offered any slots yet" :
+             tab === "upcoming" ? "No upcoming pool rounds" :
+             tab === "completed" ? "No completed pool rounds yet" :
+             "No open slots nearby"}
           </div>
           <p className="mt-1 text-xs text-[var(--muted)]">
             {tab === "my"
               ? "Create a listing to let others join your round."
+              : tab === "upcoming"
+              ? "Join an open listing or create your own to see upcoming rounds here."
+              : tab === "completed"
+              ? "Completed pool rounds will appear here after the organizer confirms."
               : "Try expanding your search radius or check back later."}
           </p>
         </div>
@@ -318,26 +374,38 @@ export default function PoolPage() {
                     </div>
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-1.5">
-                    <span className={cx(
-                      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                      slotsOpen > 0
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
-                        : "bg-slate-100 text-slate-500 border-slate-200/60"
-                    )}>
-                      {slotsOpen > 0 ? `${slotsOpen} slot${slotsOpen > 1 ? "s" : ""} open` : "Full"}
-                    </span>
-                    {l.my_application && (
-                      <span className={cx(
-                        "text-[10px] font-medium",
-                        l.my_application === "accepted" ? "text-emerald-600" :
-                        l.my_application === "denied" ? "text-red-500" : "text-amber-600"
-                      )}>
-                        {l.my_application === "accepted" ? "Accepted" :
-                         l.my_application === "denied" ? "Declined" : "Pending"}
+                    {tab === "completed" ? (
+                      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-slate-100 text-slate-500 border-slate-200/60">
+                        Done
                       </span>
-                    )}
-                    {l.auto_accept && slotsOpen > 0 && (
-                      <span className="text-[10px] text-[var(--muted)]">Auto-accept</span>
+                    ) : tab === "upcoming" ? (
+                      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-blue-50 text-blue-700 border-blue-200/60">
+                        Scheduled
+                      </span>
+                    ) : (
+                      <>
+                        <span className={cx(
+                          "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                          slotsOpen > 0
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                            : "bg-slate-100 text-slate-500 border-slate-200/60"
+                        )}>
+                          {slotsOpen > 0 ? `${slotsOpen} slot${slotsOpen > 1 ? "s" : ""} open` : "Full"}
+                        </span>
+                        {l.my_application && (
+                          <span className={cx(
+                            "text-[10px] font-medium",
+                            l.my_application === "accepted" ? "text-emerald-600" :
+                            l.my_application === "denied" ? "text-red-500" : "text-amber-600"
+                          )}>
+                            {l.my_application === "accepted" ? "Accepted" :
+                             l.my_application === "denied" ? "Declined" : "Pending"}
+                          </span>
+                        )}
+                        {l.auto_accept && slotsOpen > 0 && (
+                          <span className="text-[10px] text-[var(--muted)]">Auto-accept</span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
