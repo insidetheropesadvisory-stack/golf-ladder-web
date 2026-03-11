@@ -75,6 +75,7 @@ export function ClubPicker({
   onLocationChange,
   userId,
   placeholder = "Search clubs…",
+  myClubsOnly = false,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -84,6 +85,7 @@ export function ClubPicker({
   onLocationChange?: (city: string | null, state: string | null) => void;
   userId: string;
   placeholder?: string;
+  myClubsOnly?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -270,9 +272,10 @@ export function ClubPicker({
   }, [ctApiClubs]);
 
   const allForSearch: Club[] = useMemo(() => {
+    if (myClubsOnly) return dedupeByName([...myClubs]);
     // Always include CT list so you never see an empty dropdown
     return dedupeByName([...myClubs, ...dbClubs, ...mergedCtClubs]);
-  }, [myClubs, dbClubs, mergedCtClubs]);
+  }, [myClubs, dbClubs, mergedCtClubs, myClubsOnly]);
 
   // Collect unique states for filter pills
   const availableStates: string[] = useMemo(() => {
@@ -462,8 +465,10 @@ export function ClubPicker({
               <>
                 {filtered.length === 0 && dedupedApiClubs.length === 0 && !apiLoading && (
                   <div className="p-3 text-sm text-black/60">
-                    No results. Press <span className="font-semibold">Enter</span> to use custom:{" "}
-                    <span className="font-semibold">{query.trim() || "—"}</span>
+                    {myClubsOnly
+                      ? "No matching clubs. You can only create pool listings at clubs you're a member of."
+                      : <>No results. Press <span className="font-semibold">Enter</span> to use custom:{" "}
+                        <span className="font-semibold">{query.trim() || "—"}</span></>}
                   </div>
                 )}
 
@@ -475,7 +480,7 @@ export function ClubPicker({
                   </Section>
                 )}
 
-                {grouped.ct.length > 0 && (
+                {!myClubsOnly && grouped.ct.length > 0 && (
                   <Section title="Connecticut">
                     {grouped.ct.map((c) => (
                       <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId, c.city, c.state)} />
@@ -483,7 +488,7 @@ export function ClubPicker({
                   </Section>
                 )}
 
-                {grouped.other.length > 0 && (
+                {!myClubsOnly && grouped.other.length > 0 && (
                   <Section title="Other">
                     {grouped.other.map((c) => (
                       <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, undefined, c.city, c.state)} />
@@ -491,11 +496,11 @@ export function ClubPicker({
                   </Section>
                 )}
 
-                {apiLoading && (
+                {!myClubsOnly && apiLoading && (
                   <div className="px-2 py-2 text-xs text-black/50">Searching nationwide...</div>
                 )}
 
-                {grouped.api.length > 0 && (
+                {!myClubsOnly && grouped.api.length > 0 && (
                   <Section title="Nationwide">
                     {grouped.api.map((c) => (
                       <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId, c.city, c.state)} />
@@ -503,16 +508,18 @@ export function ClubPicker({
                   </Section>
                 )}
 
-                <div className="mt-2">
-                  <button
-                    type="button"
-                    className="w-full rounded-xl border bg-black/5 px-3 py-2 text-left text-sm hover:bg-black/10"
-                    onClick={() => pick(query)}
-                    disabled={!query.trim()}
-                  >
-                    Use custom: <span className="font-semibold">{query.trim() || "—"}</span>
-                  </button>
-                </div>
+                {!myClubsOnly && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      className="w-full rounded-xl border bg-black/5 px-3 py-2 text-left text-sm hover:bg-black/10"
+                      onClick={() => pick(query)}
+                      disabled={!query.trim()}
+                    >
+                      Use custom: <span className="font-semibold">{query.trim() || "—"}</span>
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

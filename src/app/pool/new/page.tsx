@@ -159,7 +159,8 @@ export default function NewPoolPage() {
           onGuestFeeChange={(fee) => { if (fee != null) setGuestFee(String(fee)); }}
           onLocationChange={(city, state) => { setCourseCity(city); setCourseState(state); }}
           userId={meId}
-          placeholder="Search for a course…"
+          placeholder="Search your clubs…"
+          myClubsOnly
         />
 
         {/* Date & Time */}

@@ -83,9 +83,47 @@ export async function GET(
       profile: c.player_id ? committedProfiles[c.player_id] ?? null : null,
     }));
 
+    // Fetch pool ratings for all applicants (average + count)
+    const allPlayerIds = [
+      ...applicantIds,
+      ...(committed ?? []).map((c: any) => c.player_id).filter(Boolean),
+    ];
+    let playerRatings: Record<string, { avg: number; count: number }> = {};
+    if (allPlayerIds.length > 0) {
+      const { data: ratings } = await admin
+        .from("pool_ratings")
+        .select("rated_id, rating")
+        .in("rated_id", allPlayerIds);
+      if (ratings) {
+        const byPlayer: Record<string, number[]> = {};
+        for (const r of ratings as any[]) {
+          if (!byPlayer[r.rated_id]) byPlayer[r.rated_id] = [];
+          byPlayer[r.rated_id].push(r.rating);
+        }
+        for (const [pid, vals] of Object.entries(byPlayer)) {
+          const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+          playerRatings[pid] = { avg: Math.round(avg * 10) / 10, count: vals.length };
+        }
+      }
+    }
+
+    // Fetch ratings the creator already submitted for this listing
+    const { data: myRatings } = await admin
+      .from("pool_ratings")
+      .select("rated_id, rating, comment")
+      .eq("listing_id", id)
+      .eq("rater_id", user.id);
+    const myRatingsMap: Record<string, { rating: number; comment: string | null }> = {};
+    if (myRatings) {
+      for (const r of myRatings as any[]) {
+        myRatingsMap[r.rated_id] = { rating: r.rating, comment: r.comment };
+      }
+    }
+
     const enrichedApps = (applications ?? []).map((a: any) => ({
       ...a,
       profile: applicantProfiles[a.applicant_id] ?? null,
+      pool_rating: playerRatings[a.applicant_id] ?? null,
     }));
 
     const acceptedCount = enrichedApps.filter((a: any) => a.status === "accepted").length;
@@ -100,6 +138,7 @@ export async function GET(
       },
       isCreator: user.id === listing.creator_id,
       myApplication: enrichedApps.find((a: any) => a.applicant_id === user.id) ?? null,
+      myRatings: myRatingsMap,
     });
   } catch (e: any) {
     console.error("pool detail error:", e);
@@ -316,6 +355,42 @@ export async function POST(
             read: false,
           });
         }
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // --- Rate (creator only, after round time has passed) ---
+    if (action === "rate") {
+      if (user.id !== listing.creator_id) {
+        return NextResponse.json({ error: "Only the organizer can rate players" }, { status: 403 });
+      }
+
+      const roundTime = new Date(listing.round_time).getTime();
+      if (Date.now() < roundTime) {
+        return NextResponse.json({ error: "You can rate players after the round" }, { status: 400 });
+      }
+
+      const ratedId = String(body.rated_id ?? "").trim();
+      const rating = Number(body.rating);
+      if (!ratedId) return NextResponse.json({ error: "Missing rated_id" }, { status: 400 });
+      if (!rating || rating < 1 || rating > 5) return NextResponse.json({ error: "Rating must be 1-5" }, { status: 400 });
+
+      const { error: rateErr } = await admin
+        .from("pool_ratings")
+        .upsert(
+          {
+            listing_id: listingId,
+            rater_id: user.id,
+            rated_id: ratedId,
+            rating,
+            comment: body.comment || null,
+          },
+          { onConflict: "listing_id,rater_id,rated_id" }
+        );
+
+      if (rateErr) {
+        return NextResponse.json({ error: rateErr.message }, { status: 500 });
       }
 
       return NextResponse.json({ ok: true });

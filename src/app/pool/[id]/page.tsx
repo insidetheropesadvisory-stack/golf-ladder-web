@@ -20,6 +20,11 @@ type CommittedPlayer = {
   profile: Profile | null;
 };
 
+type PoolRating = {
+  avg: number;
+  count: number;
+};
+
 type Application = {
   id: string;
   applicant_id: string;
@@ -27,6 +32,7 @@ type Application = {
   status: string;
   created_at: string;
   profile: Profile | null;
+  pool_rating: PoolRating | null;
 };
 
 type Listing = {
@@ -71,17 +77,76 @@ function timeUntil(iso: string) {
   return `${hours}h away`;
 }
 
+function StarRating({
+  value,
+  onChange,
+  readonly = false,
+  size = 16,
+}: {
+  value: number;
+  onChange?: (v: number) => void;
+  readonly?: boolean;
+  size?: number;
+}) {
+  return (
+    <div className="inline-flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={readonly}
+          onClick={() => onChange?.(star)}
+          className={cx(
+            "transition",
+            readonly ? "cursor-default" : "cursor-pointer hover:scale-110"
+          )}
+        >
+          <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill={star <= value ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className={star <= value ? "text-amber-400" : "text-slate-300"}
+          >
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RatingBadge({ rating }: { rating: PoolRating }) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="text-amber-400">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+      </svg>
+      <span className="text-[10px] font-semibold text-amber-700">{rating.avg}</span>
+      <span className="text-[10px] text-amber-600/70">({rating.count})</span>
+    </div>
+  );
+}
+
 export default function PoolDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [listing, setListing] = useState<Listing | null>(null);
   const [isCreator, setIsCreator] = useState(false);
   const [myApplication, setMyApplication] = useState<Application | null>(null);
+  const [myRatings, setMyRatings] = useState<Record<string, { rating: number; comment: string | null }>>({});
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Rating form state
+  const [ratingPlayerId, setRatingPlayerId] = useState<string | null>(null);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
 
   useEffect(() => {
     loadDetail();
@@ -102,6 +167,7 @@ export default function PoolDetailPage() {
         setListing(json.listing);
         setIsCreator(json.isCreator);
         setMyApplication(json.myApplication);
+        setMyRatings(json.myRatings ?? {});
       }
     } catch {}
     setLoading(false);
@@ -123,10 +189,12 @@ export default function PoolDetailPage() {
         setActionLoading(null);
         return;
       }
-      // Reload
       await loadDetail();
       setShowApplyForm(false);
       setApplyMessage("");
+      setRatingPlayerId(null);
+      setRatingValue(0);
+      setRatingComment("");
     } catch (e: any) {
       setError(e?.message ?? "Something went wrong");
     }
@@ -159,6 +227,12 @@ export default function PoolDetailPage() {
   const isCancelled = listing.status === "cancelled";
   const isExpired = listing.status === "expired";
   const isClosed = isCancelled || isExpired;
+  const roundPassed = new Date(listing.round_time).getTime() < Date.now();
+
+  // Players the creator can rate (accepted applicants, after the round)
+  const ratablePlayers = isCreator && roundPassed
+    ? acceptedApps.filter((a) => !myRatings[a.applicant_id])
+    : [];
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
@@ -287,7 +361,15 @@ export default function PoolDetailPage() {
                   {a.profile?.handicap_index != null && (
                     <span className="text-xs text-amber-700">({a.profile.handicap_index})</span>
                   )}
-                  <span className="ml-auto text-[10px] font-medium text-emerald-600">Accepted</span>
+                  {a.pool_rating && <RatingBadge rating={a.pool_rating} />}
+                  {myRatings[a.applicant_id] && (
+                    <span className="ml-auto flex items-center gap-1 text-[10px] text-[var(--muted)]">
+                      Your rating: <StarRating value={myRatings[a.applicant_id].rating} readonly size={12} />
+                    </span>
+                  )}
+                  {!myRatings[a.applicant_id] && (
+                    <span className="ml-auto text-[10px] font-medium text-emerald-600">Accepted</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -295,7 +377,7 @@ export default function PoolDetailPage() {
         )}
       </div>
 
-      {/* Creator: Pending applications */}
+      {/* Creator: Pending applications — show pool rating to help decide */}
       {isCreator && pendingApps.length > 0 && (
         <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 p-4 space-y-3">
           <div className="text-sm font-semibold text-amber-800">
@@ -307,10 +389,16 @@ export default function PoolDetailPage() {
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--pine)] text-[9px] font-bold text-white">
                   {initials(a.profile?.display_name ?? "?")}
                 </div>
-                <div>
-                  <div className="text-sm font-semibold">{a.profile?.display_name ?? "Player"}</div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{a.profile?.display_name ?? "Player"}</span>
+                    {a.pool_rating && <RatingBadge rating={a.pool_rating} />}
+                  </div>
                   {a.profile?.handicap_index != null && (
                     <div className="text-xs text-amber-700">HCP {a.profile.handicap_index}</div>
+                  )}
+                  {!a.pool_rating && (
+                    <div className="text-[10px] text-[var(--muted)]">No pool ratings yet</div>
                   )}
                 </div>
               </div>
@@ -337,6 +425,72 @@ export default function PoolDetailPage() {
                   {actionLoading === "deny" ? "…" : "Decline"}
                 </button>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Creator: Rate players after round */}
+      {ratablePlayers.length > 0 && (
+        <div className="rounded-2xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 p-4 space-y-3">
+          <div className="text-sm font-semibold text-[var(--pine)]">
+            Rate Your Players
+          </div>
+          <p className="text-xs text-[var(--muted)]">
+            How was your experience? Ratings help other organizers make decisions.
+          </p>
+          {ratablePlayers.map((a) => (
+            <div key={a.id} className="rounded-xl border border-[var(--border)] bg-white p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--pine)] text-[9px] font-bold text-white">
+                  {initials(a.profile?.display_name ?? "?")}
+                </div>
+                <span className="text-sm font-semibold">{a.profile?.display_name ?? "Player"}</span>
+              </div>
+              {ratingPlayerId === a.applicant_id ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[var(--muted)]">Rating:</span>
+                    <StarRating value={ratingValue} onChange={setRatingValue} />
+                  </div>
+                  <textarea
+                    value={ratingComment}
+                    onChange={(e) => setRatingComment(e.target.value)}
+                    placeholder="Quick comment (optional)"
+                    rows={2}
+                    className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-xs resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => doAction("rate", {
+                        rated_id: a.applicant_id,
+                        rating: ratingValue,
+                        comment: ratingComment.trim() || null,
+                      })}
+                      disabled={ratingValue === 0 || actionLoading !== null}
+                      className="flex-1 rounded-lg bg-[var(--pine)] py-1.5 text-xs font-semibold text-white hover:bg-[var(--pine)]/90 disabled:opacity-50"
+                    >
+                      {actionLoading === "rate" ? "Submitting…" : "Submit Rating"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setRatingPlayerId(null); setRatingValue(0); setRatingComment(""); }}
+                      className="rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs text-[var(--muted)]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setRatingPlayerId(a.applicant_id); setRatingValue(0); setRatingComment(""); }}
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--paper)] py-1.5 text-xs font-medium text-[var(--ink)] hover:bg-black/[0.05]"
+                >
+                  Rate this player
+                </button>
+              )}
             </div>
           ))}
         </div>
