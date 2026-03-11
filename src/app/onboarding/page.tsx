@@ -93,6 +93,10 @@ function OnboardingContent() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
+  // Step 1 continued: Location
+  const [city, setCity] = useState("");
+  const [onboardingState, setOnboardingState] = useState("");
+
   // Step 2: Handicap
   const [handicap, setHandicap] = useState("");
   const [preferredTees, setPreferredTees] = useState("White");
@@ -327,6 +331,8 @@ function OnboardingContent() {
             display_name: nameToSave,
             handicap_index: hcpToSave,
             avatar_url: avatarUrl ?? null,
+            city: city.trim() || null,
+            state: onboardingState.trim().toUpperCase() || null,
           },
           { onConflict: "id" }
         );
@@ -466,6 +472,32 @@ function OnboardingContent() {
                     </label>
                     <div className="w-full rounded-xl border border-[var(--border)] bg-black/[0.02] px-4 py-3 text-sm text-[var(--muted)]">
                       {email ?? "—"}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--muted)]">
+                        City
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="e.g., Greenwich"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--muted)]">
+                        State
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[var(--pine)]/40 focus:shadow-sm"
+                        value={onboardingState}
+                        onChange={(e) => setOnboardingState(e.target.value)}
+                        placeholder="e.g., CT"
+                        maxLength={2}
+                      />
                     </div>
                   </div>
                 </div>

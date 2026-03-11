@@ -13,6 +13,8 @@ type ProfileRow = {
   display_name: string | null;
   handicap_index: number | null;
   avatar_url: string | null;
+  city: string | null;
+  state: string | null;
 };
 
 type H2HRecord = {
@@ -75,6 +77,8 @@ export default function ProfilePageClient() {
 
   const [displayName, setDisplayName] = useState("");
   const [handicap, setHandicap] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
@@ -88,9 +92,11 @@ export default function ProfilePageClient() {
     return (
       (profile?.display_name ?? "") !== displayName.trim() ||
       (profile?.handicap_index ?? null) !== nextHandicap ||
-      (profile?.avatar_url ?? null) !== (avatarUrl ?? null)
+      (profile?.avatar_url ?? null) !== (avatarUrl ?? null) ||
+      (profile?.city ?? "") !== city.trim() ||
+      (profile?.state ?? "") !== state.trim()
     );
-  }, [profile, displayName, handicap, avatarUrl]);
+  }, [profile, displayName, handicap, avatarUrl, city, state]);
 
   const hasName = useMemo(() => Boolean(displayName.trim()), [displayName]);
 
@@ -109,7 +115,7 @@ export default function ProfilePageClient() {
 
         const { data: p, error } = await supabase
           .from("profiles")
-          .select("id,email,display_name,handicap_index,avatar_url")
+          .select("id,email,display_name,handicap_index,avatar_url,city,state")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -132,6 +138,8 @@ export default function ProfilePageClient() {
             ? String(metaHcp)
             : ""
         );
+        setCity(row?.city ?? "");
+        setState(row?.state ?? "");
         setAvatarUrl(row?.avatar_url ?? null);
       } catch (e: any) {
         console.error(e);
@@ -247,12 +255,14 @@ export default function ProfilePageClient() {
         display_name: nameToSave,
         handicap_index: nextHandicap,
         avatar_url: avatarUrl ?? null,
+        city: city.trim() || null,
+        state: state.trim() || null,
       };
 
       const { data, error } = await supabase
         .from("profiles")
         .upsert(payload, { onConflict: "id" })
-        .select("id,email,display_name,handicap_index,avatar_url")
+        .select("id,email,display_name,handicap_index,avatar_url,city,state")
         .single();
 
       if (error) throw error;
@@ -276,6 +286,8 @@ export default function ProfilePageClient() {
       setHandicap(
         nextProfile.handicap_index == null ? "" : String(nextProfile.handicap_index)
       );
+      setCity(nextProfile.city ?? "");
+      setState(nextProfile.state ?? "");
       setAvatarUrl(nextProfile.avatar_url ?? null);
 
       if (avatarPreview && avatarPreview.startsWith("blob:")) {
@@ -446,8 +458,13 @@ export default function ProfilePageClient() {
                     </span>
                   )}
                 </div>
+                {(city || state) && (
+                  <div className="mt-1.5 text-xs text-[var(--muted)]">
+                    {[city, state].filter(Boolean).join(", ")}
+                  </div>
+                )}
                 {email && (
-                  <div className="mt-1.5 text-xs text-[var(--muted)]">{email}</div>
+                  <div className="mt-1 text-xs text-[var(--muted)]/60">{email}</div>
                 )}
               </div>
             </div>
@@ -478,6 +495,32 @@ export default function ProfilePageClient() {
                     placeholder="e.g., 9.8"
                     inputMode="decimal"
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                      City
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[var(--pine)]/40 focus:ring-1 focus:ring-[var(--pine)]/20"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      placeholder="e.g., Greenwich"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                      State
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[var(--pine)]/40 focus:ring-1 focus:ring-[var(--pine)]/20"
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      placeholder="e.g., CT"
+                      maxLength={2}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 pt-1">

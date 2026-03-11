@@ -72,6 +72,7 @@ export function ClubPicker({
   onGuestFeeChange,
   onCourseApiIdChange,
   onTeesChange,
+  onLocationChange,
   userId,
   placeholder = "Search clubs…",
 }: {
@@ -80,6 +81,7 @@ export function ClubPicker({
   onGuestFeeChange?: (fee: number | null) => void;
   onCourseApiIdChange?: (id: string | null) => void;
   onTeesChange?: (tees: ApiTeeInfo[]) => void;
+  onLocationChange?: (city: string | null, state: string | null) => void;
   userId: string;
   placeholder?: string;
 }) {
@@ -326,13 +328,14 @@ export function ClubPicker({
     return { mine, ct, other, api: dedupedApiClubs };
   }, [filtered, dedupedApiClubs]);
 
-  async function pick(name: string, guestFee?: number | null, apiCourseId?: string | null) {
+  async function pick(name: string, guestFee?: number | null, apiCourseId?: string | null, city?: string | null, state?: string | null) {
     const n = name.trim();
     if (!n) return;
     onChange(n);
     setQuery(n);
     setOpen(false);
     onGuestFeeChange?.(guestFee ?? null);
+    onLocationChange?.(city ?? null, state ?? null);
 
     let resolvedCourseId = apiCourseId ?? null;
 
@@ -467,7 +470,7 @@ export function ClubPicker({
                 {grouped.mine.length > 0 && (
                   <Section title="My clubs">
                     {grouped.mine.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, c.guest_fee)} />
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, c.guest_fee, undefined, c.city, c.state)} />
                     ))}
                   </Section>
                 )}
@@ -475,7 +478,7 @@ export function ClubPicker({
                 {grouped.ct.length > 0 && (
                   <Section title="Connecticut">
                     {grouped.ct.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId)} />
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId, c.city, c.state)} />
                     ))}
                   </Section>
                 )}
@@ -483,7 +486,7 @@ export function ClubPicker({
                 {grouped.other.length > 0 && (
                   <Section title="Other">
                     {grouped.other.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null)} />
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, undefined, c.city, c.state)} />
                     ))}
                   </Section>
                 )}
@@ -495,7 +498,7 @@ export function ClubPicker({
                 {grouped.api.length > 0 && (
                   <Section title="Nationwide">
                     {grouped.api.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId)} />
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId, c.city, c.state)} />
                     ))}
                   </Section>
                 )}

@@ -11,6 +11,7 @@ type NavItem = { label: string; href: string; icon: string };
 const NAV: NavItem[] = [
   { label: "Home", href: "/", icon: "home" },
   { label: "Matches", href: "/matches", icon: "matches" },
+  { label: "Pool", href: "/pool", icon: "pool" },
   { label: "Tournaments", href: "/tournaments", icon: "tournaments" },
   { label: "Ladder", href: "/ladder", icon: "ladder" },
   { label: "Memberships", href: "/clubs", icon: "clubs" },
@@ -21,6 +22,7 @@ function titleFromPath(pathname: string) {
   const hit = NAV.find((n) => n.href === pathname);
   if (hit) return hit.label;
   if (pathname.startsWith("/matches")) return "Matches";
+  if (pathname.startsWith("/pool")) return "Pool";
   if (pathname.startsWith("/tournaments")) return "Tournaments";
   if (pathname.startsWith("/ladder")) return "Ladder";
   if (pathname.startsWith("/clubs")) return "Memberships";
@@ -62,6 +64,15 @@ function NavIcon({ name, size = 18 }: { name: string; size?: number }) {
         <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="8" r="6" />
           <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+        </svg>
+      );
+    case "pool":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       );
     case "clubs":
