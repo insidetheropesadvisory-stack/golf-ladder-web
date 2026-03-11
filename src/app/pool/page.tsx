@@ -57,28 +57,45 @@ export default function PoolPage() {
   const [loading, setLoading] = useState(true);
   const [radiusFilter, setRadiusFilter] = useState<number>(50);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "granted" | "denied">("idle");
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "ready" | "none">("idle");
   const [meId, setMeId] = useState<string | null>(null);
   const [tab, setTab] = useState<"open" | "my">("open");
 
+  // Load user session + profile city/state, then resolve coordinates
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) setMeId(session.user.id);
-    });
-  }, []);
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      setMeId(session.user.id);
 
-  // Try to get user location
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    setLocationStatus("loading");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocationStatus("granted");
-      },
-      () => setLocationStatus("denied"),
-      { timeout: 5000, maximumAge: 300000 }
-    );
+      setLocationStatus("loading");
+
+      // Fetch profile city/state
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("city, state")
+        .eq("id", session.user.id)
+        .single();
+
+      const city = profile?.city ?? null;
+      const state = profile?.state ?? null;
+
+      if (city) {
+        // Geocode their profile city/state
+        const coords = await geocodeCity(city, state);
+        if (coords) {
+          setUserCoords(coords);
+          setLocationLabel([city, state].filter(Boolean).join(", "));
+          setLocationStatus("ready");
+          return;
+        }
+      }
+
+      // No profile location — show message
+      setLocationStatus("none");
+    }
+    init();
   }, []);
 
   useEffect(() => {
@@ -146,32 +163,42 @@ export default function PoolPage() {
 
       {/* Distance filter */}
       {tab === "open" && (
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-[var(--muted)]">
-            {locationStatus === "granted" ? "Within:" : "Distance:"}
-          </span>
-          <div className="flex gap-1.5">
-            {RADIUS_OPTIONS.map((r) => (
-              <button
-                key={r.value}
-                type="button"
-                onClick={() => setRadiusFilter(r.value)}
-                className={cx(
-                  "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
-                  radiusFilter === r.value
-                    ? "bg-[var(--pine)] text-white"
-                    : "bg-black/[0.04] text-[var(--muted)] hover:bg-black/[0.07]"
-                )}
-              >
-                {r.label}
-              </button>
-            ))}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-[var(--muted)]">Within:</span>
+            <div className="flex gap-1.5">
+              {RADIUS_OPTIONS.map((r) => (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => setRadiusFilter(r.value)}
+                  className={cx(
+                    "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
+                    radiusFilter === r.value
+                      ? "bg-[var(--pine)] text-white"
+                      : "bg-black/[0.04] text-[var(--muted)] hover:bg-black/[0.07]"
+                  )}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
           </div>
-          {locationStatus === "denied" && (
-            <span className="text-[10px] text-amber-600">Enable location for distance filtering</span>
+          {locationStatus === "ready" && locationLabel && (
+            <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+              Searching from <span className="font-medium text-[var(--ink)]">{locationLabel}</span>
+              <Link href="/profile" className="text-[var(--pine)] hover:underline ml-1">Change</Link>
+            </div>
+          )}
+          {locationStatus === "none" && (
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-600">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+              Add your city in <Link href="/profile" className="font-medium underline">your profile</Link> to filter by distance
+            </div>
           )}
           {locationStatus === "loading" && (
-            <span className="text-[10px] text-[var(--muted)]">Getting location...</span>
+            <span className="text-[11px] text-[var(--muted)]">Getting your location...</span>
           )}
         </div>
       )}
@@ -283,4 +310,25 @@ export default function PoolPage() {
       )}
     </div>
   );
+}
+
+/** Geocode city/state to coordinates via Nominatim */
+async function geocodeCity(
+  city: string,
+  state: string | null
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const q = [city, state, "United States"].filter(Boolean).join(", ");
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const results = await res.json();
+    if (results.length === 0) return null;
+    const lat = parseFloat(results[0].lat);
+    const lng = parseFloat(results[0].lon);
+    if (isNaN(lat) || isNaN(lng)) return null;
+    return { lat, lng };
+  } catch {
+    return null;
+  }
 }
