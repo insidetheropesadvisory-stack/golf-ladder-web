@@ -366,7 +366,7 @@ export function AppShell({
             <div className="text-center">
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--pine)]/10">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <path d="M8.5 3C8.5 2.3 10 2 12 2C14 2 15.5 2.3 15.5 3C15.5 3.5 14.8 4.2 14 4.5L13.5 4.7L12.8 22L12 22.5L11.2 22L10.5 4.7L10 4.5C9.2 4.2 8.5 3.5 8.5 3Z" fill="var(--pine)" />
+                  <path d="M10 2.5C10 2.5 10.8 3.5 12 3.5C13.2 3.5 14 2.5 14 2.5L14 4L14 20C14 20 14 22.5 12 22.5C10 22.5 10 20 10 20L10 4L10 2.5Z" fill="var(--pine)" />
                 </svg>
               </div>
               <h2 className="text-lg font-bold text-[var(--ink)]">
