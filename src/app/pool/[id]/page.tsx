@@ -231,9 +231,10 @@ export default function PoolDetailPage() {
   const isCompleted = listing.status === "completed";
   const isClosed = isCancelled || isExpired;
   const roundPassed = new Date(listing.round_time).getTime() < Date.now();
+  const roundPlus5h = new Date(listing.round_time).getTime() + 4 * 60 * 60 * 1000 < Date.now();
 
-  // Players the creator can rate (accepted applicants, after the round)
-  const ratablePlayers = isCreator && roundPassed
+  // Players the creator can rate (accepted applicants, after round completed)
+  const ratablePlayers = isCreator && isCompleted
     ? acceptedApps.filter((a) => !myRatings[a.applicant_id])
     : [];
 
@@ -568,8 +569,8 @@ export default function PoolDetailPage() {
         </div>
       )}
 
-      {/* Creator: Complete round (after round time passes) */}
-      {isCreator && roundPassed && listing.status !== "completed" && !isClosed && (
+      {/* Creator: Complete round (after tee time + 5 hours) */}
+      {isCreator && roundPlus5h && listing.status !== "completed" && !isClosed && (
         <button
           type="button"
           onClick={() => {

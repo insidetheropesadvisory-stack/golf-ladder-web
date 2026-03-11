@@ -369,15 +369,14 @@ export async function POST(
       return NextResponse.json({ ok: true });
     }
 
-    // --- Rate (creator only, after round time has passed) ---
+    // --- Rate (creator only, after round completed) ---
     if (action === "rate") {
       if (user.id !== listing.creator_id) {
         return NextResponse.json({ error: "Only the organizer can rate players" }, { status: 403 });
       }
 
-      const roundTime = new Date(listing.round_time).getTime();
-      if (Date.now() < roundTime) {
-        return NextResponse.json({ error: "You can rate players after the round" }, { status: 400 });
+      if (listing.status !== "completed") {
+        return NextResponse.json({ error: "Complete the round before rating players" }, { status: 400 });
       }
 
       const ratedId = String(body.rated_id ?? "").trim();
@@ -411,9 +410,9 @@ export async function POST(
         return NextResponse.json({ error: "Only the organizer can complete the round" }, { status: 403 });
       }
 
-      const roundTime = new Date(listing.round_time).getTime();
-      if (Date.now() < roundTime) {
-        return NextResponse.json({ error: "You can complete the round after it occurs" }, { status: 400 });
+      const roundTimePlus5h = new Date(listing.round_time).getTime() + 4 * 60 * 60 * 1000;
+      if (Date.now() < roundTimePlus5h) {
+        return NextResponse.json({ error: "You can complete the round 4 hours after tee time" }, { status: 400 });
       }
 
       if (listing.status === "completed") {

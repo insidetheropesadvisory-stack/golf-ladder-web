@@ -138,6 +138,12 @@ export function AppShell({
   const [pendingAttestations, setPendingAttestations] = useState<PendingAttestation[]>([]);
   const [attestLoading, setAttestLoading] = useState<string | null>(null);
 
+  type PendingCompletion = { id: string; course_name: string; round_time: string; accepted_count: number };
+  const [pendingCompletions, setPendingCompletions] = useState<PendingCompletion[]>([]);
+  const [completeLoading, setCompleteLoading] = useState<string | null>(null);
+  const [showTsInfo, setShowTsInfo] = useState(false);
+  const tsRef = useRef<HTMLDivElement>(null);
+
   const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth", "/onboarding", "/invite", "/tournaments/invite"];
   const isAuthRoute = authRoutes.some(
     (r) => pathname === r || pathname.startsWith(r + "/")
@@ -214,19 +220,27 @@ export function AppShell({
     };
   }, [isAuthRoute, router]);
 
-  // Fetch pending attestations on login
+  // Fetch pending attestations + completions on login
   useEffect(() => {
     if (!email || isAuthRoute) return;
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) return;
-        const res = await fetch("/api/pool/pending-attestations", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (res.ok) {
-          const json = await res.json();
+        const headers = { Authorization: `Bearer ${session.access_token}` };
+
+        const [attestRes, completeRes] = await Promise.all([
+          fetch("/api/pool/pending-attestations", { headers }),
+          fetch("/api/pool/pending-completions", { headers }),
+        ]);
+
+        if (attestRes.ok) {
+          const json = await attestRes.json();
           setPendingAttestations(json.pending ?? []);
+        }
+        if (completeRes.ok) {
+          const json = await completeRes.json();
+          setPendingCompletions(json.pending ?? []);
         }
       } catch {}
     })();
@@ -258,6 +272,37 @@ export function AppShell({
     } catch {}
     setAttestLoading(null);
   }
+
+  async function handleCompleteRound(listingId: string) {
+    setCompleteLoading(listingId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const res = await fetch(`/api/pool/${listingId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action: "complete_round" }),
+      });
+      if (res.ok) {
+        setPendingCompletions((prev) => prev.filter((p) => p.id !== listingId));
+      }
+    } catch {}
+    setCompleteLoading(null);
+  }
+
+  // Close Ts info on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (tsRef.current && !tsRef.current.contains(e.target as Node)) {
+        setShowTsInfo(false);
+      }
+    }
+    if (showTsInfo) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showTsInfo]);
 
   // Fetch notifications — on mount + when SW receives a push
   useEffect(() => {
@@ -338,24 +383,56 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-[var(--paper)]">
-      {/* Attestation popup — blocks the app until confirmed */}
-      {pendingAttestations.length > 0 && (
+      {/* Blocking popup — pending completions (creator) or attestations (guest) */}
+      {(pendingCompletions.length > 0 || pendingAttestations.length > 0) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-2xl space-y-4">
             <div className="text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--pine)]/10">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--pine)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--pine)]/10">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <line x1="12" y1="10" x2="12" y2="22" stroke="var(--pine)" strokeWidth="2.5" strokeLinecap="round" />
+                  <ellipse cx="12" cy="8" rx="5" ry="3" fill="var(--pine)" opacity="0.9" />
                 </svg>
               </div>
-              <h2 className="text-lg font-bold text-[var(--ink)]">Confirm Your Round</h2>
+              <h2 className="text-lg font-bold text-[var(--ink)]">
+                {pendingCompletions.length > 0 ? "Complete Your Round" : "Confirm Your Round"}
+              </h2>
               <p className="mt-1 text-xs text-[var(--muted)]">
-                Please confirm that this round occurred so the host can earn their T.
+                {pendingCompletions.length > 0
+                  ? "Mark your round as complete. 1 T will be used from each guest who played."
+                  : "Confirm that this round occurred so the host can earn their T."}
               </p>
             </div>
 
-            {pendingAttestations.map((att) => (
+            {/* Creator: complete rounds first */}
+            {pendingCompletions.map((pc) => (
+              <div key={pc.id} className="rounded-xl border border-[var(--border)] bg-white p-4 space-y-3">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--ink)]">{pc.course_name}</div>
+                  <div className="mt-0.5 text-xs text-[var(--muted)]">
+                    {new Date(pc.round_time).toLocaleDateString(undefined, {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                    {pc.accepted_count > 0 && (
+                      <span> &middot; {pc.accepted_count} guest{pc.accepted_count > 1 ? "s" : ""}</span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCompleteRound(pc.id)}
+                  disabled={completeLoading !== null}
+                  className="w-full rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
+                >
+                  {completeLoading === pc.id ? "Completing..." : "Complete Round"}
+                </button>
+              </div>
+            ))}
+
+            {/* Guest: attest rounds (only show if no pending completions) */}
+            {pendingCompletions.length === 0 && pendingAttestations.map((att) => (
               <div key={att.id} className="rounded-xl border border-[var(--border)] bg-white p-4 space-y-3">
                 <div>
                   <div className="text-sm font-semibold text-[var(--ink)]">{att.course_name}</div>
@@ -413,14 +490,39 @@ export function AppShell({
                   New match
                 </Link>
 
-                {/* Credits (Ts) */}
+                {/* Credits (Ts) with golf tee icon */}
                 {credits != null && (
-                  <div className="flex items-center gap-1 rounded-full border border-[rgba(246,241,231,.22)] px-2.5 py-1.5 text-xs font-semibold">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
-                    <span>{credits}</span>
-                    <span className="text-[10px] font-medium opacity-60">Ts</span>
+                  <div className="relative" ref={tsRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowTsInfo(!showTsInfo)}
+                      className="flex items-center gap-1.5 rounded-full border border-[rgba(246,241,231,.22)] px-2.5 py-1.5 text-xs font-semibold transition hover:bg-[rgba(246,241,231,.08)]"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-90">
+                        <line x1="12" y1="10" x2="12" y2="22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <ellipse cx="12" cy="8" rx="5" ry="3" fill="currentColor" opacity="0.9" />
+                      </svg>
+                      <span>{credits}</span>
+                    </button>
+
+                    {showTsInfo && (
+                      <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-xl z-50 space-y-2.5">
+                        <div className="flex items-center gap-2">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <line x1="12" y1="10" x2="12" y2="22" stroke="var(--pine)" strokeWidth="2.5" strokeLinecap="round" />
+                            <ellipse cx="12" cy="8" rx="5" ry="3" fill="var(--pine)" opacity="0.9" />
+                          </svg>
+                          <span className="text-sm font-bold text-[var(--ink)]">You have {credits} T{credits !== 1 ? "s" : ""}</span>
+                        </div>
+                        <div className="space-y-1.5 text-xs text-[var(--muted)]">
+                          <p className="font-medium text-[var(--ink)]">How Ts work:</p>
+                          <p>Every player starts with <span className="font-semibold">3 Ts</span>.</p>
+                          <p>When you play in someone&apos;s group, <span className="font-semibold">1 T is used</span> after the round.</p>
+                          <p>Host a round and your guests confirm it occurred? <span className="font-semibold text-[var(--pine)]">You earn 1 T per guest</span>.</p>
+                          <p className="pt-1 text-[10px] italic">Ts keep the pool fair — give rounds to get rounds.</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

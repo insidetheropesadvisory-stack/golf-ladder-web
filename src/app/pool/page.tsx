@@ -142,6 +142,23 @@ export default function PoolPage() {
         </Link>
       </div>
 
+      {/* How Ts work */}
+      <div className="rounded-2xl border border-[var(--border)] bg-white/70 p-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <line x1="12" y1="10" x2="12" y2="22" stroke="var(--pine)" strokeWidth="2.5" strokeLinecap="round" />
+              <ellipse cx="12" cy="8" rx="5" ry="3" fill="var(--pine)" opacity="0.9" />
+            </svg>
+          </div>
+          <div className="text-xs text-[var(--muted)] space-y-0.5">
+            <div className="text-sm font-semibold text-[var(--ink)]">How Ts work</div>
+            <p>You start with <span className="font-semibold text-[var(--ink)]">3 Ts</span>. Playing in someone&apos;s group uses 1 T.</p>
+            <p>Host a round and your guests confirm it? <span className="font-semibold text-[var(--pine)]">You earn 1 T per guest</span>.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-1.5">
         {(["open", "my"] as const).map((t) => (
