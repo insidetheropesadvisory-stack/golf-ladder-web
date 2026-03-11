@@ -67,43 +67,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // --- Matches (non-ladder) where creator, completed, no attestation yet ---
-    const { data: matches } = await admin
-      .from("matches")
-      .select("id, course_name, round_time, hole_count, status, completed")
-      .eq("creator_id", user.id)
-      .eq("status", "completed")
-      .eq("completed", true)
-      .eq("is_ladder_match", false);
-
-    if (matches) {
-      for (const m of matches as any[]) {
-        // Check time gate
-        if (m.round_time) {
-          const gate = getTimeGate(m.hole_count ?? 18);
-          if (new Date(m.round_time).getTime() + gate > now) continue;
-        }
-
-        // Check creator hasn't already confirmed
-        const { data: existing } = await admin
-          .from("match_attestations")
-          .select("id")
-          .eq("match_id", m.id)
-          .eq("attester_id", user.id)
-          .maybeSingle();
-
-        if (!existing) {
-          pending.push({
-            id: m.id,
-            type: "match",
-            course_name: m.course_name,
-            round_time: m.round_time,
-            accepted_count: 1,
-          });
-        }
-      }
-    }
-
     return NextResponse.json({ pending });
   } catch (e: any) {
     console.error("pending completions error:", e);

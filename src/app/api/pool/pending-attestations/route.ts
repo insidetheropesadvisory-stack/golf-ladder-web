@@ -75,53 +75,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // --- Match attestations (user is opponent in completed non-ladder matches) ---
-    const { data: matches } = await admin
-      .from("matches")
-      .select("id, course_name, round_time, creator_id, hole_count")
-      .eq("opponent_id", user.id)
-      .eq("status", "completed")
-      .eq("completed", true)
-      .eq("is_ladder_match", false);
-
-    if (matches) {
-      for (const m of matches as any[]) {
-        // Time gate
-        if (m.round_time) {
-          const gate = getTimeGate(m.hole_count ?? 18);
-          if (new Date(m.round_time).getTime() + gate > now) continue;
-        }
-
-        // Check creator has already confirmed (opponent popup only after creator)
-        const { data: creatorConfirm } = await admin
-          .from("match_attestations")
-          .select("id")
-          .eq("match_id", m.id)
-          .eq("attester_id", m.creator_id)
-          .maybeSingle();
-
-        if (!creatorConfirm) continue; // creator hasn't confirmed yet
-
-        // Check opponent hasn't already attested
-        const { data: existing } = await admin
-          .from("match_attestations")
-          .select("id")
-          .eq("match_id", m.id)
-          .eq("attester_id", user.id)
-          .maybeSingle();
-
-        if (!existing) {
-          pending.push({
-            id: m.id,
-            type: "match",
-            course_name: m.course_name,
-            round_time: m.round_time,
-            creator_id: m.creator_id,
-          });
-        }
-      }
-    }
-
     // Fetch creator names for all pending
     if (pending.length > 0) {
       const creatorIds = [...new Set(pending.map((p: any) => p.creator_id))];

@@ -132,17 +132,13 @@ export function AppShell({
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-  const [credits, setCredits] = useState<number | null>(null);
-
-  type PendingAttestation = { id: string; type?: "pool" | "match"; course_name: string; round_time: string; creator_id: string; creator_name: string };
+  type PendingAttestation = { id: string; course_name: string; round_time: string; creator_id: string; creator_name: string };
   const [pendingAttestations, setPendingAttestations] = useState<PendingAttestation[]>([]);
   const [attestLoading, setAttestLoading] = useState<string | null>(null);
 
-  type PendingCompletion = { id: string; type?: "pool" | "match"; course_name: string; round_time: string; accepted_count: number };
+  type PendingCompletion = { id: string; course_name: string; round_time: string; accepted_count: number };
   const [pendingCompletions, setPendingCompletions] = useState<PendingCompletion[]>([]);
   const [completeLoading, setCompleteLoading] = useState<string | null>(null);
-  const [showTsInfo, setShowTsInfo] = useState(false);
-  const tsRef = useRef<HTMLDivElement>(null);
 
   const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth", "/onboarding", "/invite", "/tournaments/invite"];
   const isAuthRoute = authRoutes.some(
@@ -158,7 +154,7 @@ export function AppShell({
       try {
         const { data: prof } = await supabase
           .from("profiles")
-          .select("display_name, credits")
+          .select("display_name")
           .eq("id", userId)
           .maybeSingle();
 
@@ -166,10 +162,6 @@ export function AppShell({
         if (!hasName) {
           router.replace("/onboarding");
           return;
-        }
-
-        if (mounted && prof) {
-          setCredits((prof as any).credits ?? 3);
         }
 
         const { data: memberships } = await supabase
@@ -252,28 +244,16 @@ export function AppShell({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
-      const url = item.type === "match"
-        ? `/api/matches/${item.id}/attest`
-        : `/api/pool/${item.id}`;
-      const body = item.type === "match" ? {} : { action: "attest" };
-
-      const res = await fetch(url, {
+      const res = await fetch(`/api/pool/${item.id}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ action: "attest" }),
       });
       if (res.ok) {
         setPendingAttestations((prev) => prev.filter((p) => p.id !== item.id));
-        // Refresh credits
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("credits")
-          .eq("id", session.user.id)
-          .maybeSingle();
-        if (prof) setCredits((prof as any).credits ?? 3);
       }
     } catch {}
     setAttestLoading(null);
@@ -285,43 +265,20 @@ export function AppShell({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
-      const url = item.type === "match"
-        ? `/api/matches/${item.id}/confirm-round`
-        : `/api/pool/${item.id}`;
-      const body = item.type === "match" ? {} : { action: "complete_round" };
-
-      const res = await fetch(url, {
+      const res = await fetch(`/api/pool/${item.id}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ action: "complete_round" }),
       });
       if (res.ok) {
         setPendingCompletions((prev) => prev.filter((p) => p.id !== item.id));
-        // Refresh credits
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("credits")
-          .eq("id", session.user.id)
-          .maybeSingle();
-        if (prof) setCredits((prof as any).credits ?? 3);
       }
     } catch {}
     setCompleteLoading(null);
   }
-
-  // Close Tees info on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (tsRef.current && !tsRef.current.contains(e.target as Node)) {
-        setShowTsInfo(false);
-      }
-    }
-    if (showTsInfo) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showTsInfo]);
 
   // Fetch notifications — on mount + when SW receives a push
   useEffect(() => {
@@ -508,42 +465,6 @@ export function AppShell({
                 >
                   New match
                 </Link>
-
-                {/* Tees credit icon */}
-                {credits != null && (
-                  <div className="relative" ref={tsRef}>
-                    <button
-                      type="button"
-                      onClick={() => setShowTsInfo(!showTsInfo)}
-                      className="flex items-center gap-1.5 rounded-full border border-[rgba(246,241,231,.22)] px-2.5 py-1.5 text-xs font-semibold transition hover:bg-[rgba(246,241,231,.08)]"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-90">
-                        <path d="M7.5 7.5C7.5 6 9.5 4.5 12 4.5C14.5 4.5 16.5 6 16.5 7.5C16.5 8.5 15 9 12 9C9 9 7.5 8.5 7.5 7.5Z" fill="currentColor" />
-                        <path d="M10.8 9L11.5 21.5C11.5 21.8 12.5 21.8 12.5 21.5L13.2 9" fill="currentColor" />
-                      </svg>
-                      <span>{credits}</span>
-                    </button>
-
-                    {showTsInfo && (
-                      <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-xl z-50 space-y-2.5">
-                        <div className="flex items-center gap-2">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                            <path d="M7.5 7.5C7.5 6 9.5 4.5 12 4.5C14.5 4.5 16.5 6 16.5 7.5C16.5 8.5 15 9 12 9C9 9 7.5 8.5 7.5 7.5Z" fill="var(--pine)" />
-                            <path d="M10.8 9L11.5 21.5C11.5 21.8 12.5 21.8 12.5 21.5L13.2 9" fill="var(--pine)" />
-                          </svg>
-                          <span className="text-sm font-bold text-[var(--ink)]">You have {credits} Tee{credits !== 1 ? "s" : ""}</span>
-                        </div>
-                        <div className="space-y-1.5 text-xs text-[var(--muted)]">
-                          <p className="font-medium text-[var(--ink)]">How Tees work:</p>
-                          <p>Every player starts with <span className="font-semibold">3 Tees</span>.</p>
-                          <p>When you play in someone&apos;s group, <span className="font-semibold">1 Tee is used</span> after the round.</p>
-                          <p>Host a round and your guest confirms it occurred? <span className="font-semibold text-[var(--pine)]">You earn 1 Tee per event</span>.</p>
-                          <p className="pt-1 text-[10px] italic">Tees keep things fair — give rounds to get rounds. Applies to matches and pool (not ladder or tournaments).</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Notification bell */}
                 <div className="relative" ref={notifRef}>

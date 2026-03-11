@@ -25,6 +25,11 @@ type PoolRating = {
   count: number;
 };
 
+type ClubMembership = {
+  club_name: string;
+  guest_fee: number | null;
+};
+
 type Application = {
   id: string;
   applicant_id: string;
@@ -33,6 +38,7 @@ type Application = {
   created_at: string;
   profile: Profile | null;
   pool_rating: PoolRating | null;
+  clubs: ClubMembership[];
 };
 
 type Listing = {
@@ -507,6 +513,17 @@ export default function PoolDetailPage() {
                   )}
                 </div>
               </div>
+              {a.clubs && a.clubs.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {a.clubs.map((c: ClubMembership, i: number) => (
+                    <span key={i} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" /></svg>
+                      {c.club_name}
+                      {c.guest_fee != null && <span className="text-blue-500">${c.guest_fee}</span>}
+                    </span>
+                  ))}
+                </div>
+              )}
               {a.message && (
                 <div className="rounded-lg bg-[var(--paper)] px-3 py-2 text-xs text-[var(--ink)]">
                   {a.message}

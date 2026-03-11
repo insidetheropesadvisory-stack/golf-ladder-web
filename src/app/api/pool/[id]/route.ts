@@ -120,10 +120,29 @@ export async function GET(
       }
     }
 
+    // Fetch club memberships for all applicants
+    let applicantClubs: Record<string, { club_name: string; guest_fee: number | null }[]> = {};
+    if (applicantIds.length > 0) {
+      const { data: memberships } = await admin
+        .from("club_memberships")
+        .select("user_id, guest_fee, clubs(name)")
+        .in("user_id", applicantIds);
+      if (memberships) {
+        for (const m of memberships as any[]) {
+          if (!applicantClubs[m.user_id]) applicantClubs[m.user_id] = [];
+          applicantClubs[m.user_id].push({
+            club_name: m.clubs?.name ?? "Unknown",
+            guest_fee: m.guest_fee ?? null,
+          });
+        }
+      }
+    }
+
     const enrichedApps = (applications ?? []).map((a: any) => ({
       ...a,
       profile: applicantProfiles[a.applicant_id] ?? null,
       pool_rating: playerRatings[a.applicant_id] ?? null,
+      clubs: applicantClubs[a.applicant_id] ?? [],
     }));
 
     const acceptedCount = enrichedApps.filter((a: any) => a.status === "accepted").length;
