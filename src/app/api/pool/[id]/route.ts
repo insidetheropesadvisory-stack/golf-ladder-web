@@ -537,11 +537,33 @@ export async function POST(
         return NextResponse.json({ error: "Round already completed" }, { status: 400 });
       }
 
-      // Mark listing as completed (no tee changes here — tees move on attestation)
+      // Mark listing as completed
       await admin
         .from("pool_listings")
         .update({ status: "completed" })
         .eq("id", listingId);
+
+      // Creator confirms round occurred → deduct 1 Tee from each accepted guest
+      const { data: acceptedApps } = await admin
+        .from("pool_applications")
+        .select("applicant_id")
+        .eq("listing_id", listingId)
+        .eq("status", "accepted");
+
+      if (acceptedApps) {
+        for (const app of acceptedApps as any[]) {
+          const { data: guestProfile } = await admin
+            .from("profiles")
+            .select("credits")
+            .eq("id", app.applicant_id)
+            .single();
+
+          await admin
+            .from("profiles")
+            .update({ credits: Math.max(0, (guestProfile?.credits ?? 3) - 1) })
+            .eq("id", app.applicant_id);
+        }
+      }
 
       return NextResponse.json({ ok: true });
     }
@@ -554,6 +576,15 @@ export async function POST(
 
       if (listing.status !== "completed") {
         return NextResponse.json({ error: "Round must be marked complete first" }, { status: 400 });
+      }
+
+      // Time gate — same barrier as complete_round
+      const holeCountAttest = (listing as any).hole_count ?? 18;
+      const timeGateAttest = holeCountAttest === 9
+        ? 1 * 60 * 60 * 1000 + 35 * 60 * 1000
+        : 3 * 60 * 60 * 1000 + 15 * 60 * 1000;
+      if (new Date(listing.round_time).getTime() + timeGateAttest > Date.now()) {
+        return NextResponse.json({ error: "Too soon — time gate not passed" }, { status: 400 });
       }
 
       // Check they were accepted
@@ -593,28 +624,21 @@ export async function POST(
         return NextResponse.json({ error: attErr.message }, { status: 500 });
       }
 
-      // Deduct 1 Tee from the attesting guest
-      const { data: guestProfile } = await admin
+      const { data: attesterProfile } = await admin
         .from("profiles")
-        .select("credits, display_name")
+        .select("display_name")
         .eq("id", user.id)
         .single();
 
-      await admin
-        .from("profiles")
-        .update({ credits: Math.max(0, ((guestProfile as any)?.credits ?? 3) - 1) })
-        .eq("id", user.id);
+      const attesterName = (attesterProfile as any)?.display_name || "A player";
 
-      const attesterName = (guestProfile as any)?.display_name || "A player";
-
-      // Award 1 Tee to host per event (only on first attestation)
+      // Guest confirms round → award host 1 Tee (only on first attestation)
       const { count: attestCount } = await admin
         .from("pool_attestations")
         .select("id", { count: "exact", head: true })
         .eq("listing_id", listingId);
 
       if ((attestCount ?? 0) <= 1) {
-        // First attestation — award host 1 Tee
         const { data: hostProfile } = await admin
           .from("profiles")
           .select("credits")
@@ -638,7 +662,6 @@ export async function POST(
           url: `/pool/${listingId}`,
         }).catch(() => {});
       } else {
-        // Subsequent attestation — just notify
         await admin.from("notifications").insert({
           user_id: listing.creator_id,
           message: `${attesterName} confirmed your round at ${listing.course_name} occurred.`,
