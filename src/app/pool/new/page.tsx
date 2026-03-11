@@ -31,7 +31,6 @@ export default function NewPoolPage() {
   const [courseState, setCourseState] = useState<string | null>(null);
   const [roundDate, setRoundDate] = useState("");
   const [roundTime, setRoundTime] = useState("");
-  const [totalSlots, setTotalSlots] = useState(1);
   const [guestFee, setGuestFee] = useState("");
   const [notes, setNotes] = useState("");
   const [autoAccept, setAutoAccept] = useState(false);
@@ -43,6 +42,11 @@ export default function NewPoolPage() {
   const [searching, setSearching] = useState(false);
   const [manualName, setManualName] = useState("");
 
+  // Max 4 players total: creator (1) + committed + open slots = 4
+  // Open slots = 3 - committed.length
+  const openSlots = 3 - committed.length;
+  const canAddMore = committed.length < 3;
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) {
@@ -53,27 +57,33 @@ export default function NewPoolPage() {
     });
   }, [router]);
 
-  // Search players
+  // Search players — filter out already-committed player IDs and self
   useEffect(() => {
     if (playerSearch.length < 2) {
       setSearchResults([]);
       return;
     }
+    const committedIds = committed.map((c) => c.id).filter(Boolean) as string[];
     const timeout = setTimeout(async () => {
       setSearching(true);
-      const { data } = await supabase
+      let query = supabase
         .from("profiles")
         .select("id, display_name, handicap_index")
         .ilike("display_name", `%${playerSearch}%`)
         .neq("id", meId ?? "")
         .limit(8);
-      setSearchResults(data ?? []);
+
+      const { data } = await query;
+      // Filter out already-committed players client-side
+      const filtered = (data ?? []).filter((p) => !committedIds.includes(p.id));
+      setSearchResults(filtered);
       setSearching(false);
     }, 300);
     return () => clearTimeout(timeout);
-  }, [playerSearch, meId]);
+  }, [playerSearch, meId, committed]);
 
   function addCommittedPlayer(player: SearchResult) {
+    if (!canAddMore) return;
     if (committed.find((c) => c.id === player.id)) return;
     setCommitted((prev) => [
       ...prev,
@@ -84,6 +94,7 @@ export default function NewPoolPage() {
   }
 
   function addManualPlayer() {
+    if (!canAddMore) return;
     const name = manualName.trim();
     if (!name) return;
     setCommitted((prev) => [...prev, { id: null, name }]);
@@ -100,6 +111,7 @@ export default function NewPoolPage() {
 
     if (!courseName.trim()) { setError("Select a course"); return; }
     if (!roundDate || !roundTime) { setError("Set the date and time"); return; }
+    if (openSlots < 1) { setError("No open slots — remove a committed player to open a spot"); return; }
 
     const roundDateTime = new Date(`${roundDate}T${roundTime}`).toISOString();
 
@@ -116,7 +128,7 @@ export default function NewPoolPage() {
           course_name: courseName,
           golf_course_api_id: courseApiId,
           round_time: roundDateTime,
-          total_slots: totalSlots,
+          total_slots: openSlots,
           guest_fee: guestFee ? Number(guestFee) : null,
           notes: notes.trim() || null,
           auto_accept: autoAccept,
@@ -188,33 +200,29 @@ export default function NewPoolPage() {
           </div>
         </div>
 
-        {/* Open Slots */}
-        <div>
-          <label className="text-sm font-medium">Open Slots</label>
-          <p className="text-xs text-[var(--muted)]">How many players can join?</p>
-          <div className="mt-2 flex gap-2">
-            {[1, 2, 3].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setTotalSlots(n)}
-                className={cx(
-                  "flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-semibold transition",
-                  totalSlots === n
-                    ? "border-[var(--pine)] bg-[var(--pine)] text-white"
-                    : "border-[var(--border)] bg-white text-[var(--ink)] hover:border-[var(--pine)]/40"
-                )}
-              >
-                {n}
-              </button>
-            ))}
+        {/* Group Summary */}
+        <div className="rounded-xl border border-[var(--border)] bg-white/70 p-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium">Group size</span>
+            <span className="text-[var(--muted)]">
+              <span className="font-semibold text-[var(--ink)]">{1 + committed.length}</span> / 4 players
+            </span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between text-sm">
+            <span className="font-medium">Open slots</span>
+            <span className={cx(
+              "font-semibold",
+              openSlots > 0 ? "text-emerald-700" : "text-red-500"
+            )}>
+              {openSlots}
+            </span>
           </div>
         </div>
 
         {/* Committed Players */}
         <div>
           <label className="text-sm font-medium">Committed Players</label>
-          <p className="text-xs text-[var(--muted)]">Who is already playing? (optional)</p>
+          <p className="text-xs text-[var(--muted)]">Who is already in your group? (optional)</p>
 
           {committed.length > 0 && (
             <div className="mt-2 space-y-1.5">
@@ -245,73 +253,77 @@ export default function NewPoolPage() {
             </div>
           )}
 
-          {/* Search registered players */}
-          <div className="relative mt-2">
-            <input
-              type="text"
-              value={playerSearch}
-              onChange={(e) => setPlayerSearch(e.target.value)}
-              placeholder="Search registered players…"
-              className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm"
-            />
-            {searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-xl border border-[var(--border)] bg-white shadow-lg">
-                {searchResults.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => addCommittedPlayer(p)}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/[0.03]"
-                  >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--pine)] text-[9px] font-bold text-white">
-                      {initials(p.display_name ?? "?")}
-                    </div>
-                    <span className="font-medium">{p.display_name}</span>
-                    {p.handicap_index != null && (
-                      <span className="text-xs text-amber-700">({p.handicap_index})</span>
-                    )}
-                  </button>
-                ))}
+          {canAddMore ? (
+            <>
+              {/* Search registered players */}
+              <div className="relative mt-2">
+                <input
+                  type="text"
+                  value={playerSearch}
+                  onChange={(e) => setPlayerSearch(e.target.value)}
+                  placeholder="Search registered players…"
+                  className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm"
+                />
+                {searchResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-xl border border-[var(--border)] bg-white shadow-lg">
+                    {searchResults.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => addCommittedPlayer(p)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/[0.03]"
+                      >
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--pine)] text-[9px] font-bold text-white">
+                          {initials(p.display_name ?? "?")}
+                        </div>
+                        <span className="font-medium">{p.display_name}</span>
+                        {p.handicap_index != null && (
+                          <span className="text-xs text-amber-700">({p.handicap_index})</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Add guest manually */}
-          <div className="mt-2 flex gap-2">
-            <input
-              type="text"
-              value={manualName}
-              onChange={(e) => setManualName(e.target.value)}
-              placeholder="Add a guest by name…"
-              className="flex-1 rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm"
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addManualPlayer(); } }}
-            />
-            <button
-              type="button"
-              onClick={addManualPlayer}
-              disabled={!manualName.trim()}
-              className="shrink-0 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium text-[var(--pine)] hover:bg-[var(--pine)]/5 disabled:opacity-40"
-            >
-              Add
-            </button>
-          </div>
+              {/* Add guest manually */}
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="Add a guest by name…"
+                  className="flex-1 rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addManualPlayer(); } }}
+                />
+                <button
+                  type="button"
+                  onClick={addManualPlayer}
+                  disabled={!manualName.trim()}
+                  className="shrink-0 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium text-[var(--pine)] hover:bg-[var(--pine)]/5 disabled:opacity-40"
+                >
+                  Add
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="mt-2 text-xs text-amber-600">Group is full (4 players max). Remove a player to add someone else.</p>
+          )}
         </div>
 
-        {/* Guest Fee */}
+        {/* Guest Fee — auto-populated from club */}
         <div>
           <label className="text-sm font-medium">Guest Fee</label>
-          <p className="text-xs text-[var(--muted)]">Cost per player to join (optional)</p>
-          <div className="relative mt-1">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--muted)]">$</span>
-            <input
-              type="number"
-              value={guestFee}
-              onChange={(e) => setGuestFee(e.target.value)}
-              placeholder="0"
-              min="0"
-              className="w-full rounded-xl border border-[var(--border)] bg-white py-2.5 pl-7 pr-3 text-sm"
-            />
-          </div>
+          {guestFee ? (
+            <div className="mt-1 flex items-center gap-2">
+              <span className="rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-3 py-2.5 text-sm font-medium">
+                ${guestFee}
+              </span>
+              <span className="text-xs text-[var(--muted)]">Set by club membership</span>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-[var(--muted)]">Guest fee will be pulled from your club membership rate</p>
+          )}
         </div>
 
         {/* Notes */}
@@ -346,10 +358,10 @@ export default function NewPoolPage() {
 
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || openSlots < 1}
           className="w-full rounded-xl bg-[var(--pine)] py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
         >
-          {saving ? "Creating…" : "Create Listing"}
+          {saving ? "Creating…" : `Create Listing · ${openSlots} open slot${openSlots !== 1 ? "s" : ""}`}
         </button>
       </form>
     </div>

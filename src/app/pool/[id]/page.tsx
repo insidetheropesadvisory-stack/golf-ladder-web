@@ -149,6 +149,12 @@ export default function PoolDetailPage() {
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingComment, setRatingComment] = useState("");
 
+  // Edit mode
+  const [editing, setEditing] = useState(false);
+  const [editNotes, setEditNotes] = useState("");
+  const [editAutoAccept, setEditAutoAccept] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+
   useEffect(() => {
     loadDetail();
   }, [id]);
@@ -201,6 +207,39 @@ export default function PoolDetailPage() {
       setError(e?.message ?? "Something went wrong");
     }
     setActionLoading(null);
+  }
+
+  function startEditing() {
+    if (!listing) return;
+    setEditNotes(listing.notes ?? "");
+    setEditAutoAccept(listing.auto_accept);
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    setEditSaving(true);
+    setError(null);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/pool/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({
+          notes: editNotes.trim() || null,
+          auto_accept: editAutoAccept,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Save failed");
+      } else {
+        setEditing(false);
+        await loadDetail();
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Something went wrong");
+    }
+    setEditSaving(false);
   }
 
   if (loading) {
@@ -301,7 +340,60 @@ export default function PoolDetailPage() {
           )}
         </div>
 
-        {listing.notes && (
+        {/* Edit button for creator */}
+        {isCreator && !isClosed && !isCompleted && !editing && (
+          <button
+            type="button"
+            onClick={startEditing}
+            className="text-xs font-medium text-[var(--pine)] hover:underline"
+          >
+            Edit listing
+          </button>
+        )}
+
+        {/* Edit form */}
+        {editing && (
+          <div className="space-y-3 rounded-xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 p-3">
+            <div>
+              <label className="text-xs font-medium">Notes</label>
+              <textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="Anything players should know…"
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm resize-none"
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={editAutoAccept}
+                onChange={(e) => setEditAutoAccept(e.target.checked)}
+                className="h-4 w-4 rounded accent-[var(--pine)]"
+              />
+              <span className="text-sm">Auto-accept players</span>
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={editSaving}
+                className="flex-1 rounded-lg bg-[var(--pine)] py-2 text-xs font-semibold text-white hover:bg-[var(--pine)]/90 disabled:opacity-60"
+              >
+                {editSaving ? "Saving…" : "Save Changes"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-xs text-[var(--muted)]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {listing.notes && !editing && (
           <div className="rounded-xl bg-[var(--paper)] p-3 text-sm text-[var(--ink)]">
             {listing.notes}
           </div>

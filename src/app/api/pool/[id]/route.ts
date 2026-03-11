@@ -142,7 +142,8 @@ export async function GET(
         creator,
         committed: enrichedCommitted,
         applications: enrichedApps,
-        slots_filled: enrichedCommitted.length + acceptedCount,
+        // slots_filled = accepted applicants (total_slots already excludes creator + committed)
+        slots_filled: acceptedCount,
       },
       isCreator: user.id === listing.creator_id,
       myApplication: enrichedApps.find((a: any) => a.applicant_id === user.id) ?? null,
@@ -151,6 +152,112 @@ export async function GET(
     });
   } catch (e: any) {
     console.error("pool detail error:", e);
+    return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/pool/[id] — edit a pool listing (creator only, while still open)
+ */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { user, error: userErr } = await getAuthedUser(request);
+    if (userErr || !user) {
+      return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    }
+
+    const { id: listingId } = await params;
+    const admin = adminClient();
+
+    const { data: listing } = await admin
+      .from("pool_listings")
+      .select("*")
+      .eq("id", listingId)
+      .single();
+
+    if (!listing) {
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+    }
+
+    if (user.id !== listing.creator_id) {
+      return NextResponse.json({ error: "Only the organizer can edit" }, { status: 403 });
+    }
+
+    if (listing.status !== "open" && listing.status !== "full") {
+      return NextResponse.json({ error: "Can only edit open or full listings" }, { status: 400 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as any;
+
+    const updates: Record<string, any> = {};
+    if (body.round_time != null) updates.round_time = body.round_time;
+    if (body.total_slots != null) {
+      const slots = Number(body.total_slots);
+      if (slots < 1 || slots > 3) {
+        return NextResponse.json({ error: "Slots must be 1-3" }, { status: 400 });
+      }
+      updates.total_slots = slots;
+    }
+    if (body.guest_fee !== undefined) updates.guest_fee = body.guest_fee;
+    if (body.notes !== undefined) updates.notes = body.notes || null;
+    if (body.auto_accept !== undefined) updates.auto_accept = body.auto_accept;
+
+    if (Object.keys(updates).length > 0) {
+      const { error: updErr } = await admin
+        .from("pool_listings")
+        .update(updates)
+        .eq("id", listingId);
+
+      if (updErr) {
+        return NextResponse.json({ error: updErr.message }, { status: 500 });
+      }
+    }
+
+    // Update committed players if provided
+    if (body.committed_players != null) {
+      // Remove existing committed
+      await admin.from("pool_committed").delete().eq("listing_id", listingId);
+
+      // Insert new committed
+      const committedPlayers = body.committed_players ?? [];
+      if (committedPlayers.length > 0) {
+        const rows = committedPlayers.map((p: any) => ({
+          listing_id: listingId,
+          player_id: p.id || null,
+          player_name: p.name || null,
+        }));
+        await admin.from("pool_committed").insert(rows);
+      }
+    }
+
+    // Re-evaluate full status
+    const { count: acceptedCount } = await admin
+      .from("pool_applications")
+      .select("id", { count: "exact", head: true })
+      .eq("listing_id", listingId)
+      .eq("status", "accepted");
+
+    const { data: updatedListing } = await admin
+      .from("pool_listings")
+      .select("total_slots")
+      .eq("id", listingId)
+      .single();
+
+    const totalSlots = updatedListing?.total_slots ?? listing.total_slots;
+    const isFull = (acceptedCount ?? 0) >= totalSlots;
+
+    if (isFull && listing.status === "open") {
+      await admin.from("pool_listings").update({ status: "full" }).eq("id", listingId);
+    } else if (!isFull && listing.status === "full") {
+      await admin.from("pool_listings").update({ status: "open" }).eq("id", listingId);
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("pool edit error:", e);
     return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
   }
 }
@@ -194,20 +301,14 @@ export async function POST(
         return NextResponse.json({ error: "This listing is no longer open" }, { status: 400 });
       }
 
-      // Check slots
+      // Check slots — total_slots = open slots for applicants (excludes creator + committed)
       const { count: acceptedCount } = await admin
         .from("pool_applications")
         .select("id", { count: "exact", head: true })
         .eq("listing_id", listingId)
         .eq("status", "accepted");
 
-      const { count: committedCount } = await admin
-        .from("pool_committed")
-        .select("id", { count: "exact", head: true })
-        .eq("listing_id", listingId);
-
-      const filled = (acceptedCount ?? 0) + (committedCount ?? 0);
-      if (filled >= listing.total_slots) {
+      if ((acceptedCount ?? 0) >= listing.total_slots) {
         return NextResponse.json({ error: "All slots are filled" }, { status: 400 });
       }
 
@@ -231,8 +332,7 @@ export async function POST(
 
       // Auto-fill check
       if (status === "accepted") {
-        const newFilled = filled + 1;
-        if (newFilled >= listing.total_slots) {
+        if ((acceptedCount ?? 0) + 1 >= listing.total_slots) {
           await admin.from("pool_listings").update({ status: "full" }).eq("id", listingId);
         }
       }
@@ -301,12 +401,7 @@ export async function POST(
           .eq("listing_id", listingId)
           .eq("status", "accepted");
 
-        const { count: committedCount } = await admin
-          .from("pool_committed")
-          .select("id", { count: "exact", head: true })
-          .eq("listing_id", listingId);
-
-        if ((acceptedCount ?? 0) + (committedCount ?? 0) >= listing.total_slots) {
+        if ((acceptedCount ?? 0) >= listing.total_slots) {
           await admin.from("pool_listings").update({ status: "full" }).eq("id", listingId);
         }
       }

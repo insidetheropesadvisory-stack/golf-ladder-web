@@ -109,17 +109,23 @@ export async function GET(request: Request) {
       }
     }
 
-    const enriched = filtered.map((l: any) => ({
-      ...l,
-      creator: profiles[l.creator_id] ?? null,
-      accepted_count: acceptedCounts[l.id] ?? 0,
-      committed_count: committedCounts[l.id] ?? 0,
-      slots_filled: (acceptedCounts[l.id] ?? 0) + (committedCounts[l.id] ?? 0),
-      my_application: myApplications[l.id] ?? null,
-      distance: !isNaN(lat) && !isNaN(lng) && l.latitude != null && l.longitude != null
-        ? Math.round(haversine(lat, lng, l.latitude, l.longitude))
-        : null,
-    }));
+    const enriched = filtered.map((l: any) => {
+      const accepted = acceptedCounts[l.id] ?? 0;
+      const committedCt = committedCounts[l.id] ?? 0;
+      // total_slots = open slots for pool applicants (already excludes creator + committed)
+      // slots_filled = accepted applicants only (for display: open = total_slots - accepted)
+      return {
+        ...l,
+        creator: profiles[l.creator_id] ?? null,
+        accepted_count: accepted,
+        committed_count: committedCt,
+        slots_filled: accepted,
+        my_application: myApplications[l.id] ?? null,
+        distance: !isNaN(lat) && !isNaN(lng) && l.latitude != null && l.longitude != null
+          ? Math.round(haversine(lat, lng, l.latitude, l.longitude))
+          : null,
+      };
+    });
 
     return NextResponse.json({ listings: enriched });
   } catch (e: any) {
