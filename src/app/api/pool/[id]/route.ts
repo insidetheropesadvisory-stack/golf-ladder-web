@@ -128,6 +128,14 @@ export async function GET(
 
     const acceptedCount = enrichedApps.filter((a: any) => a.status === "accepted").length;
 
+    // Check if current user already attested
+    const { data: myAttestation } = await admin
+      .from("pool_attestations")
+      .select("id")
+      .eq("listing_id", id)
+      .eq("attester_id", user.id)
+      .maybeSingle();
+
     return NextResponse.json({
       listing: {
         ...listing,
@@ -139,6 +147,7 @@ export async function GET(
       isCreator: user.id === listing.creator_id,
       myApplication: enrichedApps.find((a: any) => a.applicant_id === user.id) ?? null,
       myRatings: myRatingsMap,
+      hasAttested: Boolean(myAttestation),
     });
   } catch (e: any) {
     console.error("pool detail error:", e);
@@ -185,6 +194,17 @@ export async function POST(
         return NextResponse.json({ error: "This listing is no longer open" }, { status: 400 });
       }
 
+      // Check credits
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("credits")
+        .eq("id", user.id)
+        .single();
+      const currentCredits = profile?.credits ?? 0;
+      if (currentCredits < 1) {
+        return NextResponse.json({ error: "You need at least 1 T to join. Host a round to earn more." }, { status: 400 });
+      }
+
       // Check slots
       const { count: acceptedCount } = await admin
         .from("pool_applications")
@@ -219,6 +239,12 @@ export async function POST(
       if (appErr) {
         return NextResponse.json({ error: appErr.message }, { status: 500 });
       }
+
+      // Deduct 1 credit
+      await admin
+        .from("profiles")
+        .update({ credits: currentCredits - 1 })
+        .eq("id", user.id);
 
       // Auto-fill check
       if (status === "accepted") {
@@ -392,6 +418,90 @@ export async function POST(
       if (rateErr) {
         return NextResponse.json({ error: rateErr.message }, { status: 500 });
       }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // --- Attest (guest confirms the round went well → host earns 1 T) ---
+    if (action === "attest") {
+      // Must be an accepted applicant, not the creator
+      if (user.id === listing.creator_id) {
+        return NextResponse.json({ error: "Hosts can't attest for themselves" }, { status: 400 });
+      }
+
+      const roundTime = new Date(listing.round_time).getTime();
+      if (Date.now() < roundTime) {
+        return NextResponse.json({ error: "You can attest after the round" }, { status: 400 });
+      }
+
+      // Check they were accepted
+      const { data: myApp } = await admin
+        .from("pool_applications")
+        .select("status")
+        .eq("listing_id", listingId)
+        .eq("applicant_id", user.id)
+        .single();
+
+      if (!myApp || myApp.status !== "accepted") {
+        return NextResponse.json({ error: "Only accepted players can attest" }, { status: 400 });
+      }
+
+      // Check not already attested
+      const { data: existing } = await admin
+        .from("pool_attestations")
+        .select("id")
+        .eq("listing_id", listingId)
+        .eq("attester_id", user.id)
+        .maybeSingle();
+
+      if (existing) {
+        return NextResponse.json({ error: "You've already attested for this round" }, { status: 400 });
+      }
+
+      // Insert attestation
+      const { error: attErr } = await admin
+        .from("pool_attestations")
+        .insert({
+          listing_id: listingId,
+          attester_id: user.id,
+          host_id: listing.creator_id,
+        });
+
+      if (attErr) {
+        return NextResponse.json({ error: attErr.message }, { status: 500 });
+      }
+
+      // Award 1 credit to host
+      const { data: hostProfile } = await admin
+        .from("profiles")
+        .select("credits")
+        .eq("id", listing.creator_id)
+        .single();
+
+      await admin
+        .from("profiles")
+        .update({ credits: (hostProfile?.credits ?? 3) + 1 })
+        .eq("id", listing.creator_id);
+
+      // Notify host
+      const { data: attesterProfile } = await admin
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .single();
+
+      const attesterName = attesterProfile?.display_name || "A player";
+      await admin.from("notifications").insert({
+        user_id: listing.creator_id,
+        message: `${attesterName} confirmed your round at ${listing.course_name} went well. You earned 1 T!`,
+        read: false,
+      });
+
+      sendPushToUser(listing.creator_id, {
+        title: "You earned a T!",
+        body: `${attesterName} confirmed your round went well.`,
+        url: `/pool/${listingId}`,
+      }).catch(() => {});
 
       return NextResponse.json({ ok: true });
     }

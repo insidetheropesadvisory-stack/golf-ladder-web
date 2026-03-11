@@ -137,6 +137,7 @@ export default function PoolDetailPage() {
   const [isCreator, setIsCreator] = useState(false);
   const [myApplication, setMyApplication] = useState<Application | null>(null);
   const [myRatings, setMyRatings] = useState<Record<string, { rating: number; comment: string | null }>>({});
+  const [hasAttested, setHasAttested] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
@@ -168,6 +169,7 @@ export default function PoolDetailPage() {
         setIsCreator(json.isCreator);
         setMyApplication(json.myApplication);
         setMyRatings(json.myRatings ?? {});
+        setHasAttested(json.hasAttested ?? false);
       }
     } catch {}
     setLoading(false);
@@ -500,17 +502,23 @@ export default function PoolDetailPage() {
       {!isCreator && !isClosed && !myApplication && slotsOpen > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-white/70 p-4 space-y-3">
           {!showApplyForm ? (
-            <button
-              type="button"
-              onClick={() => setShowApplyForm(true)}
-              className="w-full rounded-xl bg-[var(--pine)] py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-            >
-              {listing.auto_accept ? "Join This Group" : "Request to Join"}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setShowApplyForm(true)}
+                className="w-full rounded-xl bg-[var(--pine)] py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+              >
+                {listing.auto_accept ? "Join This Group" : "Request to Join"}
+              </button>
+              <p className="text-center text-[10px] text-[var(--muted)]">Costs 1 T to join</p>
+            </>
           ) : (
             <>
               <div className="text-sm font-semibold">
                 {listing.auto_accept ? "Join this group" : "Send a request to the organizer"}
+              </div>
+              <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                This will use 1 T from your balance. You earn Ts by hosting rounds.
               </div>
               <textarea
                 value={applyMessage}
@@ -526,7 +534,7 @@ export default function PoolDetailPage() {
                   disabled={actionLoading !== null}
                   className="flex-1 rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md disabled:opacity-60"
                 >
-                  {actionLoading === "apply" ? "Sending…" : listing.auto_accept ? "Join" : "Send Request"}
+                  {actionLoading === "apply" ? "Sending…" : listing.auto_accept ? "Join (1 T)" : "Send Request (1 T)"}
                 </button>
                 <button
                   type="button"
@@ -544,21 +552,45 @@ export default function PoolDetailPage() {
       {/* Non-creator: Application status */}
       {!isCreator && myApplication && (
         <div className={cx(
-          "rounded-2xl border p-4 text-center",
+          "rounded-2xl border p-4",
           myApplication.status === "accepted" ? "border-emerald-200/60 bg-emerald-50/50" :
           myApplication.status === "denied" ? "border-red-200/60 bg-red-50/50" :
           "border-amber-200/60 bg-amber-50/50"
         )}>
           <div className={cx(
-            "text-sm font-semibold",
+            "text-sm font-semibold text-center",
             myApplication.status === "accepted" ? "text-emerald-700" :
             myApplication.status === "denied" ? "text-red-700" :
             "text-amber-700"
           )}>
-            {myApplication.status === "accepted" ? "You're in! See you on the course." :
-             myApplication.status === "denied" ? "Your request was declined." :
-             "Your request is pending approval."}
+            {myApplication.status === "accepted"
+              ? roundPassed ? "Hope you had a great round!" : "You're in! See you on the course."
+              : myApplication.status === "denied" ? "Your request was declined."
+              : "Your request is pending approval."}
           </div>
+
+          {/* Attestation — accepted guest, after round */}
+          {myApplication.status === "accepted" && roundPassed && !hasAttested && (
+            <div className="mt-3 space-y-2 border-t border-emerald-200/60 pt-3">
+              <p className="text-xs text-[var(--muted)] text-center">
+                Did everything go well? Confirm to award the host a T.
+              </p>
+              <button
+                type="button"
+                onClick={() => doAction("attest")}
+                disabled={actionLoading !== null}
+                className="w-full rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md disabled:opacity-60"
+              >
+                {actionLoading === "attest" ? "Confirming…" : "Confirm — Round went well"}
+              </button>
+            </div>
+          )}
+
+          {myApplication.status === "accepted" && hasAttested && (
+            <div className="mt-2 text-center text-xs text-emerald-600">
+              You confirmed this round went well. The host earned a T.
+            </div>
+          )}
         </div>
       )}
 
