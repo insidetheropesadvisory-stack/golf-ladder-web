@@ -197,7 +197,7 @@ export default function PoolPage() {
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M8.5 4C8.5 4 9.2 6.5 12 6.5C14.8 6.5 15.5 4 15.5 4L14 7C13.6 7.8 13 8 12 8C11 8 10.4 7.8 10 7L8.5 4ZM11 8H13V22H11V8Z" fill="var(--pine)" />
+                <path d="M6 4C6 4 8.5 5.5 12 5.5C15.5 5.5 18 4 18 4L14 8H10L6 4ZM11 8H13V22H11V8Z" fill="var(--pine)" />
               </svg>
             </div>
             <div>
@@ -212,7 +212,7 @@ export default function PoolPage() {
       <div className="rounded-2xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 p-4 space-y-3">
         <div className="flex items-center gap-2">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M8.5 4C8.5 4 9.2 6.5 12 6.5C14.8 6.5 15.5 4 15.5 4L14 7C13.6 7.8 13 8 12 8C11 8 10.4 7.8 10 7L8.5 4ZM11 8H13V22H11V8Z" fill="var(--pine)" />
+            <path d="M6 4C6 4 8.5 5.5 12 5.5C15.5 5.5 18 4 18 4L14 8H10L6 4ZM11 8H13V22H11V8Z" fill="var(--pine)" />
           </svg>
           <span className="text-sm font-bold text-[var(--pine)]">Welcome to the Pool!</span>
         </div>
