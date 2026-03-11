@@ -66,6 +66,7 @@ export default function PoolPage() {
   const [completedListings, setCompletedListings] = useState<PoolListing[]>([]);
   const [upcomingLoading, setUpcomingLoading] = useState(false);
   const [completedLoading, setCompletedLoading] = useState(false);
+  const [upcomingCount, setUpcomingCount] = useState<number | null>(null);
 
   // Load user session + profile city/state, then resolve coordinates
   useEffect(() => {
@@ -105,6 +106,8 @@ export default function PoolPage() {
       setLocationStatus("none");
     }
     init();
+    // Load upcoming count eagerly
+    loadUpcomingCount();
   }, []);
 
   useEffect(() => {
@@ -135,6 +138,21 @@ export default function PoolPage() {
     if (tab === "completed") loadCompleted();
   }, [tab]);
 
+  async function loadUpcomingCount() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/pool?status=upcoming", {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      const json = await res.json();
+      if (res.ok) {
+        const list = json.listings ?? [];
+        setUpcomingCount(list.length);
+        setUpcomingListings(list);
+      }
+    } catch {}
+  }
+
   async function loadUpcoming() {
     setUpcomingLoading(true);
     try {
@@ -143,7 +161,11 @@ export default function PoolPage() {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
       const json = await res.json();
-      if (res.ok) setUpcomingListings(json.listings ?? []);
+      if (res.ok) {
+        const list = json.listings ?? [];
+        setUpcomingListings(list);
+        setUpcomingCount(list.length);
+      }
     } catch {}
     setUpcomingLoading(false);
   }
@@ -229,7 +251,7 @@ export default function PoolPage() {
         {([
           { key: "open" as const, label: `Open (${openListings.length})` },
           { key: "my" as const, label: `My Listings (${myListings.length})` },
-          { key: "upcoming" as const, label: "Upcoming" },
+          { key: "upcoming" as const, label: upcomingCount != null && upcomingCount > 0 ? `Upcoming (${upcomingCount})` : "Upcoming" },
           { key: "completed" as const, label: "Completed" },
         ]).map((t) => (
           <button

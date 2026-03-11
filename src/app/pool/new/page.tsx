@@ -27,6 +27,7 @@ export default function NewPoolPage() {
   // Form state
   const [courseName, setCourseName] = useState("");
   const [courseApiId, setCourseApiId] = useState<string | null>(null);
+  const [clubId, setClubId] = useState<string | null>(null);
   const [courseCity, setCourseCity] = useState<string | null>(null);
   const [courseState, setCourseState] = useState<string | null>(null);
   const [roundDate, setRoundDate] = useState("");
@@ -128,6 +129,7 @@ export default function NewPoolPage() {
         body: JSON.stringify({
           course_name: courseName,
           golf_course_api_id: courseApiId,
+          club_id: clubId,
           round_time: roundDateTime,
           total_slots: openSlots,
           hole_count: holeCount,
@@ -170,6 +172,7 @@ export default function NewPoolPage() {
           value={courseName}
           onChange={setCourseName}
           onCourseApiIdChange={setCourseApiId}
+          onClubIdChange={setClubId}
           onGuestFeeChange={(fee) => { if (fee != null) setGuestFee(String(fee)); }}
           onLocationChange={(city, state) => { setCourseCity(city); setCourseState(state); }}
           userId={meId}

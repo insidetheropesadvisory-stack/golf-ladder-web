@@ -71,6 +71,7 @@ export function ClubPicker({
   onChange,
   onGuestFeeChange,
   onCourseApiIdChange,
+  onClubIdChange,
   onTeesChange,
   onLocationChange,
   userId,
@@ -81,6 +82,7 @@ export function ClubPicker({
   onChange: (next: string) => void;
   onGuestFeeChange?: (fee: number | null) => void;
   onCourseApiIdChange?: (id: string | null) => void;
+  onClubIdChange?: (clubId: string | null) => void;
   onTeesChange?: (tees: ApiTeeInfo[]) => void;
   onLocationChange?: (city: string | null, state: string | null) => void;
   userId: string;
@@ -331,7 +333,7 @@ export function ClubPicker({
     return { mine, ct, other, api: dedupedApiClubs };
   }, [filtered, dedupedApiClubs]);
 
-  async function pick(name: string, guestFee?: number | null, apiCourseId?: string | null, city?: string | null, state?: string | null) {
+  async function pick(name: string, guestFee?: number | null, apiCourseId?: string | null, city?: string | null, state?: string | null, clubId?: string | null) {
     const n = name.trim();
     if (!n) return;
     onChange(n);
@@ -339,6 +341,7 @@ export function ClubPicker({
     setOpen(false);
     onGuestFeeChange?.(guestFee ?? null);
     onLocationChange?.(city ?? null, state ?? null);
+    onClubIdChange?.(clubId ?? null);
 
     let resolvedCourseId = apiCourseId ?? null;
 
@@ -475,7 +478,7 @@ export function ClubPicker({
                 {grouped.mine.length > 0 && (
                   <Section title="My clubs">
                     {grouped.mine.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, c.guest_fee, undefined, c.city, c.state)} />
+                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, c.guest_fee, undefined, c.city, c.state, c.id)} />
                     ))}
                   </Section>
                 )}

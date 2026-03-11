@@ -117,6 +117,20 @@ export async function GET(request: Request) {
       }
     }
 
+    // Hide listings where user is a committed player (they're already in the group)
+    if (statusFilter === "open" && filtered.length > 0) {
+      const filteredIds = filtered.map((l: any) => l.id);
+      const { data: myCommitted } = await admin
+        .from("pool_committed")
+        .select("listing_id")
+        .in("listing_id", filteredIds)
+        .eq("player_id", user.id);
+      if (myCommitted && myCommitted.length > 0) {
+        const committedSet = new Set((myCommitted as any[]).map((c: any) => c.listing_id));
+        filtered = filtered.filter((l: any) => !committedSet.has(l.id));
+      }
+    }
+
     // For "upcoming" and "completed": only show listings where user is creator or accepted
     if (statusFilter === "upcoming" || statusFilter === "completed") {
       filtered = filtered.filter((l: any) => {
@@ -212,6 +226,7 @@ export async function POST(request: Request) {
         longitude,
         city,
         state,
+        club_id: body.club_id || null,
       })
       .select()
       .single();

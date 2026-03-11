@@ -544,14 +544,33 @@ export async function POST(
         .eq("id", listingId);
 
       // Creator confirms round occurred → deduct 1 Tee from each accepted guest
+      // Exception: club members at this course don't lose a tee
       const { data: acceptedApps } = await admin
         .from("pool_applications")
         .select("applicant_id")
         .eq("listing_id", listingId)
         .eq("status", "accepted");
 
+      // Find which guests are members at this club (exempt from tee cost)
+      const clubId = (listing as any).club_id ?? null;
+      let memberSet = new Set<string>();
+      if (clubId && acceptedApps && acceptedApps.length > 0) {
+        const guestIds = (acceptedApps as any[]).map((a: any) => a.applicant_id);
+        const { data: memberships } = await admin
+          .from("club_memberships")
+          .select("user_id")
+          .eq("club_id", clubId)
+          .in("user_id", guestIds);
+        if (memberships) {
+          for (const m of memberships as any[]) memberSet.add(m.user_id);
+        }
+      }
+
       if (acceptedApps) {
         for (const app of acceptedApps as any[]) {
+          // Skip tee deduction if guest is a member at this club
+          if (memberSet.has(app.applicant_id)) continue;
+
           const { data: guestProfile } = await admin
             .from("profiles")
             .select("credits")
@@ -632,13 +651,26 @@ export async function POST(
 
       const attesterName = (attesterProfile as any)?.display_name || "A player";
 
-      // Guest confirms round → award host 1 Tee (only on first attestation)
+      // Check if this guest is a member at the listing's club — if so, no tee award for host
+      const attestClubId = (listing as any).club_id ?? null;
+      let attesterIsMember = false;
+      if (attestClubId) {
+        const { data: membership } = await admin
+          .from("club_memberships")
+          .select("user_id")
+          .eq("club_id", attestClubId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        attesterIsMember = Boolean(membership);
+      }
+
+      // Guest confirms round → award host 1 Tee (only on first attestation, skip if guest is a member)
       const { count: attestCount } = await admin
         .from("pool_attestations")
         .select("id", { count: "exact", head: true })
         .eq("listing_id", listingId);
 
-      if ((attestCount ?? 0) <= 1) {
+      if ((attestCount ?? 0) <= 1 && !attesterIsMember) {
         const { data: hostProfile } = await admin
           .from("profiles")
           .select("credits")
@@ -664,7 +696,7 @@ export async function POST(
       } else {
         await admin.from("notifications").insert({
           user_id: listing.creator_id,
-          message: `${attesterName} confirmed your round at ${listing.course_name} occurred.`,
+          message: `${attesterName} confirmed your round at ${listing.course_name} occurred.${attesterIsMember ? " (Member — no Tee exchanged)" : ""}`,
           read: false,
         });
       }
