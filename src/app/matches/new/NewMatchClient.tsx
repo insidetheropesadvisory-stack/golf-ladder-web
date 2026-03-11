@@ -36,6 +36,7 @@ export default function NewMatchPage() {
   const [format, setFormat] = useState<"stroke_play" | "match_play">("stroke_play");
   const [useHandicap, setUseHandicap] = useState(false);
   const [isLadderMatch, setIsLadderMatch] = useState(false);
+  const [holeCount, setHoleCount] = useState<9 | 18>(18);
 
   const [inviteMode, setInviteMode] = useState<"player" | "link">("player");
   const [inviteMatchId, setInviteMatchId] = useState<string | null>(null);
@@ -154,6 +155,7 @@ export default function NewMatchPage() {
         use_handicap: useHandicap,
         guest_fee: guestFee,
         is_ladder_match: isLadderMatch,
+        hole_count: holeCount,
         terms_status: "pending",
         terms_last_proposed_by: meId,
         terms_last_proposed_at: new Date().toISOString(),
@@ -201,7 +203,7 @@ export default function NewMatchPage() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-[var(--muted)]">Format</span>
-              <span className="font-semibold">{format === "match_play" ? "Match Play" : "Stroke Play"}{useHandicap ? " (Net)" : ""}</span>
+              <span className="font-semibold">{format === "match_play" ? "Match Play" : "Stroke Play"}{useHandicap ? " (Net)" : ""} · {holeCount} holes</span>
             </div>
             {roundDate && (
               <div className="flex items-center justify-between text-sm">
@@ -419,6 +421,30 @@ export default function NewMatchPage() {
             MATCH TERMS
           </div>
 
+          {/* Holes */}
+          <div className="mt-4">
+            <label className="text-sm font-medium">Holes</label>
+            <div className="mt-2 flex gap-2">
+              {([18, 9] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => { if (!isLadderMatch) setHoleCount(n); }}
+                  disabled={isLadderMatch}
+                  className={cx(
+                    "flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition",
+                    holeCount === n
+                      ? "border-[var(--pine)] bg-[var(--pine)] text-white"
+                      : "border-[var(--border)] bg-white text-[var(--ink)] hover:border-[var(--pine)]/40",
+                    isLadderMatch && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {n} holes
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="text-sm font-medium">Format</label>
@@ -457,6 +483,7 @@ export default function NewMatchPage() {
                     if (e.target.checked) {
                       setFormat("stroke_play");
                       setUseHandicap(true);
+                      setHoleCount(18);
                     }
                   }}
                   className="h-4 w-4 rounded border-[var(--border)]"

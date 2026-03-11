@@ -505,9 +505,13 @@ export async function POST(
         return NextResponse.json({ error: "Only the organizer can complete the round" }, { status: 403 });
       }
 
-      const roundTimePlus5h = new Date(listing.round_time).getTime() + 4 * 60 * 60 * 1000;
-      if (Date.now() < roundTimePlus5h) {
-        return NextResponse.json({ error: "You can complete the round 4 hours after tee time" }, { status: 400 });
+      const holeCount = (listing as any).hole_count ?? 18;
+      const timeGate = holeCount === 9
+        ? 1 * 60 * 60 * 1000 + 35 * 60 * 1000  // 1:35
+        : 3 * 60 * 60 * 1000 + 15 * 60 * 1000;  // 3:15
+      const roundTimePlusGate = new Date(listing.round_time).getTime() + timeGate;
+      if (Date.now() < roundTimePlusGate) {
+        return NextResponse.json({ error: `You can complete the round after ${holeCount === 9 ? "1h 35m" : "3h 15m"} from tee time` }, { status: 400 });
       }
 
       if (listing.status === "completed") {
@@ -592,19 +596,12 @@ export async function POST(
         return NextResponse.json({ error: attErr.message }, { status: 500 });
       }
 
-      // Award 1 credit to host
-      const { data: hostProfile } = await admin
-        .from("profiles")
-        .select("credits")
-        .eq("id", listing.creator_id)
-        .single();
+      // Award 1 Tee to host per event (only on first attestation)
+      const { count: attestCount } = await admin
+        .from("pool_attestations")
+        .select("id", { count: "exact", head: true })
+        .eq("listing_id", listingId);
 
-      await admin
-        .from("profiles")
-        .update({ credits: (hostProfile?.credits ?? 3) + 1 })
-        .eq("id", listing.creator_id);
-
-      // Notify host
       const { data: attesterProfile } = await admin
         .from("profiles")
         .select("display_name")
@@ -612,17 +609,39 @@ export async function POST(
         .single();
 
       const attesterName = attesterProfile?.display_name || "A player";
-      await admin.from("notifications").insert({
-        user_id: listing.creator_id,
-        message: `${attesterName} confirmed your round at ${listing.course_name} occurred. You earned 1 Tee!`,
-        read: false,
-      });
 
-      sendPushToUser(listing.creator_id, {
-        title: "You earned a Tee!",
-        body: `${attesterName} confirmed your round occurred.`,
-        url: `/pool/${listingId}`,
-      }).catch(() => {});
+      if ((attestCount ?? 0) <= 1) {
+        // First attestation — award host 1 Tee
+        const { data: hostProfile } = await admin
+          .from("profiles")
+          .select("credits")
+          .eq("id", listing.creator_id)
+          .single();
+
+        await admin
+          .from("profiles")
+          .update({ credits: (hostProfile?.credits ?? 3) + 1 })
+          .eq("id", listing.creator_id);
+
+        await admin.from("notifications").insert({
+          user_id: listing.creator_id,
+          message: `${attesterName} confirmed your round at ${listing.course_name} occurred. You earned 1 Tee!`,
+          read: false,
+        });
+
+        sendPushToUser(listing.creator_id, {
+          title: "You earned a Tee!",
+          body: `${attesterName} confirmed your round occurred.`,
+          url: `/pool/${listingId}`,
+        }).catch(() => {});
+      } else {
+        // Subsequent attestation — just notify
+        await admin.from("notifications").insert({
+          user_id: listing.creator_id,
+          message: `${attesterName} confirmed your round at ${listing.course_name} occurred.`,
+          read: false,
+        });
+      }
 
       return NextResponse.json({ ok: true });
     }

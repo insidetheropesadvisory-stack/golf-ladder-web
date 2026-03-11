@@ -3,7 +3,7 @@ import { getAuthedUser, adminClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const TOTAL_HOLES = 18;
+const DEFAULT_HOLES = 18;
 
 type HoleRow = { hole_no: number; player_id: string; strokes: number | null };
 
@@ -28,13 +28,14 @@ function countScoredHoles(rows: HoleRow[], playerId: string): number {
 function matchPlayResult(
   rows: HoleRow[],
   p1: string,
-  p2: string
+  p2: string,
+  totalHoles = DEFAULT_HOLES
 ): { p1Holes: number; p2Holes: number; halved: number } {
   let p1Holes = 0;
   let p2Holes = 0;
   let halved = 0;
 
-  for (let h = 1; h <= TOTAL_HOLES; h++) {
+  for (let h = 1; h <= totalHoles; h++) {
     const s1 = rows.find((r) => r.player_id === p1 && r.hole_no === h)?.strokes;
     const s2 = rows.find((r) => r.player_id === p2 && r.hole_no === h)?.strokes;
     if (s1 == null || s2 == null) continue;
@@ -76,7 +77,7 @@ export async function POST(
     const { data: match, error: matchErr } = await admin
       .from("matches")
       .select(
-        "id, creator_id, opponent_id, status, completed, format, use_handicap, is_ladder_match"
+        "id, creator_id, opponent_id, status, completed, format, use_handicap, is_ladder_match, hole_count"
       )
       .eq("id", matchId)
       .single();
@@ -127,23 +128,21 @@ export async function POST(
 
     const creatorId = match.creator_id as string;
     const opponentId = match.opponent_id as string;
+    const totalHoles = (match as any).hole_count ?? DEFAULT_HOLES;
 
     const creatorScoredCount = countScoredHoles(rows, creatorId);
     const opponentScoredCount = countScoredHoles(rows, opponentId);
 
     // 7. Validate scoring completeness
     if (match.format === "match_play") {
-      // Match play can end early if clinched — require both players scored at least
-      // the same number of holes, and match play result is decisive
-      const mp = matchPlayResult(rows, creatorId, opponentId);
+      const mp = matchPlayResult(rows, creatorId, opponentId, totalHoles);
       const holesPlayed = mp.p1Holes + mp.p2Holes + mp.halved;
       const diff = Math.abs(mp.p1Holes - mp.p2Holes);
-      const remaining = TOTAL_HOLES - holesPlayed;
+      const remaining = totalHoles - holesPlayed;
       const clinched = diff > remaining && holesPlayed > 0;
 
       if (!clinched) {
-        // Not clinched — both must have scored all 18
-        if (creatorScoredCount < TOTAL_HOLES || opponentScoredCount < TOTAL_HOLES) {
+        if (creatorScoredCount < totalHoles || opponentScoredCount < totalHoles) {
           return NextResponse.json(
             {
               error: "Both players must complete all holes before finishing",
@@ -164,18 +163,18 @@ export async function POST(
       }
     } else {
       // Stroke play: both must have scored all 18
-      if (creatorScoredCount < TOTAL_HOLES) {
+      if (creatorScoredCount < totalHoles) {
         return NextResponse.json(
           {
-            error: `Creator has only scored ${creatorScoredCount} of ${TOTAL_HOLES} holes`,
+            error: `Creator has only scored ${creatorScoredCount} of ${totalHoles} holes`,
           },
           { status: 400 }
         );
       }
-      if (opponentScoredCount < TOTAL_HOLES) {
+      if (opponentScoredCount < totalHoles) {
         return NextResponse.json(
           {
-            error: `Opponent has only scored ${opponentScoredCount} of ${TOTAL_HOLES} holes`,
+            error: `Opponent has only scored ${opponentScoredCount} of ${totalHoles} holes`,
           },
           { status: 400 }
         );
@@ -272,6 +271,20 @@ export async function POST(
           // Ladder swap is best-effort
         }
       }
+    }
+
+    // 12. Deduct 1 Tee from opponent for non-ladder matches
+    if (!match.is_ladder_match) {
+      const { data: oppProfile } = await admin
+        .from("profiles")
+        .select("credits")
+        .eq("id", opponentId)
+        .single();
+
+      await admin
+        .from("profiles")
+        .update({ credits: Math.max(0, (oppProfile?.credits ?? 3) - 1) })
+        .eq("id", opponentId);
     }
 
     return NextResponse.json({

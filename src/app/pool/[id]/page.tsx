@@ -45,6 +45,7 @@ type Listing = {
   selected_tee: string | null;
   notes: string | null;
   auto_accept: boolean;
+  hole_count?: number;
   status: string;
   city: string | null;
   state: string | null;
@@ -270,7 +271,10 @@ export default function PoolDetailPage() {
   const isCompleted = listing.status === "completed";
   const isClosed = isCancelled || isExpired;
   const roundPassed = new Date(listing.round_time).getTime() < Date.now();
-  const roundPlus5h = new Date(listing.round_time).getTime() + 4 * 60 * 60 * 1000 < Date.now();
+  const timeGate = (listing.hole_count ?? 18) === 9
+    ? 1 * 60 * 60 * 1000 + 35 * 60 * 1000  // 1:35
+    : 3 * 60 * 60 * 1000 + 15 * 60 * 1000;  // 3:15
+  const roundPlus5h = new Date(listing.round_time).getTime() + timeGate < Date.now();
 
   // Players the creator can rate (accepted applicants, after round completed)
   const ratablePlayers = isCreator && isCompleted
@@ -331,6 +335,11 @@ export default function PoolDetailPage() {
           {listing.selected_tee && (
             <div className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-600">
               {listing.selected_tee} tees
+            </div>
+          )}
+          {listing.hole_count && listing.hole_count !== 18 && (
+            <div className="rounded-full bg-indigo-50 px-2.5 py-1 font-medium text-indigo-600">
+              {listing.hole_count} holes
             </div>
           )}
           {listing.auto_accept && (

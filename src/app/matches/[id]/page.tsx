@@ -21,6 +21,7 @@ type MatchRow = {
   round_time: string | null;
   guest_fee: number | null;
   is_ladder_match: boolean;
+  hole_count?: number;
   golf_course_api_id?: string | number | null;
   selected_tee?: string | null;
   opponent_tee?: string | null;
@@ -113,7 +114,7 @@ type HoleRow = {
   locked: boolean;
 };
 
-const TOTAL_HOLES = 18;
+const DEFAULT_HOLES = 18;
 
 function toStringParam(v: unknown): string | null {
   if (typeof v === "string") return v;
@@ -134,13 +135,14 @@ function sumStrokes(rows: HoleRow[], playerId: string | null) {
 function matchPlayResult(
   rows: HoleRow[],
   player1: string,
-  player2: string
+  player2: string,
+  totalHoles = DEFAULT_HOLES
 ): { p1Holes: number; p2Holes: number; halved: number } {
   let p1Holes = 0;
   let p2Holes = 0;
   let halved = 0;
 
-  for (let h = 1; h <= TOTAL_HOLES; h++) {
+  for (let h = 1; h <= totalHoles; h++) {
     const s1 = rows.find((r) => r.player_id === player1 && r.hole_no === h)?.strokes;
     const s2 = rows.find((r) => r.player_id === player2 && r.hole_no === h)?.strokes;
     if (s1 == null || s2 == null) continue;
@@ -158,7 +160,8 @@ function matchPlayNetResult(
   player2: string,
   hcp1: number,
   hcp2: number,
-  tee: TeeData | null
+  tee: TeeData | null,
+  totalHoles = DEFAULT_HOLES
 ): { p1Holes: number; p2Holes: number; halved: number } {
   const diff = Math.round(Math.abs(hcp1 - hcp2));
   const receiverId = hcp1 > hcp2 ? player1 : player2;
@@ -168,7 +171,7 @@ function matchPlayNetResult(
   let p2Holes = 0;
   let halved = 0;
 
-  for (let h = 1; h <= TOTAL_HOLES; h++) {
+  for (let h = 1; h <= totalHoles; h++) {
     let s1 = rows.find((r) => r.player_id === player1 && r.hole_no === h)?.strokes;
     let s2 = rows.find((r) => r.player_id === player2 && r.hole_no === h)?.strokes;
     if (s1 == null || s2 == null) continue;
@@ -191,10 +194,11 @@ function matchPlayNetResult(
 function matchPlayScoreText(
   myHoles: number,
   oppHoles: number,
-  holesPlayed: number
+  holesPlayed: number,
+  totalHoles = DEFAULT_HOLES
 ): string {
   const diff = Math.abs(myHoles - oppHoles);
-  const remaining = TOTAL_HOLES - holesPlayed;
+  const remaining = totalHoles - holesPlayed;
 
   if (diff === 0) return "All square";
 
@@ -210,17 +214,17 @@ function matchPlayScoreText(
   return `${leader} ${diff} ${diff === 1 ? "hole" : "holes"}`;
 }
 
-function nextUnscoredHole(rows: HoleRow[], playerId: string) {
+function nextUnscoredHole(rows: HoleRow[], playerId: string, totalHoles = DEFAULT_HOLES) {
   const scored = new Set<number>();
   for (const r of rows) {
     if (r.player_id === playerId && typeof r.strokes === "number") {
       scored.add(r.hole_no);
     }
   }
-  for (let h = 1; h <= TOTAL_HOLES; h++) {
+  for (let h = 1; h <= totalHoles; h++) {
     if (!scored.has(h)) return h;
   }
-  return TOTAL_HOLES;
+  return totalHoles;
 }
 
 
@@ -240,10 +244,10 @@ export default function MatchScoringPage() {
   const [match, setMatch] = useState<MatchRow | null>(null);
   const [clubId, setClubId] = useState<string | null>(null);
   const [holes, setHoles] = useState<HoleRow[]>([]);
+  const totalHoles = match?.hole_count ?? DEFAULT_HOLES;
 
   const [holeNo, setHoleNo] = useState<number>(1);
   const [strokesInput, setStrokesInput] = useState<string>("");
-  const [strokeToast, setStrokeToast] = useState<string | null>(null);
   const [responding, setResponding] = useState(false);
   const [acceptTee, setAcceptTee] = useState<string | null>(null);
   const [showDecline, setShowDecline] = useState(false);
@@ -286,7 +290,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match, golf_course_api_id, selected_tee, opponent_tee"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match, hole_count, golf_course_api_id, selected_tee, opponent_tee"
           )
           .eq("id", matchId)
           .single();
@@ -523,7 +527,7 @@ export default function MatchScoringPage() {
 
   // Keyboard navigation for scorecard
   const navigateToHole = useCallback((h: number) => {
-    if (!meId || h < 1 || h > TOTAL_HOLES) return;
+    if (!meId || h < 1 || h > totalHoles) return;
     setHoleNo(h);
     const existing = holes.find((r) => r.player_id === meId && r.hole_no === h);
     setStrokesInput(existing?.strokes != null ? String(existing.strokes) : "");
@@ -598,7 +602,7 @@ export default function MatchScoringPage() {
       return;
     }
 
-    const next = Math.min(TOTAL_HOLES, holeNo + 1);
+    const next = Math.min(totalHoles, holeNo + 1);
     setHoleNo(next);
 
     const existing = holes.find((r) => r.player_id === meId && r.hole_no === next);
@@ -616,8 +620,6 @@ export default function MatchScoringPage() {
       setStatus("Enter a valid strokes number (1-20).");
       return;
     }
-
-    setStrokeToast(null);
 
     setSaving(true);
 
@@ -643,22 +645,6 @@ export default function MatchScoringPage() {
     }
 
     const saved = (data ?? []) as HoleRow[];
-
-    // Score reaction toast
-    if (strokes === 1) {
-      setStrokeToast("A hole-in-one?! Screenshot it or it didn't happen.");
-    } else if (strokes === 2) {
-      setStrokeToast("An eagle or better — playing inspired golf out there.");
-    } else if (strokes >= 10 && strokes <= 12) {
-      setStrokeToast("Respect the honesty. Consider picking up at double bogey next time.");
-    } else if (strokes > 12) {
-      setStrokeToast("That's a tough hole. Maybe take a breakfast ball on the next one.");
-    } else {
-      setStrokeToast(null);
-    }
-    if (strokes >= 10 || strokes <= 2) {
-      setTimeout(() => setStrokeToast(null), 4000);
-    }
 
     setHoles((prev) => {
       const next = [...prev];
@@ -687,8 +673,8 @@ export default function MatchScoringPage() {
     const myHolesScored = new Set(
       updatedHoles.filter((r) => r.player_id === meId && r.strokes != null).map((r) => r.hole_no)
     );
-    const wasComplete = myScoresByHole.size >= TOTAL_HOLES;
-    const nowComplete = myHolesScored.size >= TOTAL_HOLES;
+    const wasComplete = myScoresByHole.size >= totalHoles;
+    const nowComplete = myHolesScored.size >= totalHoles;
 
     if (nowComplete && !wasComplete && matchId) {
       try {
@@ -708,7 +694,7 @@ export default function MatchScoringPage() {
       } catch {}
     }
 
-    if (holeNo < TOTAL_HOLES) {
+    if (holeNo < totalHoles) {
       const nextHole = holeNo + 1;
       setHoleNo(nextHole);
 
@@ -721,7 +707,7 @@ export default function MatchScoringPage() {
 
   const [completing, setCompleting] = useState(false);
 
-  const allScoredByMe = myScoresByHole.size >= TOTAL_HOLES;
+  const allScoredByMe = myScoresByHole.size >= totalHoles;
   const isCompleted = match?.completed === true || match?.status === "completed";
   const isActive = match?.terms_status === "accepted" || match?.status === "active";
 
@@ -794,14 +780,14 @@ export default function MatchScoringPage() {
     return scored.size;
   }, [holes, oppId]);
 
-  const allScoredByOpp = oppScoredCount >= TOTAL_HOLES;
+  const allScoredByOpp = oppScoredCount >= totalHoles;
 
   // Match play: clinched when lead > remaining holes
   const matchPlayClinched = useMemo(() => {
     if (!isMatchPlay || !matchPlayData) return false;
     const { p1Holes, p2Holes, halved } = matchPlayData;
     const holesPlayed = p1Holes + p2Holes + halved;
-    const remaining = TOTAL_HOLES - holesPlayed;
+    const remaining = totalHoles - holesPlayed;
     const lead = Math.abs(p1Holes - p2Holes);
     return lead > remaining;
   }, [isMatchPlay, matchPlayData]);
@@ -1841,7 +1827,7 @@ export default function MatchScoringPage() {
         <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 px-5 py-4 text-center">
           <div className="text-sm font-semibold text-amber-800">Waiting for opponent</div>
           <div className="mt-1 text-xs text-amber-700/70">
-            You've scored all your holes. Your opponent has scored {oppScoredCount} of {TOTAL_HOLES}.
+            You've scored all your holes. Your opponent has scored {oppScoredCount} of {totalHoles}.
           </div>
         </div>
       )}
@@ -1887,7 +1873,7 @@ export default function MatchScoringPage() {
                   {holeNo}
                 </span>
                 <div>
-                  <div className="text-sm font-bold tracking-tight">Hole {holeNo} of {TOTAL_HOLES}</div>
+                  <div className="text-sm font-bold tracking-tight">Hole {holeNo} of {totalHoles}</div>
                   <div className="text-[11px] text-[var(--muted)]">
                     {myScoresByHole.has(holeNo) ? "Scored" : "Not scored yet"}
                   </div>
@@ -1965,11 +1951,6 @@ export default function MatchScoringPage() {
                 </button>
               )}
             </div>
-            {strokeToast && (
-              <div className="mt-3 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 shadow-sm">
-                {strokeToast}
-              </div>
-            )}
             <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--muted)]">
               <span>Enter to save. Arrow keys to navigate holes.</span>
               {strokesInput && (
@@ -1992,13 +1973,13 @@ export default function MatchScoringPage() {
               </button>
 
               <div className="text-xs font-medium text-[var(--muted)]">
-                {myScoresByHole.size} of {TOTAL_HOLES} scored
+                {myScoresByHole.size} of {totalHoles} scored
               </div>
 
               <button
                 className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
                 onClick={goNext}
-                disabled={!myScoresByHole.has(holeNo) || holeNo >= TOTAL_HOLES}
+                disabled={!myScoresByHole.has(holeNo) || holeNo >= totalHoles}
               >
                 Next
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -2163,7 +2144,7 @@ export default function MatchScoringPage() {
               <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
                 {selectedTee && <span className="font-medium text-slate-500">{selectedTee}</span>}
                 {selectedTee && <span>&middot;</span>}
-                <span>{myScoresByHole.size}/{TOTAL_HOLES} scored</span>
+                <span>{myScoresByHole.size}/{totalHoles} scored</span>
               </div>
             </div>
 

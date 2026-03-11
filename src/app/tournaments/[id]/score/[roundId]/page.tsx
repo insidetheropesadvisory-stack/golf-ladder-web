@@ -64,7 +64,6 @@ export default function TournamentScoringPage() {
   const [completed, setCompleted] = useState(false);
   const [grossScore, setGrossScore] = useState<number | null>(null);
   const [differential, setDifferential] = useState<number | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
 
   const [teeData, setTeeData] = useState<TeeData | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -202,9 +201,6 @@ export default function TournamentScoringPage() {
         return next;
       });
 
-      // Show reaction toast
-      showReaction(strokes);
-
       if (json.completed) {
         setCompleted(true);
         setGrossScore(json.gross_score);
@@ -246,19 +242,6 @@ export default function TournamentScoringPage() {
         setStrokesInput("");
       }
     } catch {}
-  }
-
-  function showReaction(strokes: number) {
-    let msg: string | null = null;
-    if (strokes === 1) msg = "A hole-in-one?! Screenshot it or it didn't happen.";
-    else if (strokes === 2) msg = "An eagle or better — nice shot.";
-    else if (strokes >= 10 && strokes <= 12) msg = "Respect the honesty.";
-    else if (strokes > 12) msg = "Tough hole. On to the next one.";
-
-    if (msg) {
-      setToast(msg);
-      setTimeout(() => setToast(null), 3000);
-    }
   }
 
   const holePar = getHolePar(teeData, holeNo);
@@ -378,13 +361,6 @@ export default function TournamentScoringPage() {
           <div className="text-xs text-[var(--muted)]">{round.tee_name} tees</div>
         )}
       </div>
-
-      {/* Toast */}
-      {toast && (
-        <div className="rounded-xl border border-amber-200/60 bg-amber-50/50 px-4 py-2.5 text-sm text-amber-800 animate-in fade-in">
-          {toast}
-        </div>
-      )}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>

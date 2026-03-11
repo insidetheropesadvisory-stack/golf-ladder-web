@@ -134,11 +134,11 @@ export function AppShell({
   const notifRef = useRef<HTMLDivElement>(null);
   const [credits, setCredits] = useState<number | null>(null);
 
-  type PendingAttestation = { id: string; course_name: string; round_time: string; creator_id: string; creator_name: string };
+  type PendingAttestation = { id: string; type?: "pool" | "match"; course_name: string; round_time: string; creator_id: string; creator_name: string };
   const [pendingAttestations, setPendingAttestations] = useState<PendingAttestation[]>([]);
   const [attestLoading, setAttestLoading] = useState<string | null>(null);
 
-  type PendingCompletion = { id: string; course_name: string; round_time: string; accepted_count: number };
+  type PendingCompletion = { id: string; type?: "pool" | "match"; course_name: string; round_time: string; accepted_count: number };
   const [pendingCompletions, setPendingCompletions] = useState<PendingCompletion[]>([]);
   const [completeLoading, setCompleteLoading] = useState<string | null>(null);
   const [showTsInfo, setShowTsInfo] = useState(false);
@@ -246,21 +246,27 @@ export function AppShell({
     })();
   }, [email, isAuthRoute]);
 
-  async function handleAttest(listingId: string) {
-    setAttestLoading(listingId);
+  async function handleAttest(item: PendingAttestation) {
+    setAttestLoading(item.id);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
-      const res = await fetch(`/api/pool/${listingId}`, {
+
+      const url = item.type === "match"
+        ? `/api/matches/${item.id}/attest`
+        : `/api/pool/${item.id}`;
+      const body = item.type === "match" ? {} : { action: "attest" };
+
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ action: "attest" }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
-        setPendingAttestations((prev) => prev.filter((p) => p.id !== listingId));
+        setPendingAttestations((prev) => prev.filter((p) => p.id !== item.id));
         // Refresh credits
         const { data: prof } = await supabase
           .from("profiles")
@@ -273,21 +279,28 @@ export function AppShell({
     setAttestLoading(null);
   }
 
-  async function handleCompleteRound(listingId: string) {
-    setCompleteLoading(listingId);
+  async function handleCompleteRound(item: PendingCompletion) {
+    setCompleteLoading(item.id);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
-      const res = await fetch(`/api/pool/${listingId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ action: "complete_round" }),
-      });
-      if (res.ok) {
-        setPendingCompletions((prev) => prev.filter((p) => p.id !== listingId));
+
+      // For pool: call complete_round action. For matches: already completed via scoring.
+      if (item.type !== "match") {
+        const res = await fetch(`/api/pool/${item.id}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ action: "complete_round" }),
+        });
+        if (res.ok) {
+          setPendingCompletions((prev) => prev.filter((p) => p.id !== item.id));
+        }
+      } else {
+        // Match is already completed — just dismiss the popup
+        setPendingCompletions((prev) => prev.filter((p) => p.id !== item.id));
       }
     } catch {}
     setCompleteLoading(null);
@@ -422,7 +435,7 @@ export function AppShell({
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleCompleteRound(pc.id)}
+                  onClick={() => handleCompleteRound(pc)}
                   disabled={completeLoading !== null}
                   className="w-full rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
                 >
@@ -447,7 +460,7 @@ export function AppShell({
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleAttest(att.id)}
+                  onClick={() => handleAttest(att)}
                   disabled={attestLoading !== null}
                   className="w-full rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
                 >
@@ -518,8 +531,8 @@ export function AppShell({
                           <p className="font-medium text-[var(--ink)]">How Tees work:</p>
                           <p>Every player starts with <span className="font-semibold">3 Tees</span>.</p>
                           <p>When you play in someone&apos;s group, <span className="font-semibold">1 Tee is used</span> after the round.</p>
-                          <p>Host a round and your guests confirm it occurred? <span className="font-semibold text-[var(--pine)]">You earn 1 Tee per guest</span>.</p>
-                          <p className="pt-1 text-[10px] italic">Tees keep the pool fair — give rounds to get rounds.</p>
+                          <p>Host a round and your guest confirms it occurred? <span className="font-semibold text-[var(--pine)]">You earn 1 Tee per event</span>.</p>
+                          <p className="pt-1 text-[10px] italic">Tees keep things fair — give rounds to get rounds. Applies to matches and pool (not ladder or tournaments).</p>
                         </div>
                       </div>
                     )}

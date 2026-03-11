@@ -31,6 +31,7 @@ export default function NewPoolPage() {
   const [courseState, setCourseState] = useState<string | null>(null);
   const [roundDate, setRoundDate] = useState("");
   const [roundTime, setRoundTime] = useState("");
+  const [holeCount, setHoleCount] = useState<9 | 18>(18);
   const [guestFee, setGuestFee] = useState("");
   const [notes, setNotes] = useState("");
   const [autoAccept, setAutoAccept] = useState(false);
@@ -129,6 +130,7 @@ export default function NewPoolPage() {
           golf_course_api_id: courseApiId,
           round_time: roundDateTime,
           total_slots: openSlots,
+          hole_count: holeCount,
           guest_fee: guestFee ? Number(guestFee) : null,
           notes: notes.trim() || null,
           auto_accept: autoAccept,
@@ -174,6 +176,28 @@ export default function NewPoolPage() {
           placeholder="Search your clubs…"
           myClubsOnly
         />
+
+        {/* Holes */}
+        <div>
+          <label className="text-sm font-medium">Holes</label>
+          <div className="mt-2 flex gap-2">
+            {([18, 9] as const).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setHoleCount(n)}
+                className={cx(
+                  "flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition",
+                  holeCount === n
+                    ? "border-[var(--pine)] bg-[var(--pine)] text-white"
+                    : "border-[var(--border)] bg-white text-[var(--ink)] hover:border-[var(--pine)]/40"
+                )}
+              >
+                {n} holes
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Date & Time */}
         <div className="grid grid-cols-2 gap-3">

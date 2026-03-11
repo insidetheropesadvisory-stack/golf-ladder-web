@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     // Find active (non-completed) matches for this user that have a round_time
     const { data: matches } = await admin
       .from("matches")
-      .select("id, creator_id, opponent_id, round_time, course_name, is_ladder_match, format, use_handicap")
+      .select("id, creator_id, opponent_id, round_time, course_name, is_ladder_match, format, use_handicap, hole_count")
       .or(`creator_id.eq.${user.id},opponent_id.eq.${user.id}`)
       .eq("status", "active")
       .eq("completed", false)
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
             .eq("match_id", match.id)
             .eq("player_id", user.id);
 
-          if ((count ?? 0) < 18) {
+          if ((count ?? 0) < (match.hole_count ?? 18)) {
             // Check if we already sent a deadline reminder for this match
             const { data: existing } = await admin
               .from("notifications")
@@ -105,8 +105,9 @@ export async function POST(request: Request) {
         else if (h.player_id === match.opponent_id) opponentHoles.add(h.hole_no);
       }
 
-      const creatorDone = creatorHoles.size >= 18;
-      const opponentDone = opponentHoles.size >= 18;
+      const reqHoles = match.hole_count ?? 18;
+      const creatorDone = creatorHoles.size >= reqHoles;
+      const opponentDone = opponentHoles.size >= reqHoles;
 
       if (creatorDone && opponentDone) {
         // Both completed — just mark as completed

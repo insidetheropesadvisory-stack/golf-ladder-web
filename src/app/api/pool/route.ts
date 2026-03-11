@@ -150,9 +150,12 @@ export async function POST(request: Request) {
     const roundTime = String(body.round_time ?? "").trim();
     const totalSlots = Number(body.total_slots ?? 0);
 
+    const holeCount = Number(body.hole_count ?? 18);
+
     if (!courseName) return NextResponse.json({ error: "Missing course name" }, { status: 400 });
     if (!roundTime) return NextResponse.json({ error: "Missing round time" }, { status: 400 });
     if (totalSlots < 1 || totalSlots > 3) return NextResponse.json({ error: "Slots must be 1-3" }, { status: 400 });
+    if (holeCount !== 9 && holeCount !== 18) return NextResponse.json({ error: "Holes must be 9 or 18" }, { status: 400 });
 
     // Ensure round_time is at least 12 hours in the future
     const rt = new Date(roundTime);
@@ -184,6 +187,7 @@ export async function POST(request: Request) {
         golf_course_api_id: body.golf_course_api_id || null,
         round_time: roundTime,
         total_slots: totalSlots,
+        hole_count: holeCount,
         guest_fee: body.guest_fee != null ? Number(body.guest_fee) : null,
         selected_tee: body.selected_tee || null,
         notes: body.notes || null,

@@ -153,8 +153,8 @@ export default function PoolPage() {
           </div>
           <div className="text-xs text-[var(--muted)] space-y-0.5">
             <div className="text-sm font-semibold text-[var(--ink)]">How Tees work</div>
-            <p>You start with <span className="font-semibold text-[var(--ink)]">3 Tees</span>. Playing in someone&apos;s group uses 1 Tee.</p>
-            <p>Host a round and your guests confirm it? <span className="font-semibold text-[var(--pine)]">You earn 1 Tee per guest</span>.</p>
+            <p>You start with <span className="font-semibold text-[var(--ink)]">3 Tees</span>. Playing in someone&apos;s group or match uses 1 Tee.</p>
+            <p>Host a round and your guest confirms it? <span className="font-semibold text-[var(--pine)]">You earn 1 Tee per event</span>.</p>
           </div>
         </div>
       </div>
