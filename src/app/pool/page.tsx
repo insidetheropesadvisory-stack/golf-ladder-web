@@ -62,7 +62,6 @@ export default function PoolPage() {
   const [meId, setMeId] = useState<string | null>(null);
   const [tab, setTab] = useState<"open" | "my">("open");
   const [credits, setCredits] = useState<number | null>(null);
-  const [showTeeIntro, setShowTeeIntro] = useState(false);
 
   // Load user session + profile city/state, then resolve coordinates
   useEffect(() => {
@@ -70,13 +69,6 @@ export default function PoolPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
       setMeId(session.user.id);
-
-      // Check first-time pool visit
-      const seenKey = "reciprocity_tee_intro_seen";
-      if (!localStorage.getItem(seenKey)) {
-        setShowTeeIntro(true);
-        localStorage.setItem(seenKey, "1");
-      }
 
       setLocationStatus("loading");
 
@@ -161,8 +153,7 @@ export default function PoolPage() {
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M7.5 7.5C7.5 6 9.5 4.5 12 4.5C14.5 4.5 16.5 6 16.5 7.5C16.5 8.5 15 9 12 9C9 9 7.5 8.5 7.5 7.5Z" fill="var(--pine)" />
-                <path d="M10.8 9L11.5 21.5C11.5 21.8 12.5 21.8 12.5 21.5L13.2 9" fill="var(--pine)" />
+                <path d="M5 8.5C5 8.5 7 6 12 6C17 6 19 8.5 19 8.5L17.5 10H6.5L5 8.5ZM11 10H13V22H11V10Z" fill="var(--pine)" />
               </svg>
             </div>
             <div>
@@ -173,33 +164,21 @@ export default function PoolPage() {
         </div>
       )}
 
-      {/* First-time tee explanation */}
-      {showTeeIntro && (
-        <div className="rounded-2xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 p-4 space-y-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M7.5 7.5C7.5 6 9.5 4.5 12 4.5C14.5 4.5 16.5 6 16.5 7.5C16.5 8.5 15 9 12 9C9 9 7.5 8.5 7.5 7.5Z" fill="var(--pine)" />
-                <path d="M10.8 9L11.5 21.5C11.5 21.8 12.5 21.8 12.5 21.5L13.2 9" fill="var(--pine)" />
-              </svg>
-              <span className="text-sm font-bold text-[var(--pine)]">Welcome to the Pool!</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowTeeIntro(false)}
-              className="text-[var(--muted)] hover:text-[var(--ink)] transition"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-            </button>
-          </div>
-          <div className="space-y-2 text-xs text-[var(--muted)]">
-            <p className="font-medium text-[var(--ink)]">How Tees work:</p>
-            <p>Every player starts with <span className="font-semibold text-[var(--ink)]">3 Tees</span>. When you play in someone&apos;s group, <span className="font-semibold">1 Tee is used</span> after the round.</p>
-            <p>Host a round and your guest confirms it occurred? <span className="font-semibold text-[var(--pine)]">You earn 1 Tee per event</span>.</p>
-            <p>Tees keep things fair — give rounds to get rounds. The more you host, the more you can play.</p>
-          </div>
+      {/* Welcome / How Tees work */}
+      <div className="rounded-2xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M5 8.5C5 8.5 7 6 12 6C17 6 19 8.5 19 8.5L17.5 10H6.5L5 8.5ZM11 10H13V22H11V10Z" fill="var(--pine)" />
+          </svg>
+          <span className="text-sm font-bold text-[var(--pine)]">Welcome to the Pool!</span>
         </div>
-      )}
+        <div className="space-y-2 text-xs text-[var(--muted)]">
+          <p className="font-medium text-[var(--ink)]">How Tees work:</p>
+          <p>Every player starts with <span className="font-semibold text-[var(--ink)]">3 Tees</span>. When you play in someone&apos;s group, <span className="font-semibold">1 Tee is used</span> after the round is confirmed.</p>
+          <p>Host a round and your guest confirms it occurred? <span className="font-semibold text-[var(--pine)]">You earn 1 Tee per event</span>.</p>
+          <p>Tees keep things fair — give rounds to get rounds. The more you host, the more you can play.</p>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1.5">
