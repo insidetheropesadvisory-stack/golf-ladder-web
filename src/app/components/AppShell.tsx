@@ -134,6 +134,10 @@ export function AppShell({
   const notifRef = useRef<HTMLDivElement>(null);
   const [credits, setCredits] = useState<number | null>(null);
 
+  type PendingAttestation = { id: string; course_name: string; round_time: string; creator_id: string; creator_name: string };
+  const [pendingAttestations, setPendingAttestations] = useState<PendingAttestation[]>([]);
+  const [attestLoading, setAttestLoading] = useState<string | null>(null);
+
   const authRoutes = ["/login", "/forgot-password", "/reset-password", "/logout", "/auth", "/onboarding", "/invite", "/tournaments/invite"];
   const isAuthRoute = authRoutes.some(
     (r) => pathname === r || pathname.startsWith(r + "/")
@@ -209,6 +213,51 @@ export function AppShell({
       subscription.unsubscribe();
     };
   }, [isAuthRoute, router]);
+
+  // Fetch pending attestations on login
+  useEffect(() => {
+    if (!email || isAuthRoute) return;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const res = await fetch("/api/pool/pending-attestations", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setPendingAttestations(json.pending ?? []);
+        }
+      } catch {}
+    })();
+  }, [email, isAuthRoute]);
+
+  async function handleAttest(listingId: string) {
+    setAttestLoading(listingId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const res = await fetch(`/api/pool/${listingId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action: "attest" }),
+      });
+      if (res.ok) {
+        setPendingAttestations((prev) => prev.filter((p) => p.id !== listingId));
+        // Refresh credits
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("credits")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (prof) setCredits((prof as any).credits ?? 3);
+      }
+    } catch {}
+    setAttestLoading(null);
+  }
 
   // Fetch notifications — on mount + when SW receives a push
   useEffect(() => {
@@ -289,6 +338,50 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-[var(--paper)]">
+      {/* Attestation popup — blocks the app until confirmed */}
+      {pendingAttestations.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-2xl space-y-4">
+            <div className="text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--pine)]/10">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--pine)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-bold text-[var(--ink)]">Confirm Your Round</h2>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Please confirm that this round occurred so the host can earn their T.
+              </p>
+            </div>
+
+            {pendingAttestations.map((att) => (
+              <div key={att.id} className="rounded-xl border border-[var(--border)] bg-white p-4 space-y-3">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--ink)]">{att.course_name}</div>
+                  <div className="mt-0.5 text-xs text-[var(--muted)]">
+                    Hosted by {att.creator_name} &middot;{" "}
+                    {new Date(att.round_time).toLocaleDateString(undefined, {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAttest(att.id)}
+                  disabled={attestLoading !== null}
+                  className="w-full rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
+                >
+                  {attestLoading === att.id ? "Confirming..." : "Confirm — Round Occurred"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-[rgba(246,241,231,.14)] bg-[var(--pine)] text-[var(--paper)] shadow-[0_1px_3px_rgba(0,0,0,.12)]">
         <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center justify-between px-4 sm:px-6">

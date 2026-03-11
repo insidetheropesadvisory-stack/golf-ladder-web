@@ -228,6 +228,7 @@ export default function PoolDetailPage() {
   const acceptedApps = listing.applications.filter((a) => a.status === "accepted");
   const isCancelled = listing.status === "cancelled";
   const isExpired = listing.status === "expired";
+  const isCompleted = listing.status === "completed";
   const isClosed = isCancelled || isExpired;
   const roundPassed = new Date(listing.round_time).getTime() < Date.now();
 
@@ -499,26 +500,20 @@ export default function PoolDetailPage() {
       )}
 
       {/* Non-creator: Apply */}
-      {!isCreator && !isClosed && !myApplication && slotsOpen > 0 && (
+      {!isCreator && !isClosed && !isCompleted && !myApplication && slotsOpen > 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-white/70 p-4 space-y-3">
           {!showApplyForm ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowApplyForm(true)}
-                className="w-full rounded-xl bg-[var(--pine)] py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-              >
-                {listing.auto_accept ? "Join This Group" : "Request to Join"}
-              </button>
-              <p className="text-center text-[10px] text-[var(--muted)]">Costs 1 T to join</p>
-            </>
+            <button
+              type="button"
+              onClick={() => setShowApplyForm(true)}
+              className="w-full rounded-xl bg-[var(--pine)] py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+            >
+              {listing.auto_accept ? "Join This Group" : "Request to Join"}
+            </button>
           ) : (
             <>
               <div className="text-sm font-semibold">
                 {listing.auto_accept ? "Join this group" : "Send a request to the organizer"}
-              </div>
-              <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                This will use 1 T from your balance. You earn Ts by hosting rounds.
               </div>
               <textarea
                 value={applyMessage}
@@ -534,7 +529,7 @@ export default function PoolDetailPage() {
                   disabled={actionLoading !== null}
                   className="flex-1 rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md disabled:opacity-60"
                 >
-                  {actionLoading === "apply" ? "Sending…" : listing.auto_accept ? "Join (1 T)" : "Send Request (1 T)"}
+                  {actionLoading === "apply" ? "Sending…" : listing.auto_accept ? "Join" : "Send Request"}
                 </button>
                 <button
                   type="button"
@@ -552,50 +547,50 @@ export default function PoolDetailPage() {
       {/* Non-creator: Application status */}
       {!isCreator && myApplication && (
         <div className={cx(
-          "rounded-2xl border p-4",
+          "rounded-2xl border p-4 text-center",
           myApplication.status === "accepted" ? "border-emerald-200/60 bg-emerald-50/50" :
           myApplication.status === "denied" ? "border-red-200/60 bg-red-50/50" :
           "border-amber-200/60 bg-amber-50/50"
         )}>
           <div className={cx(
-            "text-sm font-semibold text-center",
+            "text-sm font-semibold",
             myApplication.status === "accepted" ? "text-emerald-700" :
             myApplication.status === "denied" ? "text-red-700" :
             "text-amber-700"
           )}>
             {myApplication.status === "accepted"
-              ? roundPassed ? "Hope you had a great round!" : "You're in! See you on the course."
+              ? listing.status === "completed"
+                ? hasAttested ? "Round confirmed. The host earned a T." : "Round complete. You'll be prompted to confirm it occurred."
+                : roundPassed ? "Hope you had a great round!" : "You're in! See you on the course."
               : myApplication.status === "denied" ? "Your request was declined."
               : "Your request is pending approval."}
           </div>
+        </div>
+      )}
 
-          {/* Attestation — accepted guest, after round */}
-          {myApplication.status === "accepted" && roundPassed && !hasAttested && (
-            <div className="mt-3 space-y-2 border-t border-emerald-200/60 pt-3">
-              <p className="text-xs text-[var(--muted)] text-center">
-                Did everything go well? Confirm to award the host a T.
-              </p>
-              <button
-                type="button"
-                onClick={() => doAction("attest")}
-                disabled={actionLoading !== null}
-                className="w-full rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md disabled:opacity-60"
-              >
-                {actionLoading === "attest" ? "Confirming…" : "Confirm — Round went well"}
-              </button>
-            </div>
-          )}
+      {/* Creator: Complete round (after round time passes) */}
+      {isCreator && roundPassed && listing.status !== "completed" && !isClosed && (
+        <button
+          type="button"
+          onClick={() => {
+            if (!confirm("Mark this round as complete? 1 T will be deducted from each guest.")) return;
+            doAction("complete_round");
+          }}
+          disabled={actionLoading !== null}
+          className="w-full rounded-xl bg-[var(--pine)] py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
+        >
+          {actionLoading === "complete_round" ? "Completing…" : "Complete Round"}
+        </button>
+      )}
 
-          {myApplication.status === "accepted" && hasAttested && (
-            <div className="mt-2 text-center text-xs text-emerald-600">
-              You confirmed this round went well. The host earned a T.
-            </div>
-          )}
+      {isCreator && listing.status === "completed" && (
+        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-700">
+          Round completed. Guests will be prompted to confirm it occurred.
         </div>
       )}
 
       {/* Creator: Cancel listing */}
-      {isCreator && !isClosed && (
+      {isCreator && !isClosed && listing.status !== "completed" && (
         <button
           type="button"
           onClick={() => {

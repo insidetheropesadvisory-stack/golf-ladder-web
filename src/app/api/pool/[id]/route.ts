@@ -194,17 +194,6 @@ export async function POST(
         return NextResponse.json({ error: "This listing is no longer open" }, { status: 400 });
       }
 
-      // Check credits
-      const { data: profile } = await admin
-        .from("profiles")
-        .select("credits")
-        .eq("id", user.id)
-        .single();
-      const currentCredits = profile?.credits ?? 0;
-      if (currentCredits < 1) {
-        return NextResponse.json({ error: "You need at least 1 T to join. Host a round to earn more." }, { status: 400 });
-      }
-
       // Check slots
       const { count: acceptedCount } = await admin
         .from("pool_applications")
@@ -239,12 +228,6 @@ export async function POST(
       if (appErr) {
         return NextResponse.json({ error: appErr.message }, { status: 500 });
       }
-
-      // Deduct 1 credit
-      await admin
-        .from("profiles")
-        .update({ credits: currentCredits - 1 })
-        .eq("id", user.id);
 
       // Auto-fill check
       if (status === "accepted") {
@@ -422,16 +405,60 @@ export async function POST(
       return NextResponse.json({ ok: true });
     }
 
-    // --- Attest (guest confirms the round went well → host earns 1 T) ---
-    if (action === "attest") {
-      // Must be an accepted applicant, not the creator
-      if (user.id === listing.creator_id) {
-        return NextResponse.json({ error: "Hosts can't attest for themselves" }, { status: 400 });
+    // --- Complete round (creator only, after round time) ---
+    if (action === "complete_round") {
+      if (user.id !== listing.creator_id) {
+        return NextResponse.json({ error: "Only the organizer can complete the round" }, { status: 403 });
       }
 
       const roundTime = new Date(listing.round_time).getTime();
       if (Date.now() < roundTime) {
-        return NextResponse.json({ error: "You can attest after the round" }, { status: 400 });
+        return NextResponse.json({ error: "You can complete the round after it occurs" }, { status: 400 });
+      }
+
+      if (listing.status === "completed") {
+        return NextResponse.json({ error: "Round already completed" }, { status: 400 });
+      }
+
+      // Mark listing as completed
+      await admin
+        .from("pool_listings")
+        .update({ status: "completed" })
+        .eq("id", listingId);
+
+      // Deduct 1 T from each accepted guest
+      const { data: acceptedApps } = await admin
+        .from("pool_applications")
+        .select("applicant_id")
+        .eq("listing_id", listingId)
+        .eq("status", "accepted");
+
+      if (acceptedApps) {
+        for (const app of acceptedApps as any[]) {
+          const { data: guestProfile } = await admin
+            .from("profiles")
+            .select("credits")
+            .eq("id", app.applicant_id)
+            .single();
+
+          await admin
+            .from("profiles")
+            .update({ credits: Math.max(0, (guestProfile?.credits ?? 3) - 1) })
+            .eq("id", app.applicant_id);
+        }
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // --- Attest (guest confirms the round occurred → host earns 1 T) ---
+    if (action === "attest") {
+      if (user.id === listing.creator_id) {
+        return NextResponse.json({ error: "Hosts can't attest for themselves" }, { status: 400 });
+      }
+
+      if (listing.status !== "completed") {
+        return NextResponse.json({ error: "Round must be marked complete first" }, { status: 400 });
       }
 
       // Check they were accepted
@@ -455,7 +482,7 @@ export async function POST(
         .maybeSingle();
 
       if (existing) {
-        return NextResponse.json({ error: "You've already attested for this round" }, { status: 400 });
+        return NextResponse.json({ error: "Already confirmed" }, { status: 400 });
       }
 
       // Insert attestation
@@ -493,13 +520,13 @@ export async function POST(
       const attesterName = attesterProfile?.display_name || "A player";
       await admin.from("notifications").insert({
         user_id: listing.creator_id,
-        message: `${attesterName} confirmed your round at ${listing.course_name} went well. You earned 1 T!`,
+        message: `${attesterName} confirmed your round at ${listing.course_name} occurred. You earned 1 T!`,
         read: false,
       });
 
       sendPushToUser(listing.creator_id, {
         title: "You earned a T!",
-        body: `${attesterName} confirmed your round went well.`,
+        body: `${attesterName} confirmed your round occurred.`,
         url: `/pool/${listingId}`,
       }).catch(() => {});
 

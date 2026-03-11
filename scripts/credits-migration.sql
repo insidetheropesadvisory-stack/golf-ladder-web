@@ -4,6 +4,11 @@
 -- Add credits column to profiles, default 3 for all users
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS credits integer NOT NULL DEFAULT 3;
 
+-- Add 'completed' to pool_listings status check
+ALTER TABLE pool_listings DROP CONSTRAINT IF EXISTS pool_listings_status_check;
+ALTER TABLE pool_listings ADD CONSTRAINT pool_listings_status_check
+  CHECK (status IN ('open', 'full', 'expired', 'cancelled', 'completed'));
+
 -- Attestation table — guests confirm the round went well
 CREATE TABLE IF NOT EXISTS pool_attestations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
