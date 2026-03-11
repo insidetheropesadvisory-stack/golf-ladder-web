@@ -537,33 +537,11 @@ export async function POST(
         return NextResponse.json({ error: "Round already completed" }, { status: 400 });
       }
 
-      // Mark listing as completed
+      // Mark listing as completed (no tee changes here — tees move on attestation)
       await admin
         .from("pool_listings")
         .update({ status: "completed" })
         .eq("id", listingId);
-
-      // Deduct 1 Tee from each accepted guest
-      const { data: acceptedApps } = await admin
-        .from("pool_applications")
-        .select("applicant_id")
-        .eq("listing_id", listingId)
-        .eq("status", "accepted");
-
-      if (acceptedApps) {
-        for (const app of acceptedApps as any[]) {
-          const { data: guestProfile } = await admin
-            .from("profiles")
-            .select("credits")
-            .eq("id", app.applicant_id)
-            .single();
-
-          await admin
-            .from("profiles")
-            .update({ credits: Math.max(0, (guestProfile?.credits ?? 3) - 1) })
-            .eq("id", app.applicant_id);
-        }
-      }
 
       return NextResponse.json({ ok: true });
     }
@@ -615,19 +593,25 @@ export async function POST(
         return NextResponse.json({ error: attErr.message }, { status: 500 });
       }
 
+      // Deduct 1 Tee from the attesting guest
+      const { data: guestProfile } = await admin
+        .from("profiles")
+        .select("credits, display_name")
+        .eq("id", user.id)
+        .single();
+
+      await admin
+        .from("profiles")
+        .update({ credits: Math.max(0, ((guestProfile as any)?.credits ?? 3) - 1) })
+        .eq("id", user.id);
+
+      const attesterName = (guestProfile as any)?.display_name || "A player";
+
       // Award 1 Tee to host per event (only on first attestation)
       const { count: attestCount } = await admin
         .from("pool_attestations")
         .select("id", { count: "exact", head: true })
         .eq("listing_id", listingId);
-
-      const { data: attesterProfile } = await admin
-        .from("profiles")
-        .select("display_name")
-        .eq("id", user.id)
-        .single();
-
-      const attesterName = attesterProfile?.display_name || "A player";
 
       if ((attestCount ?? 0) <= 1) {
         // First attestation — award host 1 Tee

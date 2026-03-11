@@ -66,25 +66,12 @@ export async function POST(
       return NextResponse.json({ ok: true }); // already done
     }
 
-    // Insert creator's confirmation record
+    // Insert creator's confirmation record (no tee changes — tees are pool only)
     await admin.from("match_attestations").insert({
       match_id: matchId,
       attester_id: user.id,
       host_id: user.id,
     });
-
-    // Deduct 1 Tee from opponent
-    const opponentId = match.opponent_id as string;
-    const { data: oppProfile } = await admin
-      .from("profiles")
-      .select("credits")
-      .eq("id", opponentId)
-      .single();
-
-    await admin
-      .from("profiles")
-      .update({ credits: Math.max(0, (oppProfile?.credits ?? 3) - 1) })
-      .eq("id", opponentId);
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {

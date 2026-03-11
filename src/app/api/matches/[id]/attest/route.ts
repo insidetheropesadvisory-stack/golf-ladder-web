@@ -68,19 +68,7 @@ export async function POST(
       return NextResponse.json({ error: attErr.message }, { status: 500 });
     }
 
-    // Award 1 Tee to creator (host)
-    const { data: hostProfile } = await admin
-      .from("profiles")
-      .select("credits")
-      .eq("id", match.creator_id)
-      .single();
-
-    await admin
-      .from("profiles")
-      .update({ credits: (hostProfile?.credits ?? 3) + 1 })
-      .eq("id", match.creator_id);
-
-    // Notify creator
+    // Notify creator (no tee changes — tees are pool only)
     const { data: attesterProfile } = await admin
       .from("profiles")
       .select("display_name")
@@ -90,12 +78,12 @@ export async function POST(
     const attesterName = attesterProfile?.display_name || "Your opponent";
     await admin.from("notifications").insert({
       user_id: match.creator_id,
-      message: `${attesterName} confirmed your match at ${match.course_name} occurred. You earned 1 Tee!`,
+      message: `${attesterName} confirmed your match at ${match.course_name} occurred.`,
       read: false,
     });
 
     sendPushToUser(match.creator_id, {
-      title: "You earned a Tee!",
+      title: "Round confirmed",
       body: `${attesterName} confirmed your match occurred.`,
       url: `/matches/${matchId}`,
     }).catch(() => {});
