@@ -520,7 +520,7 @@ export async function POST(
         .update({ status: "completed" })
         .eq("id", listingId);
 
-      // Deduct 1 T from each accepted guest
+      // Deduct 1 Tee from each accepted guest
       const { data: acceptedApps } = await admin
         .from("pool_applications")
         .select("applicant_id")
@@ -545,7 +545,7 @@ export async function POST(
       return NextResponse.json({ ok: true });
     }
 
-    // --- Attest (guest confirms the round occurred → host earns 1 T) ---
+    // --- Attest (guest confirms the round occurred → host earns 1 Tee) ---
     if (action === "attest") {
       if (user.id === listing.creator_id) {
         return NextResponse.json({ error: "Hosts can't attest for themselves" }, { status: 400 });
@@ -614,12 +614,12 @@ export async function POST(
       const attesterName = attesterProfile?.display_name || "A player";
       await admin.from("notifications").insert({
         user_id: listing.creator_id,
-        message: `${attesterName} confirmed your round at ${listing.course_name} occurred. You earned 1 T!`,
+        message: `${attesterName} confirmed your round at ${listing.course_name} occurred. You earned 1 Tee!`,
         read: false,
       });
 
       sendPushToUser(listing.creator_id, {
-        title: "You earned a T!",
+        title: "You earned a Tee!",
         body: `${attesterName} confirmed your round occurred.`,
         url: `/pool/${listingId}`,
       }).catch(() => {});

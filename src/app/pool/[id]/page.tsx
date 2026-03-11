@@ -653,7 +653,7 @@ export default function PoolDetailPage() {
           )}>
             {myApplication.status === "accepted"
               ? listing.status === "completed"
-                ? hasAttested ? "Round confirmed. The host earned a T." : "Round complete. You'll be prompted to confirm it occurred."
+                ? hasAttested ? "Round confirmed. The host earned a Tee." : "Round complete. You'll be prompted to confirm it occurred."
                 : roundPassed ? "Hope you had a great round!" : "You're in! See you on the course."
               : myApplication.status === "denied" ? "Your request was declined."
               : "Your request is pending approval."}
@@ -666,7 +666,7 @@ export default function PoolDetailPage() {
         <button
           type="button"
           onClick={() => {
-            if (!confirm("Mark this round as complete? 1 T will be deducted from each guest.")) return;
+            if (!confirm("Mark this round as complete? 1 Tee will be deducted from each guest.")) return;
             doAction("complete_round");
           }}
           disabled={actionLoading !== null}

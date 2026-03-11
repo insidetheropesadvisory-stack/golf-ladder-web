@@ -293,7 +293,7 @@ export function AppShell({
     setCompleteLoading(null);
   }
 
-  // Close Ts info on outside click
+  // Close Tees info on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (tsRef.current && !tsRef.current.contains(e.target as Node)) {
@@ -390,8 +390,8 @@ export function AppShell({
             <div className="text-center">
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--pine)]/10">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <line x1="12" y1="10" x2="12" y2="22" stroke="var(--pine)" strokeWidth="2.5" strokeLinecap="round" />
-                  <ellipse cx="12" cy="8" rx="5" ry="3" fill="var(--pine)" opacity="0.9" />
+                  <path d="M7.5 7.5C7.5 6 9.5 4.5 12 4.5C14.5 4.5 16.5 6 16.5 7.5C16.5 8.5 15 9 12 9C9 9 7.5 8.5 7.5 7.5Z" fill="var(--pine)" />
+                  <path d="M10.8 9L11.5 21.5C11.5 21.8 12.5 21.8 12.5 21.5L13.2 9" fill="var(--pine)" />
                 </svg>
               </div>
               <h2 className="text-lg font-bold text-[var(--ink)]">
@@ -399,8 +399,8 @@ export function AppShell({
               </h2>
               <p className="mt-1 text-xs text-[var(--muted)]">
                 {pendingCompletions.length > 0
-                  ? "Mark your round as complete. 1 T will be used from each guest who played."
-                  : "Confirm that this round occurred so the host can earn their T."}
+                  ? "Mark your round as complete. 1 Tee will be used from each guest who played."
+                  : "Confirm that this round occurred so the host can earn their Tee."}
               </p>
             </div>
 
@@ -490,7 +490,7 @@ export function AppShell({
                   New match
                 </Link>
 
-                {/* Credits (Ts) with golf tee icon */}
+                {/* Tees credit icon */}
                 {credits != null && (
                   <div className="relative" ref={tsRef}>
                     <button
@@ -499,8 +499,8 @@ export function AppShell({
                       className="flex items-center gap-1.5 rounded-full border border-[rgba(246,241,231,.22)] px-2.5 py-1.5 text-xs font-semibold transition hover:bg-[rgba(246,241,231,.08)]"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-90">
-                        <line x1="12" y1="10" x2="12" y2="22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                        <ellipse cx="12" cy="8" rx="5" ry="3" fill="currentColor" opacity="0.9" />
+                        <path d="M7.5 7.5C7.5 6 9.5 4.5 12 4.5C14.5 4.5 16.5 6 16.5 7.5C16.5 8.5 15 9 12 9C9 9 7.5 8.5 7.5 7.5Z" fill="currentColor" />
+                        <path d="M10.8 9L11.5 21.5C11.5 21.8 12.5 21.8 12.5 21.5L13.2 9" fill="currentColor" />
                       </svg>
                       <span>{credits}</span>
                     </button>
@@ -509,17 +509,17 @@ export function AppShell({
                       <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-xl z-50 space-y-2.5">
                         <div className="flex items-center gap-2">
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                            <line x1="12" y1="10" x2="12" y2="22" stroke="var(--pine)" strokeWidth="2.5" strokeLinecap="round" />
-                            <ellipse cx="12" cy="8" rx="5" ry="3" fill="var(--pine)" opacity="0.9" />
+                            <path d="M7.5 7.5C7.5 6 9.5 4.5 12 4.5C14.5 4.5 16.5 6 16.5 7.5C16.5 8.5 15 9 12 9C9 9 7.5 8.5 7.5 7.5Z" fill="var(--pine)" />
+                            <path d="M10.8 9L11.5 21.5C11.5 21.8 12.5 21.8 12.5 21.5L13.2 9" fill="var(--pine)" />
                           </svg>
-                          <span className="text-sm font-bold text-[var(--ink)]">You have {credits} T{credits !== 1 ? "s" : ""}</span>
+                          <span className="text-sm font-bold text-[var(--ink)]">You have {credits} Tee{credits !== 1 ? "s" : ""}</span>
                         </div>
                         <div className="space-y-1.5 text-xs text-[var(--muted)]">
-                          <p className="font-medium text-[var(--ink)]">How Ts work:</p>
-                          <p>Every player starts with <span className="font-semibold">3 Ts</span>.</p>
-                          <p>When you play in someone&apos;s group, <span className="font-semibold">1 T is used</span> after the round.</p>
-                          <p>Host a round and your guests confirm it occurred? <span className="font-semibold text-[var(--pine)]">You earn 1 T per guest</span>.</p>
-                          <p className="pt-1 text-[10px] italic">Ts keep the pool fair — give rounds to get rounds.</p>
+                          <p className="font-medium text-[var(--ink)]">How Tees work:</p>
+                          <p>Every player starts with <span className="font-semibold">3 Tees</span>.</p>
+                          <p>When you play in someone&apos;s group, <span className="font-semibold">1 Tee is used</span> after the round.</p>
+                          <p>Host a round and your guests confirm it occurred? <span className="font-semibold text-[var(--pine)]">You earn 1 Tee per guest</span>.</p>
+                          <p className="pt-1 text-[10px] italic">Tees keep the pool fair — give rounds to get rounds.</p>
                         </div>
                       </div>
                     )}
