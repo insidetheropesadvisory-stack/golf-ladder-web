@@ -285,22 +285,28 @@ export function AppShell({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
-      // For pool: call complete_round action. For matches: already completed via scoring.
-      if (item.type !== "match") {
-        const res = await fetch(`/api/pool/${item.id}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ action: "complete_round" }),
-        });
-        if (res.ok) {
-          setPendingCompletions((prev) => prev.filter((p) => p.id !== item.id));
-        }
-      } else {
-        // Match is already completed — just dismiss the popup
+      const url = item.type === "match"
+        ? `/api/matches/${item.id}/confirm-round`
+        : `/api/pool/${item.id}`;
+      const body = item.type === "match" ? {} : { action: "complete_round" };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
         setPendingCompletions((prev) => prev.filter((p) => p.id !== item.id));
+        // Refresh credits
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("credits")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (prof) setCredits((prof as any).credits ?? 3);
       }
     } catch {}
     setCompleteLoading(null);

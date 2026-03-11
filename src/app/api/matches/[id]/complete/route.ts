@@ -273,20 +273,6 @@ export async function POST(
       }
     }
 
-    // 12. Deduct 1 Tee from opponent for non-ladder matches
-    if (!match.is_ladder_match) {
-      const { data: oppProfile } = await admin
-        .from("profiles")
-        .select("credits")
-        .eq("id", opponentId)
-        .single();
-
-      await admin
-        .from("profiles")
-        .update({ credits: Math.max(0, (oppProfile?.credits ?? 3) - 1) })
-        .eq("id", opponentId);
-    }
-
     return NextResponse.json({
       ok: true,
       creatorTotal,

@@ -84,11 +84,12 @@ export async function GET(request: Request) {
           if (new Date(m.round_time).getTime() + gate > now) continue;
         }
 
-        // Check no attestation exists yet
+        // Check creator hasn't already confirmed
         const { data: existing } = await admin
           .from("match_attestations")
           .select("id")
           .eq("match_id", m.id)
+          .eq("attester_id", user.id)
           .maybeSingle();
 
         if (!existing) {

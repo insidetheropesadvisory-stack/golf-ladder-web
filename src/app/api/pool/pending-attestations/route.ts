@@ -92,7 +92,17 @@ export async function GET(request: Request) {
           if (new Date(m.round_time).getTime() + gate > now) continue;
         }
 
-        // Check not already attested
+        // Check creator has already confirmed (opponent popup only after creator)
+        const { data: creatorConfirm } = await admin
+          .from("match_attestations")
+          .select("id")
+          .eq("match_id", m.id)
+          .eq("attester_id", m.creator_id)
+          .maybeSingle();
+
+        if (!creatorConfirm) continue; // creator hasn't confirmed yet
+
+        // Check opponent hasn't already attested
         const { data: existing } = await admin
           .from("match_attestations")
           .select("id")
