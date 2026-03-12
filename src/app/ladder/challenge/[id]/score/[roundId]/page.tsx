@@ -124,6 +124,18 @@ export default function LadderScoringPage() {
 
   const parTotal = round?.par ?? null;
 
+  // Par total for only the holes that have been scored
+  const scoredPar = useMemo(() => {
+    if (holeData.length === 0) return null;
+    let total = 0;
+    for (const [h] of scores) {
+      const hole = holeData.find((hi) => hi.number === h);
+      if (hole?.par == null) return null;
+      total += hole.par;
+    }
+    return total;
+  }, [scores, holeData]);
+
   // Hole info lookup
   const getHole = useCallback((h: number): HoleInfo | undefined => {
     return holeData.find((hi) => hi.number === h);
@@ -467,7 +479,14 @@ export default function LadderScoringPage() {
         <div className="mt-1 flex items-center justify-between">
           <h1 className="text-xl font-semibold tracking-tight">{round.course_name}</h1>
           <div className="text-right">
-            <div className="text-lg font-bold tabular-nums text-[var(--ink)]">{runningTotal}</div>
+            <div className="text-lg font-bold tabular-nums text-[var(--ink)]">
+              {runningTotal}
+              {scoredPar != null && scores.size > 0 && (
+                <span className={cx("ml-1.5 text-sm font-semibold", runningTotal - scoredPar > 0 ? "text-[#8B1A1A]" : runningTotal - scoredPar < 0 ? "text-[var(--pine)]" : "text-[var(--muted)]")}>
+                  {runningTotal - scoredPar === 0 ? "E" : runningTotal - scoredPar > 0 ? `+${runningTotal - scoredPar}` : runningTotal - scoredPar}
+                </span>
+              )}
+            </div>
             <div className="text-[10px] text-[var(--muted)]">{scores.size}/{TOTAL_HOLES} holes</div>
           </div>
         </div>
