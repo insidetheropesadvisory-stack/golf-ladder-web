@@ -116,6 +116,7 @@ export default function StartRoundPage() {
 
   async function startRound() {
     if (!courseName.trim()) { setError("Select a course"); return; }
+    if (!selectedTee.trim()) { setError("Select or enter the tee you played"); return; }
     if (!courseRating) { setError("Enter the course rating"); return; }
     if (!slopeRating) { setError("Enter the slope rating"); return; }
     if (!playedAt) { setError("Enter the date played"); return; }
@@ -214,7 +215,7 @@ export default function StartRoundPage() {
         )}
 
         {/* Tee selector */}
-        {tees.length > 0 && (
+        {tees.length > 0 ? (
           <div className="space-y-2">
             <label className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--muted)]">Tees played</label>
             <div className="flex flex-wrap gap-2">
@@ -235,7 +236,18 @@ export default function StartRoundPage() {
               ))}
             </div>
           </div>
-        )}
+        ) : courseName.trim() ? (
+          <div className="space-y-2">
+            <label className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--muted)]">Tee played</label>
+            <input
+              type="text"
+              className="w-full rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-sm outline-none transition focus:border-[var(--pine)]/40 focus:shadow-sm"
+              value={selectedTee}
+              onChange={(e) => setSelectedTee(e.target.value)}
+              placeholder="e.g., Blue, White, Gold"
+            />
+          </div>
+        ) : null}
 
         {/* Course rating & slope */}
         <div className="grid grid-cols-2 gap-3">
