@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { initials } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ type ActiveChallenge = {
 };
 
 export default function LadderPage() {
+  const router = useRouter();
   const [meId, setMeId] = useState<string | null>(null);
   const [tab, setTab] = useState<"gross" | "net">("gross");
 
@@ -42,6 +44,9 @@ export default function LadderPage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [initing, setIniting] = useState(false);
+  const [challenging, setChallenging] = useState<string | null>(null);
+  const [challengeDeadline, setChallengeDeadline] = useState("");
+  const [showDeadlinePicker, setShowDeadlinePicker] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   const myRowRef = useRef<HTMLDivElement>(null);
@@ -49,27 +54,21 @@ export default function LadderPage() {
 
   useEffect(() => {
     let handled = false;
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       handled = true;
       setMeId(session?.user?.id ?? null);
     });
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!handled) setMeId(session?.user?.id ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
   async function fetchLadder() {
     setLoading(true);
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
+    const { data: { session } } = await supabase.auth.getSession();
     const headers: Record<string, string> = session?.access_token
       ? { Authorization: `Bearer ${session.access_token}` }
       : {};
@@ -90,9 +89,7 @@ export default function LadderPage() {
       setActiveChallenges(
         (json.challenges ?? []).filter((c: any) => c.status === "pending" || c.status === "accepted")
       );
-      if (json.profiles) {
-        setProfiles((prev) => ({ ...prev, ...json.profiles }));
-      }
+      if (json.profiles) setProfiles((prev) => ({ ...prev, ...json.profiles }));
     }
     setLoading(false);
   }
@@ -118,16 +115,12 @@ export default function LadderPage() {
   const isEmpty = rankings.length === 0;
 
   async function postAction(body: any) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
     return fetch("/api/ladder", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(session?.access_token
-          ? { Authorization: `Bearer ${session.access_token}` }
-          : {}),
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
       },
       body: JSON.stringify(body),
     });
@@ -156,6 +149,41 @@ export default function LadderPage() {
   const myActiveChallenge = activeChallenges.find(
     (c) => c.challenger_id === meId || c.opponent_id === meId
   );
+
+  function canChallenge(target: Ranking) {
+    if (!myRanking) return false;
+    if (target.user_id === meId) return false;
+    if (myActiveChallenge) return false;
+    const targetHasChallenge = activeChallenges.some(
+      (c) => c.challenger_id === target.user_id || c.opponent_id === target.user_id
+    );
+    if (targetHasChallenge) return false;
+    return (
+      myRanking.position > target.position &&
+      myRanking.position - target.position <= 3
+    );
+  }
+
+  async function sendChallenge(opponentId: string) {
+    if (!challengeDeadline) { setStatus("Pick a deadline"); return; }
+    setChallenging(opponentId);
+    setStatus(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/ladder-matches", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ action: "create", opponent_id: opponentId, deadline: challengeDeadline }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setStatus(json.error ?? "Failed to create challenge"); setChallenging(null); return; }
+    setChallenging(null);
+    setShowDeadlinePicker(null);
+    setChallengeDeadline("");
+    router.push(`/ladder/challenge/${json.challenge.id}`);
+  }
 
   const trophyColors: Record<number, string> = {
     1: "text-yellow-500",
@@ -217,9 +245,7 @@ export default function LadderPage() {
         </div>
       ) : isEmpty ? (
         <div className="space-y-4 rounded-[6px] border border-[var(--border)] bg-white/60 p-8 text-center">
-          <p className="text-sm text-[var(--muted)]">
-            The ladder hasn&apos;t been set up yet.
-          </p>
+          <p className="text-sm text-[var(--muted)]">The ladder hasn&apos;t been set up yet.</p>
           <button
             onClick={initLadder}
             disabled={initing}
@@ -230,12 +256,9 @@ export default function LadderPage() {
         </div>
       ) : (
         <>
-          {/* Join button */}
           {!isInLadder && (
             <div className="rounded-[6px] border border-emerald-200/60 bg-emerald-50/50 p-4 text-center">
-              <p className="text-sm text-emerald-800">
-                You&apos;re not in the ladder yet.
-              </p>
+              <p className="text-sm text-emerald-800">You&apos;re not in the ladder yet.</p>
               <button
                 onClick={joinLadder}
                 disabled={joining}
@@ -253,60 +276,115 @@ export default function LadderPage() {
               const rec = records[r.user_id];
               const name = prof?.display_name || "Unknown";
               const isMe = r.user_id === meId;
-
-              const Wrapper = isMe ? "div" as const : Link;
-              const wrapperProps = isMe ? {} : { href: `/players/${r.user_id}` };
+              const challengeable = canChallenge(r);
 
               return (
-                <Wrapper
-                  key={r.id}
-                  ref={isMe ? myRowRef as any : undefined}
-                  {...wrapperProps as any}
-                  className={`flex items-center gap-2 rounded-[6px] border px-3 py-2.5 transition sm:gap-3 sm:px-4 sm:py-3 ${
-                    isMe
-                      ? "border-[var(--pine)]/30 bg-[var(--pine)]/5 ring-2 ring-[var(--pine)]/20"
-                      : "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20 hover:shadow-sm cursor-pointer"
-                  }`}
-                >
-                  {/* Position */}
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
-                    {r.position <= 3 ? (
-                      <span className={`text-lg font-bold ${trophyColors[r.position] ?? ""}`}>
-                        {r.position === 1 ? "\u{1F947}" : r.position === 2 ? "\u{1F948}" : "\u{1F949}"}
-                      </span>
-                    ) : (
-                      <span className="text-sm font-semibold text-[var(--muted)]">{r.position}</span>
+                <div key={r.id} className="space-y-1.5">
+                  <div
+                    ref={isMe ? myRowRef : undefined}
+                    className={`flex items-center gap-2 rounded-[6px] border px-3 py-2.5 transition sm:gap-3 sm:px-4 sm:py-3 ${
+                      isMe
+                        ? "border-[var(--pine)]/30 bg-[var(--pine)]/5 ring-2 ring-[var(--pine)]/20"
+                        : challengeable
+                        ? "border-[var(--gold)]/30 bg-[var(--gold)]/5"
+                        : "border-[var(--border)] bg-white/60"
+                    }`}
+                  >
+                    {/* Position */}
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                      {r.position <= 3 ? (
+                        <span className={`text-lg font-bold ${trophyColors[r.position] ?? ""}`}>
+                          {r.position === 1 ? "\u{1F947}" : r.position === 2 ? "\u{1F948}" : "\u{1F949}"}
+                        </span>
+                      ) : (
+                        <span className="text-sm font-semibold text-[var(--muted)]">{r.position}</span>
+                      )}
+                    </div>
+
+                    {/* Avatar */}
+                    <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm sm:h-10 sm:w-10">
+                      {prof?.avatar_url ? (
+                        <img src={prof.avatar_url} alt={name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="grid h-full w-full place-items-center text-xs font-semibold">{initials(name)}</div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <Link href={isMe ? "#" : `/players/${r.user_id}`} className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-[var(--ink)]">{name}</span>
+                        {isMe && (
+                          <span className="rounded-full bg-[var(--pine)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--pine)]">You</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)] sm:gap-2 sm:text-xs">
+                        {prof?.handicap_index != null && <span>HCP {prof.handicap_index}</span>}
+                        {rec && (
+                          <>
+                            {prof?.handicap_index != null && <span className="text-[var(--border)]">&middot;</span>}
+                            <span>{rec.wins}W – {rec.losses}L</span>
+                          </>
+                        )}
+                        {!rec && (
+                          <>
+                            {prof?.handicap_index != null && <span className="text-[var(--border)]">&middot;</span>}
+                            <span>0W – 0L</span>
+                          </>
+                        )}
+                      </div>
+                    </Link>
+
+                    {/* Challenge button */}
+                    {challengeable && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (showDeadlinePicker === r.user_id) {
+                            setShowDeadlinePicker(null);
+                          } else {
+                            setShowDeadlinePicker(r.user_id);
+                            const d = new Date();
+                            d.setDate(d.getDate() + 7);
+                            setChallengeDeadline(d.toISOString().split("T")[0]);
+                          }
+                        }}
+                        className="btn-gold flex-shrink-0 !px-3 !py-1.5 !text-[12px]"
+                      >
+                        Challenge
+                      </button>
                     )}
                   </div>
 
-                  {/* Avatar */}
-                  <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm sm:h-10 sm:w-10">
-                    {prof?.avatar_url ? (
-                      <img src={prof.avatar_url} alt={name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-xs font-semibold">{initials(name)}</div>
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-semibold text-[var(--ink)]">{name}</span>
-                      {isMe && (
-                        <span className="rounded-full bg-[var(--pine)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--pine)]">You</span>
-                      )}
+                  {/* Deadline picker */}
+                  {showDeadlinePicker === r.user_id && (
+                    <div className="rounded-[6px] border border-[var(--gold)]/20 bg-[var(--gold)]/5 p-3 space-y-2">
+                      <div className="text-xs font-medium text-[var(--ink)]">Deadline (max 14 days)</div>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          className="flex-1 rounded-[6px] border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--pine)]/40"
+                          value={challengeDeadline}
+                          onChange={(e) => setChallengeDeadline(e.target.value)}
+                        />
+                        <button
+                          onClick={() => sendChallenge(r.user_id)}
+                          disabled={challenging === r.user_id || !challengeDeadline}
+                          className="btn-gold !py-2 disabled:opacity-40"
+                        >
+                          {challenging === r.user_id ? "Sending..." : "Send"}
+                        </button>
+                        <button
+                          onClick={() => { setShowDeadlinePicker(null); setChallengeDeadline(""); }}
+                          className="btn-outline-gold !py-2"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)] sm:gap-2 sm:text-xs">
-                      {prof?.handicap_index != null && <span>HCP {prof.handicap_index}</span>}
-                      {rec && (
-                        <>
-                          {prof?.handicap_index != null && <span className="text-[var(--border)]">&middot;</span>}
-                          <span>{rec.wins}W - {rec.losses}L</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </Wrapper>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -314,9 +392,7 @@ export default function LadderPage() {
       )}
 
       {status && (
-        <div className="rounded-[6px] bg-red-50 px-4 py-3 text-sm text-red-700">
-          {status}
-        </div>
+        <div className="rounded-[6px] bg-red-50 px-4 py-3 text-sm text-red-700">{status}</div>
       )}
     </div>
   );
