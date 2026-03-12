@@ -11,7 +11,7 @@ export default function CompetePage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl tracking-tight text-[var(--ink)]">Compete</h1>
-        <p className="mt-1 text-[13px] text-[var(--muted)]">Three ways to prove your game.</p>
+        <p className="mt-1 text-[13px] text-[var(--muted)]">Play together in real time or on your own schedule at different courses. Three ways to prove your game.</p>
       </div>
 
       {/* ── Matches ── */}

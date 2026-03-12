@@ -209,15 +209,15 @@ export default function FindAMatchPage() {
         <div className="space-y-2 text-sm text-[var(--ink)]">
           <div className="flex items-start gap-2.5">
             <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">1</span>
-            <span><span className="font-medium">Post a round</span> at any course with 1–3 open slots, or browse and join someone else's.</span>
+            <span><span className="font-medium">Post a round</span> at any course with 1–3 open slots, or browse and request to join someone else's. Hosts approve or deny every request.</span>
           </div>
           <div className="flex items-start gap-2.5">
             <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">2</span>
-            <span>Joining costs <span className="font-medium">1 Tee</span>. Club members at the listed course are exempt. Hosts can set a guest fee or auto-accept.</span>
+            <span>Guests pay the <span className="font-medium">guest fee set by the course</span> — fees vary from club to club. Club members at the listed course are exempt.</span>
           </div>
           <div className="flex items-start gap-2.5">
             <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">3</span>
-            <span>After the round, the host completes it and guests confirm. <span className="font-medium">Hosts earn 1 Tee per guest</span> who confirms.</span>
+            <span>When the round is complete, guests spend <span className="font-medium">1 Tee</span> and the host earns <span className="font-medium">1 Tee per guest</span> who confirms. Club members are exempt.</span>
           </div>
         </div>
       </div>
@@ -233,7 +233,7 @@ export default function FindAMatchPage() {
             </div>
             <div>
               <div className="text-lg font-bold text-[var(--ink)]">{credits} Tee{credits !== 1 ? "s" : ""}</div>
-              <div className="text-[11px] text-[var(--muted)]">Joining a round costs 1 Tee. Host rounds to earn them back — 1 per guest who confirms.</div>
+              <div className="text-[11px] text-[var(--muted)]">Guests spend 1 Tee when the round completes. Host rounds to earn them back.</div>
             </div>
           </div>
         </div>
@@ -410,9 +410,6 @@ export default function FindAMatchPage() {
                             {l.my_application === "accepted" ? "Accepted" :
                              l.my_application === "denied" ? "Declined" : "Pending"}
                           </span>
-                        )}
-                        {l.auto_accept && slotsOpen > 0 && (
-                          <span className="text-[10px] text-[var(--muted)]">Auto-accept</span>
                         )}
                       </>
                     )}
