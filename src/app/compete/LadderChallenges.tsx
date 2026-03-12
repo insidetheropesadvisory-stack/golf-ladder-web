@@ -254,12 +254,14 @@ export default function LadderChallenges() {
             {/* Deadline picker */}
             {showDeadlinePicker === r.user_id && (
               <div className="rounded-[6px] border border-[var(--gold)]/20 bg-[var(--gold)]/5 p-3 space-y-2">
-                <div className="text-xs font-medium text-[var(--ink)]">Deadline (max 14 days)</div>
+                <div className="text-xs font-medium text-[var(--ink)]">Deadline (7–14 days)</div>
                 <div className="flex gap-2">
                   <input
                     type="date"
                     className="flex-1 rounded-[6px] border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--pine)]/40"
                     value={challengeDeadline}
+                    min={(() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split("T")[0]; })()}
+                    max={(() => { const d = new Date(); d.setDate(d.getDate() + 14); return d.toISOString().split("T")[0]; })()}
                     onChange={(e) => setChallengeDeadline(e.target.value)}
                   />
                   <button

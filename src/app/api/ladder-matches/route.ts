@@ -89,15 +89,19 @@ export async function POST(request: Request) {
       if (!deadline) return NextResponse.json({ error: "Missing deadline" }, { status: 400 });
       if (opponentId === user.id) return NextResponse.json({ error: "Cannot challenge yourself" }, { status: 400 });
 
-      // Validate deadline (max 14 days from now)
+      // Validate deadline (7–14 days from now)
       const deadlineDate = new Date(deadline + "T23:59:59");
+      const now = new Date();
+      const minDeadline = new Date();
+      minDeadline.setDate(minDeadline.getDate() + 7);
+      minDeadline.setHours(0, 0, 0, 0);
       const maxDeadline = new Date();
       maxDeadline.setDate(maxDeadline.getDate() + 14);
       if (deadlineDate > maxDeadline) {
         return NextResponse.json({ error: "Deadline cannot be more than 14 days from now" }, { status: 400 });
       }
-      if (deadlineDate < new Date()) {
-        return NextResponse.json({ error: "Deadline must be in the future" }, { status: 400 });
+      if (deadlineDate < minDeadline) {
+        return NextResponse.json({ error: "Deadline must be at least 7 days from now" }, { status: 400 });
       }
 
       // Check neither player has an active challenge
@@ -316,15 +320,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Challenge is not pending" }, { status: 400 });
       }
 
-      // Validate new deadline
+      // Validate new deadline (7–14 days from now)
       const deadlineDate = new Date(newDeadline + "T23:59:59");
+      const minDeadline = new Date();
+      minDeadline.setDate(minDeadline.getDate() + 7);
+      minDeadline.setHours(0, 0, 0, 0);
       const maxDeadline = new Date();
       maxDeadline.setDate(maxDeadline.getDate() + 14);
       if (deadlineDate > maxDeadline) {
         return NextResponse.json({ error: "Deadline cannot be more than 14 days from now" }, { status: 400 });
       }
-      if (deadlineDate < new Date()) {
-        return NextResponse.json({ error: "Deadline must be in the future" }, { status: 400 });
+      if (deadlineDate < minDeadline) {
+        return NextResponse.json({ error: "Deadline must be at least 7 days from now" }, { status: 400 });
       }
 
       await admin
