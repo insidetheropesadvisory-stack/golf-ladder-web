@@ -192,7 +192,7 @@ export default function FindAMatchPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl tracking-tight text-[var(--ink)]">Find a Round</h1>
+          <h1 className="text-2xl tracking-tight text-[var(--ink)]">Find a Match</h1>
           <p className="mt-1 text-[13px] text-[var(--muted)]">Meet new players and fill out your foursome. Post a round or join someone else's — any course, any time.</p>
         </div>
         <Link
@@ -375,7 +375,7 @@ export default function FindAMatchPage() {
                       )}
                     </div>
                     <div className="mt-1.5 flex items-center gap-1.5">
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--pine)] text-[8px] font-bold text-white">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--green-light)] text-[8px] font-bold text-[var(--pine)]">
                         {initials(l.creator?.display_name ?? "?")}
                       </div>
                       <span className="text-[11px] text-[var(--muted)]">

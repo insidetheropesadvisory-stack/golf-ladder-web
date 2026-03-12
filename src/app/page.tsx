@@ -461,7 +461,7 @@ export default function HomePage() {
         <Link href={newMatchHref} className="btn-gold text-center py-2.5 sm:py-3">New match</Link>
         <Link href="/tournaments/new" className="rounded-[3px] bg-[var(--pine)] px-3 py-2.5 text-center text-[13px] font-bold uppercase tracking-wide text-[var(--paper)] transition hover:brightness-110 sm:py-3" style={{ fontFamily: "var(--font-body)", letterSpacing: "0.06em" }}>New tournament</Link>
         <Link href="/matches/new?mode=link" className="btn-outline-gold text-center py-2.5 sm:py-3">Invite friend</Link>
-        <Link href="/find-a-match" className="rounded-[3px] border border-[var(--ink)]/30 bg-transparent px-3 py-2.5 text-center text-[13px] font-bold uppercase tracking-wide text-[var(--ink)] transition hover:bg-black/[0.03] sm:py-3" style={{ fontFamily: "var(--font-body)", letterSpacing: "0.06em" }}>Find a round</Link>
+        <Link href="/find-a-match" className="rounded-[3px] border border-[var(--ink)]/30 bg-transparent px-3 py-2.5 text-center text-[13px] font-bold uppercase tracking-wide text-[var(--ink)] transition hover:bg-black/[0.03] sm:py-3" style={{ fontFamily: "var(--font-body)", letterSpacing: "0.06em" }}>Find a match</Link>
       </div>
 
       {/* Scoring now — matches in the 12h window */}
@@ -549,7 +549,9 @@ export default function HomePage() {
                       {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}{r.use_handicap ? " (Net)" : ""}
                     </div>
                   </div>
-                  <span className="pill-live">Active</span>
+                  <span className="shrink-0 rounded-[3px] bg-[var(--pine)] px-3 py-1.5 text-[11px] font-bold text-white">
+                    Start your match
+                  </span>
                 </Link>
               );
             })}
@@ -731,7 +733,9 @@ export default function HomePage() {
                     <div className="truncate text-sm font-semibold text-[var(--ink)] group-hover:text-[var(--pine)] transition-colors">{t.name}</div>
                     <div className="mt-0.5 text-xs text-[var(--muted)]">{unit} {p} of {t.period_count}</div>
                   </div>
-                  <span className="pill-live">{unit} {p}</span>
+                  <span className="shrink-0 rounded-[3px] bg-[var(--pine)] px-3 py-1.5 text-[11px] font-bold text-white">
+                    Start your round
+                  </span>
                 </Link>
               );
             })}

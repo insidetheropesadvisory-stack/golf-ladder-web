@@ -116,7 +116,7 @@ export default function LadderSubmitPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Submit Your Round</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Play any course, any tee. Your handicap differential determines the winner.
+          Each player chooses their own course and tee. Your handicap differential determines the winner.
         </p>
       </div>
 

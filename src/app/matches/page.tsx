@@ -587,7 +587,9 @@ export default function MatchesPage() {
                       </div>
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1">
-                      <Badge tone="active">Active</Badge>
+                      <span className="rounded-[3px] bg-[var(--pine)] px-3 py-1.5 text-[11px] font-bold text-white">
+                        Start your match
+                      </span>
                       {m.round_time && (
                         <span className="text-[10px] font-medium text-amber-600">{deadlineLabel(m.round_time)}</span>
                       )}
