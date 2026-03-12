@@ -786,6 +786,9 @@ export default function MatchScoringPage() {
 
   const allScoredByOpp = oppScoredCount >= totalHoles;
 
+  // Ladder matches: hide opponent scores until both players have completed all holes
+  const isLadderScoreHidden = match?.is_ladder_match === true && !isCompleted && !(allScoredByMe && allScoredByOpp);
+
   // Match play: clinched when lead > remaining holes
   const matchPlayClinched = useMemo(() => {
     if (!isMatchPlay || !matchPlayData) return false;
@@ -1501,7 +1504,19 @@ export default function MatchScoringPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
                   </div>
-                  {isMatchPlay ? (
+                  {isLadderScoreHidden ? (
+                    <div className="mt-3 flex flex-col items-center gap-2 py-2">
+                      <div className="flex items-center gap-2 rounded-full bg-[var(--pine)] px-4 py-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--gold)]">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                        </svg>
+                        <span className="text-[12px] font-bold text-[var(--gold)]">Awaiting opponent</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--muted)]">
+                        Scores revealed when both players finish
+                      </div>
+                    </div>
+                  ) : isMatchPlay ? (
                     <>
                       <div className="mt-2 text-[48px] leading-none tracking-tight text-[var(--pine)]" style={{ fontFamily: "var(--font-heading)" }}>
                         {matchPlayData ? matchPlayData.p2Holes : "—"}
@@ -1815,7 +1830,7 @@ export default function MatchScoringPage() {
               <>
                 Your {useHcp ? "net " : ""}total: {useHcp ? myNetTotal : myTotal}
                 {" "}&middot;{" "}
-                Opponent: {useHcp ? oppNetTotal : oppTotal}
+                {match?.is_ladder_match ? "Opponent score will be revealed" : <>Opponent: {useHcp ? oppNetTotal : oppTotal}</>}
                 {" "}&middot; Ready to finalize?
               </>
             )}
@@ -1836,7 +1851,10 @@ export default function MatchScoringPage() {
         <div className="rounded-[6px] bg-[var(--pine)] border-l-[3px] border-l-[var(--gold)] px-5 py-4">
           <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--gold)]">Waiting for opponent</div>
           <div className="mt-1 text-[12px] text-[var(--paper)]/60">
-            You&apos;ve scored all your holes. Your opponent has scored {oppScoredCount} of {totalHoles}.
+            {match?.is_ladder_match
+              ? "You\u2019ve scored all your holes. Your opponent\u2019s progress is hidden until they finish."
+              : <>You&apos;ve scored all your holes. Your opponent has scored {oppScoredCount} of {totalHoles}.</>
+            }
           </div>
         </div>
       )}

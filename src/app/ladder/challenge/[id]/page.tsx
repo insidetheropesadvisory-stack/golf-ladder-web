@@ -136,10 +136,21 @@ export default function ChallengeDetailPage() {
 
   const deadlinePassed = new Date() > new Date(challenge.deadline + "T23:59:59");
 
+  // Both players have completed their rounds
+  const bothRoundsComplete = myRound?.completed === true && theirRound?.completed === true;
+
+  // For non-completed challenges, hide the opponent's score data
+  function shouldHideScore(playerId: string): boolean {
+    if (isCompleted) return false; // Challenge resolved — show everything
+    if (playerId === meId) return false; // Always show own scores
+    return !bothRoundsComplete; // Hide opponent until both finish
+  }
+
   function renderPlayerCard(playerId: string, round: Round | undefined, label: string) {
     const prof = profiles[playerId];
     const name = prof?.display_name || "Unknown";
     const pos = positions[playerId];
+    const hideScore = shouldHideScore(playerId);
 
     return (
       <div className="rounded-xl border border-[var(--border)] bg-white/60 p-4">
@@ -160,7 +171,29 @@ export default function ChallengeDetailPage() {
           </div>
         </div>
 
-        {round ? (
+        {hideScore && round ? (
+          <div className="mt-3 rounded-lg bg-[var(--pine)] p-3 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--gold)]">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+              <span className="text-[12px] font-bold text-[var(--gold)]">Awaiting opponent</span>
+            </div>
+            <div className="mt-1 text-[10px] text-[var(--paper)]/50">Scores revealed when both players finish</div>
+          </div>
+        ) : hideScore && !round ? (
+          isAccepted ? (
+            <div className="mt-3 rounded-lg bg-[var(--pine)] p-3 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--gold)]">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                </svg>
+                <span className="text-[12px] font-bold text-[var(--gold)]">Awaiting opponent</span>
+              </div>
+              <div className="mt-1 text-[10px] text-[var(--paper)]/50">No round submitted yet</div>
+            </div>
+          ) : null
+        ) : round ? (
           <div className="mt-3 rounded-lg border border-[var(--border)]/50 bg-[var(--paper-2)] p-3">
             <div className="text-xs text-[var(--muted)]">{round.course_name}{round.tee_name ? ` \u00b7 ${round.tee_name}` : ""}</div>
             {round.completed ? (

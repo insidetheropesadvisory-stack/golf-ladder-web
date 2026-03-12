@@ -77,10 +77,31 @@ export async function GET(
     const positionMap: Record<string, number> = {};
     for (const r of rankings ?? []) positionMap[r.user_id] = r.position;
 
+    // For in-progress challenges, hide opponent's score data until both complete
+    let safeRounds = rounds ?? [];
+    let safeHoles = holesByRound;
+
+    if (challenge.status !== "completed") {
+      const myRound = safeRounds.find((r: any) => r.user_id === user.id);
+      const oppRound = safeRounds.find((r: any) => r.user_id !== user.id);
+      const bothComplete = myRound?.completed === true && oppRound?.completed === true;
+
+      if (!bothComplete && oppRound) {
+        // Mask opponent's round scores — only reveal that a round exists
+        safeRounds = safeRounds.map((r: any) => {
+          if (r.user_id === user.id) return r;
+          return { ...r, gross_score: null, differential: null };
+        });
+        // Remove opponent's hole data entirely
+        safeHoles = { ...holesByRound };
+        if (oppRound) delete safeHoles[oppRound.id];
+      }
+    }
+
     return NextResponse.json({
       challenge,
-      rounds: rounds ?? [],
-      holes: holesByRound,
+      rounds: safeRounds,
+      holes: safeHoles,
       profiles: profileMap,
       positions: positionMap,
     });
