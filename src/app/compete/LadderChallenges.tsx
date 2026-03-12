@@ -151,7 +151,7 @@ export default function LadderChallenges() {
           <div className="text-sm text-amber-800">
             <span className="font-bold">Active challenge</span> — deadline {myActiveChallenge.deadline}
             {myActiveChallenge.status === "pending" && myActiveChallenge.opponent_id === meId && (
-              <span className="ml-1.5 rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white">Action needed</span>
+              <span className="ml-1.5 rounded-full bg-[var(--gold)] px-2 py-0.5 text-[10px] font-semibold text-[var(--pine)]">Action needed</span>
             )}
           </div>
           <span className="text-xs font-medium text-[var(--pine)]">View &rarr;</span>

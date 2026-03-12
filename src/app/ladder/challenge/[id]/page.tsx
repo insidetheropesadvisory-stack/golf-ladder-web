@@ -348,7 +348,7 @@ export default function ChallengeDetailPage() {
       {isAccepted && myRound && !myRound.completed && (
         <Link
           href={`/ladder/challenge/${challengeId}/score/${myRound.id}`}
-          className="block rounded-xl bg-amber-600 px-6 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px"
+          className="block rounded-xl bg-[var(--gold)] px-6 py-3 text-center text-sm font-bold text-[var(--pine)] shadow-sm transition hover:shadow-md hover:-translate-y-px"
         >
           Continue scoring
         </Link>

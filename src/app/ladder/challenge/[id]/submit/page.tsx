@@ -135,7 +135,7 @@ export default function LadderSubmitPage() {
             {!existingRound.completed && (
               <Link
                 href={`/ladder/challenge/${challengeId}/score/${existingRound.id}`}
-                className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white"
+                className="rounded-lg bg-[var(--gold)] px-3 py-1.5 text-xs font-semibold text-[var(--pine)]"
               >
                 Continue scoring
               </Link>

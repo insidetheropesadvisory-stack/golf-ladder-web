@@ -177,7 +177,7 @@ export default function StartRoundPage() {
             </div>
             <Link
               href={`/tournaments/${tournamentId}/score/${inProgressRound.id}`}
-              className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white"
+              className="rounded-lg bg-[var(--gold)] px-3 py-1.5 text-xs font-semibold text-[var(--pine)]"
             >
               Continue scoring
             </Link>

@@ -225,7 +225,7 @@ export default function ClubsPage() {
           <button
             type="button"
             onClick={() => { setStatus(null); refresh(); }}
-            className="mt-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+            className="mt-2 rounded-lg bg-[var(--gold)] px-3 py-1.5 text-xs font-semibold text-[var(--pine)] transition hover:brightness-110"
           >
             Retry
           </button>
