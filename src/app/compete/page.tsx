@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LadderChallenges from "./LadderChallenges";
 
 export const metadata = {
   title: "Compete — Reciprocity",
@@ -129,7 +130,9 @@ export default function CompetePage() {
             </div>
           </div>
         </div>
-        <Link href="/ladder" className="btn-outline-gold">View Ladder</Link>
+        <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--gold)]">You can challenge</div>
+        <LadderChallenges />
+        <Link href="/ladder" className="btn-outline-gold">View Full Ladder</Link>
       </section>
 
       <hr className="gold-rule" />
