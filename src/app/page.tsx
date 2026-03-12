@@ -124,8 +124,6 @@ export default function HomePage() {
   type PoolUpcoming = { id: string; course_name: string; round_time: string; creator_id: string; creator_name: string | null };
   const [poolUpcoming, setPoolUpcoming] = useState<PoolUpcoming[]>([]);
 
-  type PoolCompleted = { id: string; course_name: string; round_time: string; creator_id: string; creator_name: string | null };
-  const [poolCompleted, setPoolCompleted] = useState<PoolCompleted[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -161,7 +159,7 @@ export default function HomePage() {
           email ? `opponent_email.ilike.${email}` : null,
         ].filter(Boolean).join(",");
 
-        const [matchResult, tournamentResult, ladderResult, clubResult, poolResult, poolCompletedResult] = await Promise.all([
+        const [matchResult, tournamentResult, ladderResult, clubResult, poolResult] = await Promise.all([
           supabase
             .from("matches")
             .select("id,created_at,creator_id,opponent_id,opponent_email,course_name,completed,status,format,use_handicap,terms_status,terms_last_proposed_by,round_time,is_ladder_match")
@@ -207,24 +205,6 @@ export default function HomePage() {
               }));
             } catch { return []; }
           })(),
-          // Pool completed rounds (for activity feed)
-          (async () => {
-            if (!authToken) return [];
-            try {
-              const res = await fetch("/api/pool?status=completed", {
-                headers: { Authorization: `Bearer ${authToken}` },
-              });
-              if (!res.ok) return [];
-              const json = await res.json();
-              return (json.listings ?? []).map((l: any) => ({
-                id: l.id,
-                course_name: l.course_name,
-                round_time: l.round_time,
-                creator_id: l.creator_id,
-                creator_name: l.creator?.display_name ?? null,
-              }));
-            } catch { return []; }
-          })(),
         ]);
 
         if (matchResult.error) throw new Error(matchResult.error.message);
@@ -234,7 +214,7 @@ export default function HomePage() {
         setTournaments(tournamentResult as TournamentLite[]);
         setLadderRanks((ladderResult.data ?? []) as LadderRank[]);
         setPoolUpcoming(poolResult as PoolUpcoming[]);
-        setPoolCompleted(poolCompletedResult as PoolCompleted[]);
+
 
         if (clubResult.data && mounted) {
           const map: Record<string, string> = {};
@@ -332,7 +312,6 @@ export default function HomePage() {
   }, [rows, meId]);
 
   const grossRank = ladderRanks.find((r) => r.type === "gross");
-  const netRank = ladderRanks.find((r) => r.type === "net");
 
   // Upcoming: merge match upcoming + pool upcoming, sorted by round_time
   type UpcomingItem = { id: string; kind: "match" | "ladder" | "pool"; course_name: string; round_time: string; label: string; sublabel: string; href: string; avatarText: string };
@@ -372,8 +351,7 @@ export default function HomePage() {
     }
 
     return items
-      .sort((a, b) => new Date(a.round_time).getTime() - new Date(b.round_time).getTime())
-      .slice(0, 5);
+      .sort((a, b) => new Date(a.round_time).getTime() - new Date(b.round_time).getTime());
   }, [buckets.upcoming, poolUpcoming, meId, players, displayName]);
 
   // Active scoring window matches (round_time passed, within 12h)
@@ -389,68 +367,30 @@ export default function HomePage() {
   const canCreateMatch = hasName;
   const newMatchHref = canCreateMatch ? "/matches/new" : "/profile?next=/matches/new&reason=name_required";
 
-  // Build activity feed from recent matches + tournaments
-  const activityFeed = useMemo(() => {
-    const items: { id: string; type: "match_result" | "tournament" | "ladder"; text: string; subtext: string; href: string; time: number; icon: "trophy" | "medal" | "chart" }[] = [];
+  const COLLAPSED_LIMIT = 3;
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
-    // Recent completed matches (last 5)
-    for (const m of buckets.completed.slice(0, 5)) {
-      const opp = opponentFor(m);
-      items.push({
-        id: `m-${m.id}`,
-        type: "match_result",
-        text: `Match vs ${opp.name}`,
-        subtext: `${m.course_name || "Course"} — ${m.format === "match_play" ? "Match Play" : "Stroke Play"}`,
-        href: `/matches/${m.id}`,
-        time: new Date(m.created_at).getTime(),
-        icon: "trophy",
-      });
-    }
+  function sectionExpanded(key: string) { return expandedSections[key] ?? false; }
+  function toggleSection(key: string) { setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] })); }
 
-    // Recent completed pool rounds (last 5)
-    for (const p of poolCompleted.slice(0, 5)) {
-      const isHost = p.creator_id === meId;
-      items.push({
-        id: `p-${p.id}`,
-        type: "match_result",
-        text: isHost ? "Hosted pool round" : `Pool round — ${p.creator_name ?? "Organizer"}`,
-        subtext: `${p.course_name} — Pool`,
-        href: `/pool/${p.id}`,
-        time: new Date(p.round_time).getTime(),
-        icon: "trophy",
-      });
-    }
+  function ShowMoreButton({ sectionKey, total }: { sectionKey: string; total: number }) {
+    if (total <= COLLAPSED_LIMIT) return null;
+    const expanded = sectionExpanded(sectionKey);
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSection(sectionKey)}
+        className="block w-full text-center text-[11px] font-semibold text-[var(--pine)] py-1.5 transition hover:text-[var(--gold)]"
+      >
+        {expanded ? "Show less" : `Show all ${total}`}
+      </button>
+    );
+  }
 
-    // Active tournaments
-    for (const t of tournaments) {
-      const p = currentPeriod(t);
-      const unit = t.period_type === "weekly" ? "Week" : "Month";
-      items.push({
-        id: `t-${t.id}`,
-        type: "tournament",
-        text: t.name,
-        subtext: `${unit} ${p} of ${t.period_count}`,
-        href: `/tournaments/${t.id}`,
-        time: new Date(t.start_date).getTime(),
-        icon: "medal",
-      });
-    }
-
-    // Ladder position
-    if (grossRank) {
-      items.push({
-        id: "ladder-gross",
-        type: "ladder",
-        text: `Ladder Position: #${grossRank.position}`,
-        subtext: netRank ? `Net: #${netRank.position}` : "Gross ranking",
-        href: "/ladder",
-        time: Date.now(),
-        icon: "chart",
-      });
-    }
-
-    return items.sort((a, b) => b.time - a.time).slice(0, 8);
-  }, [buckets.completed, poolCompleted, tournaments, grossRank, netRank, players, meId]);
+  function sliceFor<T>(key: string, items: T[]): T[] {
+    if (sectionExpanded(key) || items.length <= COLLAPSED_LIMIT) return items;
+    return items.slice(0, COLLAPSED_LIMIT);
+  }
 
   return (
     <div className="space-y-6">
@@ -468,12 +408,12 @@ export default function HomePage() {
       </div>
 
       {fatal && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-[6px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <div>{fatal}</div>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
+            className="mt-2 rounded-[3px] bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
           >
             Reload page
           </button>
@@ -491,7 +431,7 @@ export default function HomePage() {
           <Link
             key={t.label}
             href={t.href}
-            className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-4 shadow-[var(--shadow)] transition hover:-translate-y-[1px] hover:shadow-[0_14px_40px_rgba(17,19,18,.10)]"
+            className="rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-4 shadow-[var(--shadow-sm)] transition hover:-translate-y-[1px] hover:shadow-[var(--shadow)]"
           >
             <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--muted)] sm:text-[10px] sm:tracking-[0.2em]">{t.label}</div>
             <div className="mt-1 text-xl font-semibold tabular-nums text-[var(--ink)] sm:text-2xl">{t.value}</div>
@@ -501,30 +441,10 @@ export default function HomePage() {
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        <Link
-          href={newMatchHref}
-          className="rounded-xl bg-[var(--pine)] px-3 py-2.5 text-center text-sm font-semibold text-[var(--paper)] transition hover:-translate-y-[1px] hover:shadow-[0_10px_26px_rgba(0,0,0,.18)] sm:py-3"
-        >
-          New match
-        </Link>
-        <Link
-          href="/matches/new?mode=link"
-          className="rounded-xl border-2 border-[var(--pine)]/30 bg-[var(--pine)]/5 px-3 py-2.5 text-center text-sm font-semibold text-[var(--pine)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3"
-        >
-          Invite friend
-        </Link>
-        <Link
-          href="/tournaments/new"
-          className="rounded-xl border-2 border-[var(--pine)]/30 bg-[var(--pine)]/5 px-3 py-2.5 text-center text-sm font-semibold text-[var(--pine)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3"
-        >
-          New tournament
-        </Link>
-        <Link
-          href="/ladder"
-          className="rounded-xl border border-[var(--border)] bg-white/60 px-3 py-2.5 text-center text-sm font-semibold text-[var(--ink)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3"
-        >
-          View ladder
-        </Link>
+        <Link href={newMatchHref} className="btn-gold text-center py-2.5 sm:py-3">New match</Link>
+        <Link href="/matches/new?mode=link" className="btn-outline-gold text-center py-2.5 sm:py-3">Invite friend</Link>
+        <Link href="/tournaments/new" className="btn-outline-gold text-center py-2.5 sm:py-3">New tournament</Link>
+        <Link href="/find-a-match" className="rounded-[3px] border border-[var(--border)] bg-white/60 px-3 py-2.5 text-center text-[13px] font-bold uppercase tracking-wide text-[var(--ink)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3">Find a match</Link>
       </div>
 
       {/* Scoring now — matches in the 12h window */}
@@ -538,9 +458,9 @@ export default function HomePage() {
                 <Link
                   key={m.id}
                   href={`/matches/${m.id}`}
-                  className="group flex items-center gap-3 rounded-xl border-2 border-amber-200/60 bg-amber-50/30 p-3 transition hover:border-amber-300 hover:shadow-sm sm:p-4"
+                  className="group flex items-center gap-3 rounded-[6px] border-2 border-[var(--gold)]/40 bg-[var(--gold-light)]/20 p-3 transition hover:border-[var(--gold)] hover:shadow-sm sm:p-4"
                 >
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--gold-light)] text-[var(--tan)]">
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
@@ -549,11 +469,11 @@ export default function HomePage() {
                     <div className="truncate text-sm font-semibold text-[var(--ink)]">
                       vs {opp.name} — {m.course_name || "Course"}
                     </div>
-                    <div className="mt-0.5 text-xs text-amber-700 font-medium">
+                    <div className="mt-0.5 text-xs text-[var(--tan)] font-medium">
                       {deadlineText(m.round_time!)}
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200/60">
+                  <span className="shrink-0 rounded-[3px] bg-[var(--gold)] px-2.5 py-1 text-[11px] font-bold text-[var(--pine)]">
                     Enter scores
                   </span>
                 </Link>
@@ -563,21 +483,38 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Needs YOUR response — accept/decline */}
-      {!loading && buckets.needsMyResponse.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Needs your response</h2>
+      {/* ── ACTIVE — top of the list ── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Active</h2>
+        {loading ? (
           <div className="space-y-2">
-            {buckets.needsMyResponse.slice(0, 4).map((r) => {
+            <div className="h-16 animate-pulse rounded-[6px] bg-black/[0.03]" />
+            <div className="h-16 animate-pulse rounded-[6px] bg-black/[0.03]" style={{ animationDelay: "75ms" }} />
+          </div>
+        ) : buckets.inProgress.length === 0 ? (
+          <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
+            No active matches.{" "}
+            <Link href={newMatchHref} className="font-medium text-[var(--pine)] underline">Create one</Link>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {sliceFor("active", buckets.inProgress).map((r) => {
               const opp = opponentFor(r);
-              const ts = String(r.terms_status ?? "").toLowerCase();
               return (
                 <Link
                   key={r.id}
                   href={`/matches/${r.id}`}
-                  className="group flex items-center gap-2.5 rounded-[6px] border border-[var(--gold)]/40 bg-[var(--gold-light)]/30 p-3 transition hover:border-[var(--gold)] hover:shadow-sm sm:gap-3 sm:p-4"
+                  className={cx(
+                    "group flex items-center gap-2.5 rounded-[6px] border p-3 transition hover:shadow-sm sm:gap-3 sm:p-4",
+                    r.is_ladder_match
+                      ? "border-[var(--gold)]/30 bg-[var(--gold-light)]/20 hover:border-[var(--gold)]"
+                      : "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20"
+                  )}
                 >
-                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
+                  <div className={cx(
+                    "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full text-white sm:h-10 sm:w-10",
+                    r.is_ladder_match ? "bg-[var(--tan)]" : "bg-[var(--pine)]"
+                  )}>
                     {opp.avatarUrl ? (
                       <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
                     ) : (
@@ -592,66 +529,24 @@ export default function HomePage() {
                       {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
-                      {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}
+                      {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}{r.use_handicap ? " (Net)" : ""}
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-[3px] bg-[var(--gold)] px-3 py-1 text-[11px] font-bold text-[var(--pine)]">
-                    {ts === "denied" ? "Counter terms" : "Accept / Decline"}
-                  </span>
+                  <span className="pill-live">Active</span>
                 </Link>
               );
             })}
+            <ShowMoreButton sectionKey="active" total={buckets.inProgress.length} />
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      {/* Awaiting THEIR response — you sent, waiting */}
-      {!loading && buckets.awaitingTheir.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Awaiting response</h2>
-          <div className="space-y-2">
-            {buckets.awaitingTheir.slice(0, 4).map((r) => {
-              const opp = opponentFor(r);
-              return (
-                <Link
-                  key={r.id}
-                  href={`/matches/${r.id}`}
-                  className="group flex items-center gap-2.5 rounded-[6px] border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
-                >
-                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--muted)]/20 text-[var(--muted)] sm:h-10 sm:w-10">
-                    {opp.avatarUrl ? (
-                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
-                        {initials(opp.name)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-semibold text-[var(--muted)]">{opp.name}</span>
-                      {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
-                    </div>
-                    <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
-                      {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}
-                    </div>
-                  </div>
-                  <span className="shrink-0 rounded-[3px] border border-[var(--border)] px-3 py-1 text-[11px] font-medium text-[var(--muted)]">
-                    Sent
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Upcoming matches + pool rounds with countdown */}
+      {/* ── UPCOMING ── */}
       {!loading && upcomingItems.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Upcoming</h2>
           <div className="space-y-2">
-            {upcomingItems.map((item) => {
+            {sliceFor("upcoming", upcomingItems).map((item) => {
               const dt = new Date(item.round_time);
               const kindColor = item.kind === "pool" ? "bg-blue-50 text-blue-700 border-blue-200" : item.kind === "ladder" ? "bg-[var(--gold-light)] text-[var(--tan)] border-[var(--gold)]/40" : "";
               const kindLabel = item.kind === "pool" ? "Pool" : item.kind === "ladder" ? "Ladder" : null;
@@ -687,9 +582,7 @@ export default function HomePage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-semibold text-[var(--ink)]">
-                        {item.label}
-                      </span>
+                      <span className="truncate text-sm font-semibold text-[var(--ink)]">{item.label}</span>
                       {kindLabel && (
                         <span className={cx("shrink-0 rounded-[3px] border px-1.5 py-0.5 text-[9px] font-bold", kindColor)}>
                           {kindLabel}
@@ -707,85 +600,26 @@ export default function HomePage() {
                 </Link>
               );
             })}
+            <ShowMoreButton sectionKey="upcoming" total={upcomingItems.length} />
           </div>
         </section>
       )}
 
-      {/* Active tournaments */}
-      {!loading && tournaments.length > 0 && (
+      {/* ── NEEDS YOUR RESPONSE ── */}
+      {!loading && buckets.needsMyResponse.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Your tournaments</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Needs your response</h2>
           <div className="space-y-2">
-            {tournaments.slice(0, 3).map((t) => {
-              const p = currentPeriod(t);
-              const unit = t.period_type === "weekly" ? "Week" : "Month";
-              return (
-                <Link
-                  key={t.id}
-                  href={`/tournaments/${t.id}`}
-                  className="group flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:p-4"
-                >
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[var(--pine)]">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                      <circle cx="12" cy="8" r="6" />
-                      <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
-                    </svg>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-[var(--ink)] group-hover:text-[var(--pine)] transition-colors">{t.name}</div>
-                    <div className="mt-0.5 text-xs text-[var(--muted)]">
-                      {unit} {p} of {t.period_count}
-                    </div>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 border border-emerald-200/60">
-                    {unit} {p}
-                  </span>
-                </Link>
-              );
-            })}
-            {tournaments.length > 3 && (
-              <Link href="/tournaments" className="block text-center text-xs font-medium text-[var(--pine)]">
-                View all {tournaments.length} tournaments →
-              </Link>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* In-progress — active matches (round_time passed or no scheduled time) */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Active</h2>
-        {loading ? (
-          <div className="space-y-2">
-            <div className="h-16 animate-pulse rounded-[6px] bg-black/[0.03]" />
-            <div className="h-16 animate-pulse rounded-[6px] bg-black/[0.03]" style={{ animationDelay: "75ms" }} />
-          </div>
-        ) : buckets.inProgress.length === 0 && buckets.upcoming.length === 0 ? (
-          <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
-            No active matches.{" "}
-            <Link href={newMatchHref} className="font-medium text-[var(--pine)] underline">
-              Create one
-            </Link>
-          </div>
-        ) : buckets.inProgress.length === 0 ? null : (
-          <div className="space-y-2">
-            {buckets.inProgress.slice(0, 4).map((r) => {
+            {sliceFor("needsResponse", buckets.needsMyResponse).map((r) => {
               const opp = opponentFor(r);
+              const ts = String(r.terms_status ?? "").toLowerCase();
               return (
                 <Link
                   key={r.id}
                   href={`/matches/${r.id}`}
-                  className={cx(
-                    "group flex items-center gap-2.5 rounded-[6px] border p-3 transition hover:shadow-sm sm:gap-3 sm:p-4",
-                    r.is_ladder_match
-                      ? "border-[var(--gold)]/30 bg-[var(--gold-light)]/20 hover:border-[var(--gold)]"
-                      : "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20"
-                  )}
+                  className="group flex items-center gap-2.5 rounded-[6px] border border-[var(--gold)]/40 bg-[var(--gold-light)]/30 p-3 transition hover:border-[var(--gold)] hover:shadow-sm sm:gap-3 sm:p-4"
                 >
-                  <div className={cx(
-                    "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full text-white sm:h-10 sm:w-10",
-                    r.is_ladder_match ? "bg-[var(--tan)]" : "bg-[var(--pine)]"
-                  )}>
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
                     {opp.avatarUrl ? (
                       <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
                     ) : (
@@ -797,70 +631,94 @@ export default function HomePage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold">{opp.name}</span>
-                      {r.is_ladder_match && (
-                        <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>
-                      )}
+                      {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
-                      {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}{r.use_handicap ? " (Net)" : ""}
+                      {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}
                     </div>
                   </div>
-                  <span className="pill-live">Active</span>
+                  <span className="shrink-0 rounded-[3px] bg-[var(--gold)] px-3 py-1 text-[11px] font-bold text-[var(--pine)]">
+                    {ts === "denied" ? "Counter terms" : "Accept / Decline"}
+                  </span>
                 </Link>
               );
             })}
-            {buckets.inProgress.length > 4 && (
-              <Link href="/matches" className="block text-center text-xs font-medium text-[var(--pine)]">
-                View all {buckets.inProgress.length} active →
-              </Link>
-            )}
+            <ShowMoreButton sectionKey="needsResponse" total={buckets.needsMyResponse.length} />
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      {/* Activity feed */}
-      {!loading && activityFeed.length > 0 && (
+      {/* ── AWAITING THEIR RESPONSE ── */}
+      {!loading && buckets.awaitingTheir.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Recent activity</h2>
-          <div className="rounded-2xl border border-[var(--border)] bg-white/60 divide-y divide-[var(--border)]">
-            {activityFeed.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                className="flex items-center gap-3 px-4 py-3 transition hover:bg-black/[0.02] first:rounded-t-2xl last:rounded-b-2xl"
-              >
-                <div className={cx(
-                  "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full",
-                  item.icon === "trophy" && "bg-emerald-100 text-emerald-600",
-                  item.icon === "medal" && "bg-[var(--pine)]/10 text-[var(--pine)]",
-                  item.icon === "chart" && "bg-blue-100 text-blue-600",
-                )}>
-                  {item.icon === "trophy" && (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 7 7 7 7M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 17 7 17 7M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.24 7 20v2M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.24 17 20v2M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-                    </svg>
-                  )}
-                  {item.icon === "medal" && (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Awaiting response</h2>
+          <div className="space-y-2">
+            {sliceFor("awaiting", buckets.awaitingTheir).map((r) => {
+              const opp = opponentFor(r);
+              return (
+                <Link
+                  key={r.id}
+                  href={`/matches/${r.id}`}
+                  className="group flex items-center gap-2.5 rounded-[6px] border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
+                >
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--muted)]/20 text-[var(--muted)] sm:h-10 sm:w-10">
+                    {opp.avatarUrl ? (
+                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
+                        {initials(opp.name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold text-[var(--muted)]">{opp.name}</span>
+                      {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+                      {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-[3px] border border-[var(--border)] px-3 py-1 text-[11px] font-medium text-[var(--muted)]">
+                    Sent
+                  </span>
+                </Link>
+              );
+            })}
+            <ShowMoreButton sectionKey="awaiting" total={buckets.awaitingTheir.length} />
+          </div>
+        </section>
+      )}
+
+      {/* ── TOURNAMENTS ── */}
+      {!loading && tournaments.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Your tournaments</h2>
+          <div className="space-y-2">
+            {sliceFor("tournaments", tournaments).map((t) => {
+              const p = currentPeriod(t);
+              const unit = t.period_type === "weekly" ? "Week" : "Month";
+              return (
+                <Link
+                  key={t.id}
+                  href={`/tournaments/${t.id}`}
+                  className="group flex items-center gap-3 rounded-[6px] border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:p-4"
+                >
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[6px] bg-[var(--green-light)] text-[var(--pine)]">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                       <circle cx="12" cy="8" r="6" />
                       <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
                     </svg>
-                  )}
-                  {item.icon === "chart" && (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20V10M18 20V4M6 20v-4" />
-                    </svg>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-[var(--ink)]">{item.text}</div>
-                  <div className="truncate text-xs text-[var(--muted)]">{item.subtext}</div>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 text-[var(--muted)] opacity-0 transition group-hover:opacity-100">
-                  <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Link>
-            ))}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-[var(--ink)] group-hover:text-[var(--pine)] transition-colors">{t.name}</div>
+                    <div className="mt-0.5 text-xs text-[var(--muted)]">{unit} {p} of {t.period_count}</div>
+                  </div>
+                  <span className="pill-live">{unit} {p}</span>
+                </Link>
+              );
+            })}
+            <ShowMoreButton sectionKey="tournaments" total={tournaments.length} />
           </div>
         </section>
       )}

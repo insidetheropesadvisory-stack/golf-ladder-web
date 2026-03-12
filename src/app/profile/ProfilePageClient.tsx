@@ -89,6 +89,10 @@ export default function ProfilePageClient() {
   type ClubMembership = { club_id: string; club_name: string; city: string | null; state: string | null };
   const [clubs, setClubs] = useState<ClubMembership[]>([]);
 
+  type ActivityItem = { id: string; text: string; subtext: string; href: string; time: string };
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [showAllActivity, setShowAllActivity] = useState(false);
+
   const hasChanges = useMemo(() => {
     const nextHandicap = safeNum(handicap);
 
@@ -141,6 +145,37 @@ export default function ProfilePageClient() {
               state: m.clubs?.state ?? null,
             }))
           );
+        }
+
+        // Fetch recent completed matches for activity
+        const email = (user.email ?? "").trim();
+        const orClause = [
+          `creator_id.eq.${user.id}`,
+          `opponent_id.eq.${user.id}`,
+          email ? `opponent_email.ilike.${email}` : null,
+        ].filter(Boolean).join(",");
+
+        const { data: recentMatches } = await supabase
+          .from("matches")
+          .select("id, created_at, creator_id, opponent_id, opponent_email, course_name, format, status, completed")
+          .or(orClause)
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        if (mounted && recentMatches) {
+          const completedMatches = recentMatches.filter((m: any) => m.completed || m.status === "completed");
+          const items: ActivityItem[] = completedMatches.map((m: any) => {
+            const isCreator = m.creator_id === user.id;
+            const oppLabel = isCreator ? (m.opponent_email || "Opponent") : "Challenger";
+            return {
+              id: m.id,
+              text: `Match vs ${oppLabel}`,
+              subtext: `${m.course_name || "Course"} — ${m.format === "match_play" ? "Match Play" : "Stroke Play"}`,
+              href: `/matches/${m.id}`,
+              time: m.created_at,
+            };
+          });
+          setActivity(items);
         }
 
         const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
@@ -673,6 +708,56 @@ export default function ProfilePageClient() {
                 </Link>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Recent Activity */}
+      {!loading && activity.length > 0 && (
+        <div className="rounded-[6px] border border-[var(--border)] bg-white/70 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[var(--border)]/60 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="icon-box icon-box--green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-[var(--ink)]">Recent Activity</div>
+                <div className="text-[11px] text-[var(--muted)]">{activity.length} completed match{activity.length !== 1 ? "es" : ""}</div>
+              </div>
+            </div>
+          </div>
+          <div className="divide-y divide-[var(--border)]/60">
+            {(showAllActivity ? activity : activity.slice(0, 3)).map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="flex items-center gap-3 px-5 py-3 transition hover:bg-[var(--green-light)]/30"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-[3px] bg-[var(--green-light)] text-[var(--pine)]">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 7 7 7 7M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 17 7 17 7M4 22h16M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] font-semibold text-[var(--ink)]">{item.text}</div>
+                  <div className="truncate text-[11px] text-[var(--muted)]">{item.subtext}</div>
+                </div>
+                <div className="text-[10px] text-[var(--muted)] shrink-0">
+                  {new Date(item.time).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </div>
+              </Link>
+            ))}
+          </div>
+          {activity.length > 3 && (
+            <button
+              type="button"
+              onClick={() => setShowAllActivity(!showAllActivity)}
+              className="block w-full border-t border-[var(--border)]/60 py-2.5 text-center text-[11px] font-semibold text-[var(--pine)] transition hover:text-[var(--gold)]"
+            >
+              {showAllActivity ? "Show less" : `Show all ${activity.length}`}
+            </button>
           )}
         </div>
       )}
