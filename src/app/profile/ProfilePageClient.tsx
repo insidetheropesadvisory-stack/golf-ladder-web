@@ -890,13 +890,13 @@ export default function ProfilePageClient() {
                     <div className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 text-center">
                       <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>Avg Score</div>
                       <div className="mt-1.5 text-[32px] leading-none tabular-nums text-[var(--ink)]" style={{ fontFamily: "var(--font-heading)" }}>
-                        {stats.avgScore ?? "\u2014"}
+                        {stats.avgScore ?? "—"}
                       </div>
                     </div>
                     <div className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 text-center">
                       <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>Best</div>
                       <div className="mt-1.5 text-[32px] leading-none tabular-nums text-[var(--ink)]" style={{ fontFamily: "var(--font-heading)" }}>
-                        {stats.bestScore ?? "\u2014"}
+                        {stats.bestScore ?? "—"}
                       </div>
                     </div>
                   </div>

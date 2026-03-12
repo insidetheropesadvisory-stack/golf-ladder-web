@@ -265,7 +265,7 @@ export default function LadderScoringPage() {
             ))}
             {Array.from({ length: 9 }, (_, i) => i + 1).map((h) => (
               <div key={h} className="border-b border-r border-[var(--border)]/50 py-1.5 font-semibold tabular-nums text-[var(--ink)]">
-                {scores.get(h) ?? "\u2014"}
+                {scores.get(h) ?? "—"}
               </div>
             ))}
             {Array.from({ length: 9 }, (_, i) => i + 10).map((h) => (
@@ -273,7 +273,7 @@ export default function LadderScoringPage() {
             ))}
             {Array.from({ length: 9 }, (_, i) => i + 10).map((h) => (
               <div key={h} className="border-b border-r border-[var(--border)]/50 py-1.5 font-semibold tabular-nums text-[var(--ink)]">
-                {scores.get(h) ?? "\u2014"}
+                {scores.get(h) ?? "—"}
               </div>
             ))}
           </div>
@@ -330,7 +330,7 @@ export default function LadderScoringPage() {
             onKeyDown={(e) => {
               if (e.key === "Enter") { e.preventDefault(); saveHole(); }
             }}
-            placeholder="\u2014"
+            placeholder="—"
             min={1}
             max={20}
             autoFocus
@@ -411,7 +411,7 @@ export default function LadderScoringPage() {
                   "text-[var(--ink)]"
                 )}
               >
-                {s ?? "\u2014"}
+                {s ?? "—"}
               </button>
             );
           })}
@@ -441,7 +441,7 @@ export default function LadderScoringPage() {
                   "text-[var(--ink)]"
                 )}
               >
-                {s ?? "\u2014"}
+                {s ?? "—"}
               </button>
             );
           })}
