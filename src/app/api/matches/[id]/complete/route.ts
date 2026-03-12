@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthedUser, adminClient } from "@/lib/supabase/server";
+import { evaluateUser } from "@/lib/badges/service";
 
 export const runtime = "nodejs";
 
@@ -272,6 +273,10 @@ export async function POST(
         }
       }
     }
+
+    // Fire-and-forget badge evaluation for both players
+    evaluateUser(admin, creatorId).catch(() => {});
+    evaluateUser(admin, opponentId).catch(() => {});
 
     return NextResponse.json({
       ok: true,

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx, initials } from "@/lib/utils";
+import BadgeGrid from "@/app/components/BadgeGrid";
 
 type ProfileRow = {
   id: string;
@@ -617,6 +618,33 @@ export default function ProfilePageClient() {
           </>
         )}
       </div>
+
+      {/* YOUR MARKERS — Badge collection */}
+      {!loading && userId && (
+        <div className="rounded-[6px] border border-[var(--border)] bg-white/70 shadow-sm overflow-hidden">
+          <div className="border-b border-[var(--border)]/60 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="h-5 w-1 rounded-full bg-[var(--pine)]" />
+              <h2
+                className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--ink)]"
+                style={{ fontFamily: "Playfair Display, serif" }}
+              >
+                Your Markers
+              </h2>
+              <div className="flex-1 h-px bg-[var(--gold)]/40" />
+              <Link
+                href="/badges"
+                className="text-[10px] font-semibold text-[var(--pine)] transition hover:text-[var(--gold)]"
+              >
+                View all
+              </Link>
+            </div>
+          </div>
+          <div className="px-5 py-5">
+            <BadgeGrid userId={userId} />
+          </div>
+        </div>
+      )}
 
       {/* Match Statistics card */}
       {!loading && (

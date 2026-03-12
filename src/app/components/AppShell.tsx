@@ -237,6 +237,11 @@ export function AppShell({
         router.replace("/login");
       } else if (session?.user && !isAuthRoute) {
         checkProfileComplete(session.user.id);
+        // Track daily login (fire-and-forget)
+        fetch("/api/login-track", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }).catch(() => {});
       }
     });
 

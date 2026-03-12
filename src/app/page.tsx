@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx, initials, emailToName } from "@/lib/utils";
+import BadgeRow from "@/app/components/BadgeRow";
 
 type MatchRow = {
   id: string;
@@ -276,7 +277,7 @@ export default function HomePage() {
     const oppId = myId === row.creator_id ? row.opponent_id : row.creator_id;
     const p = oppId ? players[String(oppId)] : null;
     const name = p?.display_name?.trim() || (myId === row.creator_id && !row.opponent_id ? "Invite pending" : emailToName(row.opponent_email || "Opponent"));
-    return { name, avatarUrl: p?.avatar_url ?? null };
+    return { name, avatarUrl: p?.avatar_url ?? null, id: oppId ?? null };
   }
 
   const buckets = useMemo(() => {
@@ -543,6 +544,7 @@ export default function HomePage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold">{opp.name}</span>
+                      {opp.id && <BadgeRow userId={opp.id} />}
                       {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
@@ -650,6 +652,7 @@ export default function HomePage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold">{opp.name}</span>
+                      {opp.id && <BadgeRow userId={opp.id} />}
                       {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
@@ -692,6 +695,7 @@ export default function HomePage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold text-[var(--muted)]">{opp.name}</span>
+                      {opp.id && <BadgeRow userId={opp.id} />}
                       {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">

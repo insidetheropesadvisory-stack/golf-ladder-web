@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedUser, adminClient } from "@/lib/supabase/server";
 import { sendPushToUser } from "@/lib/pushSend";
+import { evaluateUser } from "@/lib/badges/service";
 
 export const runtime = "nodejs";
 
@@ -305,6 +306,9 @@ async function tryResolveChallenge(
         body: resultMsg,
         url: `/ladder/challenge/${challengeId}`,
       }).catch(() => {});
+
+      // Fire-and-forget badge evaluation
+      evaluateUser(admin, playerId).catch(() => {});
     }
 
     return true;

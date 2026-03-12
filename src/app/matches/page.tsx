@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx, initials, emailToName } from "@/lib/utils";
+import BadgeRow from "@/app/components/BadgeRow";
 
 type AnyRow = Record<string, any>;
 
@@ -399,6 +400,11 @@ export default function MatchesPage() {
     return emailToName(String(m.opponent_email ?? ""));
   }
 
+  function opponentId(m: AnyRow): string | null {
+    const oppId = me?.id === m.creator_id ? m.opponent_id : m.creator_id;
+    return oppId ?? null;
+  }
+
   function handicapLabel(m: AnyRow) {
     if (!m.use_handicap) return null;
     const myHcp = me?.id ? handicaps[me.id] : undefined;
@@ -570,6 +576,7 @@ export default function MatchesPage() {
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
                         <span className="truncate">vs {opponentName(m)}</span>
+                        {opponentId(m) && <BadgeRow userId={opponentId(m)!} />}
                         <span className="text-[var(--border)]">/</span>
                         <span>{formatLabel(m.format)}</span>
                         {handicapLabel(m) && (
@@ -631,6 +638,7 @@ export default function MatchesPage() {
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-[var(--muted)] sm:text-xs">
                         <span className="truncate">vs {opponentName(m)}</span>
+                        {opponentId(m) && <BadgeRow userId={opponentId(m)!} />}
                         <span className="text-[var(--border)]">&middot;</span>
                         <span>{formatLabel(m.format)}</span>
                         {handicapLabel(m) && (
@@ -694,6 +702,7 @@ export default function MatchesPage() {
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
                       <span className="truncate">vs {opponentName(m)}</span>
+                        {opponentId(m) && <BadgeRow userId={opponentId(m)!} />}
                       <span className="text-[var(--border)]">/</span>
                       <span>{formatLabel(m.format)}</span>
                       {handicapLabel(m) && (
@@ -750,6 +759,7 @@ export default function MatchesPage() {
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--muted)]">
                       <span className="truncate">vs {opponentName(m)}</span>
+                        {opponentId(m) && <BadgeRow userId={opponentId(m)!} />}
                       {handicapLabel(m) && (
                         <>
                           <span className="text-[var(--border)]">/</span>

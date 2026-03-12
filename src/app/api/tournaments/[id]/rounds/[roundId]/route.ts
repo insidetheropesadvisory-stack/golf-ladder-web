@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedUser, adminClient } from "@/lib/supabase/server";
 import { sendPushToUser } from "@/lib/pushSend";
+import { evaluateUser } from "@/lib/badges/service";
 
 export const runtime = "nodejs";
 
@@ -144,6 +145,9 @@ export async function POST(
 
       // Check for leader change and send notifications
       await checkLeaderChange(admin, tournamentId, round.period_number, user.id, differential);
+
+      // Fire-and-forget badge evaluation
+      evaluateUser(admin, user.id).catch(() => {});
 
       return NextResponse.json({
         saved: true,
