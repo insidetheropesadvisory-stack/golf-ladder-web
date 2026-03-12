@@ -456,7 +456,7 @@ export function AppShell({
       <header className="sticky top-0 z-30 border-b-2 border-[var(--gold)] bg-[var(--pine)] text-[var(--paper)]">
         <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex flex-col items-start hover:opacity-90 transition">
-            <span className="text-[8px] font-bold tracking-[0.16em] uppercase text-[var(--gold)]" style={{ fontFamily: "var(--font-body)" }}>Est. 2024</span>
+            <span className="text-[8px] font-bold tracking-[0.16em] uppercase text-[var(--gold)]" style={{ fontFamily: "var(--font-body)" }}>Est. 2026</span>
             <span className="text-[20px] leading-none sm:text-[22px]" style={{ fontFamily: "var(--font-heading)" }}>Reciprocity</span>
           </Link>
 

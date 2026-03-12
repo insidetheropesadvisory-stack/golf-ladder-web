@@ -301,42 +301,53 @@ export default function HomePage() {
 
   const buckets = useMemo(() => {
     const myId = meId ?? "";
+    const now = Date.now();
     const proposed = rows.filter((r) => deriveBucket(r) === "proposal");
-    const active = rows.filter((r) => deriveBucket(r) === "active");
+    const allActive = rows.filter((r) => deriveBucket(r) === "active");
     const completed = rows.filter((r) => deriveBucket(r) === "completed");
-    const actionNeeded = proposed.filter((r) => needsMyAction(r, myId));
 
-    const nextUp = [...active].sort((a, b) => {
-      const ta = a.round_time ? new Date(a.round_time).getTime() : Infinity;
-      const tb = b.round_time ? new Date(b.round_time).getTime() : Infinity;
-      return ta - tb;
+    // Pending split: needs MY response vs waiting on THEM
+    const needsMyResponse = proposed.filter((r) => needsMyAction(r, myId));
+    const awaitingTheir = proposed.filter((r) => !needsMyAction(r, myId));
+
+    // Active split: upcoming (future round_time) vs in-progress (no time or time passed)
+    const upcoming = allActive.filter((r) => r.round_time && new Date(r.round_time).getTime() > now);
+    const inProgress = allActive.filter((r) => !r.round_time || new Date(r.round_time).getTime() <= now);
+
+    const sortedUpcoming = [...upcoming].sort((a, b) => {
+      return new Date(a.round_time!).getTime() - new Date(b.round_time!).getTime();
+    });
+
+    const sortedInProgress = [...inProgress].sort((a, b) => {
+      const ta = a.round_time ? new Date(a.round_time).getTime() : new Date(a.created_at).getTime();
+      const tb = b.round_time ? new Date(b.round_time).getTime() : new Date(b.created_at).getTime();
+      return tb - ta;
     });
 
     const recent = [...completed].sort((a, b) => {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-    return { proposed, active: nextUp, completed: recent, actionNeeded };
+    return { proposed, allActive, upcoming: sortedUpcoming, inProgress: sortedInProgress, completed: recent, needsMyResponse, awaitingTheir };
   }, [rows, meId]);
 
   const grossRank = ladderRanks.find((r) => r.type === "gross");
   const netRank = ladderRanks.find((r) => r.type === "net");
 
   // Upcoming: merge match upcoming + pool upcoming, sorted by round_time
-  type UpcomingItem = { id: string; type: "match" | "pool"; course_name: string; round_time: string; label: string; sublabel: string; href: string; avatarText: string };
-  const upcoming = useMemo(() => {
+  type UpcomingItem = { id: string; kind: "match" | "ladder" | "pool"; course_name: string; round_time: string; label: string; sublabel: string; href: string; avatarText: string };
+  const upcomingItems = useMemo(() => {
     const now = Date.now();
     const items: UpcomingItem[] = [];
 
-    // Match upcoming
-    for (const m of buckets.active) {
-      if (!m.round_time || new Date(m.round_time).getTime() <= now) continue;
+    // Match upcoming (from the new bucket — already filtered to future round_time)
+    for (const m of buckets.upcoming) {
       const opp = opponentFor(m);
       items.push({
         id: m.id,
-        type: "match",
+        kind: m.is_ladder_match ? "ladder" : "match",
         course_name: m.course_name,
-        round_time: m.round_time,
+        round_time: m.round_time!,
         label: `vs ${opp.name}`,
         sublabel: m.course_name,
         href: `/matches/${m.id}`,
@@ -350,7 +361,7 @@ export default function HomePage() {
       const isHost = p.creator_id === meId;
       items.push({
         id: p.id,
-        type: "pool",
+        kind: "pool",
         course_name: p.course_name,
         round_time: p.round_time,
         label: isHost ? "Your pool round" : `Pool — ${p.creator_name ?? "Organizer"}`,
@@ -363,17 +374,17 @@ export default function HomePage() {
     return items
       .sort((a, b) => new Date(a.round_time).getTime() - new Date(b.round_time).getTime())
       .slice(0, 5);
-  }, [buckets.active, poolUpcoming, meId, players, displayName]);
+  }, [buckets.upcoming, poolUpcoming, meId, players, displayName]);
 
   // Active scoring window matches (round_time passed, within 12h)
   const scoringNow = useMemo(() => {
     const now = Date.now();
-    return buckets.active.filter((m) => {
+    return buckets.inProgress.filter((m) => {
       if (!m.round_time) return false;
       const rt = new Date(m.round_time).getTime();
       return now >= rt && now <= rt + DEADLINE_MS;
     });
-  }, [buckets.active]);
+  }, [buckets.inProgress]);
 
   const canCreateMatch = hasName;
   const newMatchHref = canCreateMatch ? "/matches/new" : "/profile?next=/matches/new&reason=name_required";
@@ -472,8 +483,8 @@ export default function HomePage() {
       {/* Stat tiles */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         {[
-          { label: "Needs action", value: buckets.actionNeeded.length, href: "/matches" },
-          { label: "Active matches", value: buckets.active.length, href: "/matches" },
+          { label: "Needs response", value: buckets.needsMyResponse.length, href: "/matches" },
+          { label: "Active", value: buckets.allActive.length, href: "/matches" },
           { label: "Tournaments", value: tournaments.length, href: "/tournaments" },
           { label: "Ladder rank", value: grossRank ? `#${grossRank.position}` : "—", href: "/ladder" },
         ].map((t) => (
@@ -552,18 +563,19 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Needs action */}
-      {!loading && buckets.actionNeeded.length > 0 && (
+      {/* Needs YOUR response — accept/decline */}
+      {!loading && buckets.needsMyResponse.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Needs action</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Needs your response</h2>
           <div className="space-y-2">
-            {buckets.actionNeeded.slice(0, 4).map((r) => {
+            {buckets.needsMyResponse.slice(0, 4).map((r) => {
               const opp = opponentFor(r);
+              const ts = String(r.terms_status ?? "").toLowerCase();
               return (
                 <Link
                   key={r.id}
                   href={`/matches/${r.id}`}
-                  className="group flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
+                  className="group flex items-center gap-2.5 rounded-[6px] border border-[var(--gold)]/40 bg-[var(--gold-light)]/30 p-3 transition hover:border-[var(--gold)] hover:shadow-sm sm:gap-3 sm:p-4"
                 >
                   <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
                     {opp.avatarUrl ? (
@@ -575,13 +587,57 @@ export default function HomePage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold">{opp.name}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold">{opp.name}</span>
+                      {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
+                    </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
                       {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-full bg-[rgba(180,140,60,.16)] px-3 py-1 text-xs font-medium text-[rgba(120,82,18,.95)]">
-                    Needs response
+                  <span className="shrink-0 rounded-[3px] bg-[var(--gold)] px-3 py-1 text-[11px] font-bold text-[var(--pine)]">
+                    {ts === "denied" ? "Counter terms" : "Accept / Decline"}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Awaiting THEIR response — you sent, waiting */}
+      {!loading && buckets.awaitingTheir.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Awaiting response</h2>
+          <div className="space-y-2">
+            {buckets.awaitingTheir.slice(0, 4).map((r) => {
+              const opp = opponentFor(r);
+              return (
+                <Link
+                  key={r.id}
+                  href={`/matches/${r.id}`}
+                  className="group flex items-center gap-2.5 rounded-[6px] border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
+                >
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--muted)]/20 text-[var(--muted)] sm:h-10 sm:w-10">
+                    {opp.avatarUrl ? (
+                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
+                        {initials(opp.name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold text-[var(--muted)]">{opp.name}</span>
+                      {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+                      {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-[3px] border border-[var(--border)] px-3 py-1 text-[11px] font-medium text-[var(--muted)]">
+                    Sent
                   </span>
                 </Link>
               );
@@ -591,29 +647,40 @@ export default function HomePage() {
       )}
 
       {/* Upcoming matches + pool rounds with countdown */}
-      {!loading && upcoming.length > 0 && (
+      {!loading && upcomingItems.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Upcoming</h2>
           <div className="space-y-2">
-            {upcoming.map((item) => {
+            {upcomingItems.map((item) => {
               const dt = new Date(item.round_time);
+              const kindColor = item.kind === "pool" ? "bg-blue-50 text-blue-700 border-blue-200" : item.kind === "ladder" ? "bg-[var(--gold-light)] text-[var(--tan)] border-[var(--gold)]/40" : "";
+              const kindLabel = item.kind === "pool" ? "Pool" : item.kind === "ladder" ? "Ladder" : null;
               return (
                 <Link
-                  key={`${item.type}-${item.id}`}
+                  key={`${item.kind}-${item.id}`}
                   href={item.href}
-                  className="group flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-blue-200 hover:shadow-sm sm:p-4"
+                  className={cx(
+                    "group flex items-center gap-3 rounded-[6px] border p-3 transition hover:shadow-sm sm:p-4",
+                    item.kind === "pool" ? "border-blue-200/60 bg-blue-50/20 hover:border-blue-300" :
+                    item.kind === "ladder" ? "border-[var(--gold)]/30 bg-[var(--gold-light)]/20 hover:border-[var(--gold)]" :
+                    "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20"
+                  )}
                 >
                   <div className={cx(
                     "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full text-white sm:h-10 sm:w-10",
-                    item.type === "pool" ? "bg-blue-600" : "bg-[var(--pine)]"
+                    item.kind === "pool" ? "bg-blue-600" : item.kind === "ladder" ? "bg-[var(--tan)]" : "bg-[var(--pine)]"
                   )}>
                     <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
-                      {item.type === "pool" ? (
+                      {item.kind === "pool" ? (
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                           <circle cx="9" cy="7" r="4" />
                           <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
                           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                      ) : item.kind === "ladder" ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />
                         </svg>
                       ) : item.avatarText}
                     </div>
@@ -623,8 +690,10 @@ export default function HomePage() {
                       <span className="truncate text-sm font-semibold text-[var(--ink)]">
                         {item.label}
                       </span>
-                      {item.type === "pool" && (
-                        <span className="shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">Pool</span>
+                      {kindLabel && (
+                        <span className={cx("shrink-0 rounded-[3px] border px-1.5 py-0.5 text-[9px] font-bold", kindColor)}>
+                          {kindLabel}
+                        </span>
                       )}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
@@ -632,7 +701,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="text-sm font-bold text-blue-700 tabular-nums">{countdownText(item.round_time)}</div>
+                    <div className="text-sm font-bold text-[var(--pine)] tabular-nums">{countdownText(item.round_time)}</div>
                     <div className="text-[10px] text-[var(--muted)]">until tee time</div>
                   </div>
                 </Link>
@@ -683,32 +752,40 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Next up — active matches without specific time */}
+      {/* In-progress — active matches (round_time passed or no scheduled time) */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Active matches</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Active</h2>
         {loading ? (
           <div className="space-y-2">
-            <div className="h-16 animate-pulse rounded-xl bg-black/[0.03]" />
-            <div className="h-16 animate-pulse rounded-xl bg-black/[0.03]" style={{ animationDelay: "75ms" }} />
+            <div className="h-16 animate-pulse rounded-[6px] bg-black/[0.03]" />
+            <div className="h-16 animate-pulse rounded-[6px] bg-black/[0.03]" style={{ animationDelay: "75ms" }} />
           </div>
-        ) : buckets.active.length === 0 ? (
-          <div className="rounded-xl border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
+        ) : buckets.inProgress.length === 0 && buckets.upcoming.length === 0 ? (
+          <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
             No active matches.{" "}
             <Link href={newMatchHref} className="font-medium text-[var(--pine)] underline">
               Create one
             </Link>
           </div>
-        ) : (
+        ) : buckets.inProgress.length === 0 ? null : (
           <div className="space-y-2">
-            {buckets.active.slice(0, 4).map((r) => {
+            {buckets.inProgress.slice(0, 4).map((r) => {
               const opp = opponentFor(r);
               return (
                 <Link
                   key={r.id}
                   href={`/matches/${r.id}`}
-                  className="group flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
+                  className={cx(
+                    "group flex items-center gap-2.5 rounded-[6px] border p-3 transition hover:shadow-sm sm:gap-3 sm:p-4",
+                    r.is_ladder_match
+                      ? "border-[var(--gold)]/30 bg-[var(--gold-light)]/20 hover:border-[var(--gold)]"
+                      : "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20"
+                  )}
                 >
-                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
+                  <div className={cx(
+                    "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full text-white sm:h-10 sm:w-10",
+                    r.is_ladder_match ? "bg-[var(--tan)]" : "bg-[var(--pine)]"
+                  )}>
                     {opp.avatarUrl ? (
                       <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
                     ) : (
@@ -721,20 +798,20 @@ export default function HomePage() {
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold">{opp.name}</span>
                       {r.is_ladder_match && (
-                        <span className="hidden rounded-full bg-amber-100/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 sm:inline">Ladder</span>
+                        <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>
                       )}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
                       {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}{r.use_handicap ? " (Net)" : ""}
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-full bg-[rgba(11,59,46,.12)] px-3 py-1 text-xs font-medium text-[var(--pine)]">Active</span>
+                  <span className="pill-live">Active</span>
                 </Link>
               );
             })}
-            {buckets.active.length > 4 && (
+            {buckets.inProgress.length > 4 && (
               <Link href="/matches" className="block text-center text-xs font-medium text-[var(--pine)]">
-                View all {buckets.active.length} active matches →
+                View all {buckets.inProgress.length} active →
               </Link>
             )}
           </div>
