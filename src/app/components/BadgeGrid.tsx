@@ -56,16 +56,16 @@ export default function BadgeGrid({ userId }: { userId: string }) {
           className="text-[13px] font-semibold text-[var(--ink)]"
           style={{ fontFamily: "var(--font-heading)" }}
         >
-          No markers earned yet
+          Your markers
         </div>
         <p className="mt-1.5 text-[12px] text-[var(--muted)] leading-relaxed">
-          Start playing matches, join tournaments, and climb the ladder to earn your markers.
+          Markers are earned by playing matches, climbing the ladder, and competing in tournaments. Start playing to earn yours.
         </p>
         <Link
           href="/badges"
           className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--gold)] transition hover:text-[var(--pine)]"
         >
-          See all {totalBadges} markers &rarr;
+          View All Markers &rarr;
         </Link>
       </div>
     );

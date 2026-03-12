@@ -550,7 +550,7 @@ export default function MatchesPage() {
       {showActive && active.length === 0 && filterStatus === "active" && (
         <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
           <div className="text-sm font-medium text-[var(--ink)]">No active matches right now</div>
-          <p className="mt-1 text-xs text-[var(--muted)]">Matches appear here once scoring begins.</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">Challenge a player to stroke play or match play — you play your course, they play theirs. Matches move here once scoring begins.</p>
         </div>
       )}
       {showActive && active.length > 0 && (
@@ -613,7 +613,7 @@ export default function MatchesPage() {
       {showProposedSection && proposed.length === 0 && filterStatus === "proposed" && (
         <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
           <div className="text-sm font-medium text-[var(--ink)]">No pending proposals</div>
-          <p className="mt-1 text-xs text-[var(--muted)]">Challenges you send or receive will show up here.</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">When you challenge a player or someone challenges you, proposals appear here for you to accept or decline.</p>
         </div>
       )}
       {showProposedSection && proposed.length > 0 && (
@@ -678,8 +678,8 @@ export default function MatchesPage() {
       {/* Upcoming matches */}
       {showUpcoming && upcoming.length === 0 && filterStatus === "upcoming" && (
         <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
-          <div className="text-sm font-medium text-[var(--ink)]">No upcoming matches scheduled</div>
-          <p className="mt-1 text-xs text-[var(--muted)]">Accepted matches with a future tee time appear here.</p>
+          <div className="text-sm font-medium text-[var(--ink)]">Nothing scheduled</div>
+          <p className="mt-1 text-xs text-[var(--muted)]">Accepted matches with a future tee time appear here. Start a new match and set your round time.</p>
         </div>
       )}
       {showUpcoming && upcoming.length > 0 && (
@@ -736,7 +736,7 @@ export default function MatchesPage() {
       {showCompleted && completed.length === 0 && filterStatus === "completed" && (
         <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
           <div className="text-sm font-medium text-[var(--ink)]">No completed matches yet</div>
-          <p className="mt-1 text-xs text-[var(--muted)]">Finished matches and scorecards will appear here.</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">Your match history and scorecards build here over time. Every round you finish counts toward your record.</p>
         </div>
       )}
       {showCompleted && completed.length > 0 && (
@@ -807,15 +807,15 @@ export default function MatchesPage() {
                 <line x1="8" y1="12" x2="16" y2="12" />
               </svg>
             </div>
-            <div className="text-base font-semibold tracking-tight">No matches yet</div>
+            <div className="text-base font-semibold tracking-tight">Your record starts here</div>
             <p className="mt-1.5 text-sm text-[var(--muted)]">
-              Create your first match to get started.
+              Challenge a player to a 1v1 — stroke play or match play, from any course. Handicap-adjusted scoring keeps every matchup fair.
             </p>
             <Link
               href="/matches/new"
               className="mt-6 inline-flex items-center rounded-xl bg-[var(--pine)] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px"
             >
-              New match
+              Start a Match
             </Link>
           </div>
         </div>

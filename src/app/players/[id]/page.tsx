@@ -366,13 +366,13 @@ export default function PlayerDetailPage() {
               0 &mdash; 0
             </div>
             <p className="mt-2 text-[12px] text-[var(--muted)]">
-              No matches played yet. Time to change that.
+              Your record starts with your first match. Every round you play here counts toward your standing.
             </p>
             <Link
               href={`/matches/new?opponent=${playerId}`}
               className="btn-gold mt-3 inline-flex text-[11px] px-4 py-2"
             >
-              Send a Challenge
+              Start a Match
             </Link>
           </div>
         )}

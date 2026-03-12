@@ -511,8 +511,8 @@ export default function HomePage() {
           </div>
         ) : buckets.inProgress.length === 0 ? (
           <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
-            No active matches.{" "}
-            <Link href={newMatchHref} className="font-medium text-[var(--pine)] underline">Create one</Link>
+            No active matches yet. Challenge a player on the ladder or start a new match — you play your course, they play theirs.{" "}
+            <Link href={newMatchHref} className="font-medium text-[var(--pine)] underline">Start a Match</Link>
           </div>
         ) : (
           <div className="space-y-2">

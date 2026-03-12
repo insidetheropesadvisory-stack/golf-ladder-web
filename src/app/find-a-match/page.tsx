@@ -322,14 +322,16 @@ export default function FindAMatchPage() {
             {tab === "my" ? "You haven't posted any rounds yet" :
              tab === "upcoming" ? "No upcoming rounds" :
              tab === "completed" ? "No completed rounds yet" :
-             "No open rounds nearby"}
+             "No open rounds nearby right now"}
           </div>
           <p className="mt-1 text-[12px] text-[var(--muted)]">
             {tab === "my"
-              ? "Post a round to let others join you."
+              ? "Post your round and invite others to join — any course, any time."
               : tab === "open"
-              ? "Try expanding your radius or check back later."
-              : "Rounds will appear here as they come in."}
+              ? "Post your round and invite others to join you — discover new courses and players along the way."
+              : tab === "upcoming"
+              ? "Join an open round or post your own to see upcoming rounds here."
+              : "Completed rounds will appear here after the host confirms."}
           </p>
           {(tab === "open" || tab === "my") && (
             <Link href="/pool/new" className="btn-gold mt-4 inline-flex">Post a Round</Link>

@@ -216,10 +216,11 @@ export default function TournamentsPage() {
             <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Active</h2>
             {active.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-6 text-center">
-                <div className="text-sm font-medium text-[var(--ink)]">No active tournaments</div>
+                <div className="text-sm font-medium text-[var(--ink)]">No tournaments yet</div>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Create one or wait for an invitation.
+                  Join one and compete across multiple rounds — play your best round each period at any course, lowest differential wins.
                 </p>
+                <Link href="/tournaments" className="mt-3 inline-flex text-xs font-semibold text-[var(--pine)] underline">Browse Tournaments</Link>
               </div>
             ) : (
               active.map((t) => (

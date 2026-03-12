@@ -326,20 +326,23 @@ export default function PoolPage() {
       ) : displayedListings.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/60 p-8 text-center">
           <div className="text-sm font-medium text-[var(--ink)]">
-            {tab === "my" ? "You haven't offered any slots yet" :
+            {tab === "my" ? "You haven't posted any rounds yet" :
              tab === "upcoming" ? "No upcoming pool rounds" :
              tab === "completed" ? "No completed pool rounds yet" :
-             "No open slots nearby"}
+             "No open rounds nearby right now"}
           </div>
           <p className="mt-1 text-xs text-[var(--muted)]">
             {tab === "my"
-              ? "Create a listing to let others join your round."
+              ? "Post your round and invite others to join — any course, any time. It's the best way to discover new players."
               : tab === "upcoming"
-              ? "Join an open listing or create your own to see upcoming rounds here."
+              ? "Join an open round or post your own to get upcoming rounds on your calendar."
               : tab === "completed"
-              ? "Completed pool rounds will appear here after the organizer confirms."
-              : "Try expanding your search radius or check back later."}
+              ? "Completed rounds appear here after the host confirms. Play more to build your history."
+              : "Post your round and invite others to join you — discover new courses and players along the way."}
           </p>
+          {(tab === "open" || tab === "my") && (
+            <Link href="/pool/new" className="mt-3 inline-flex text-xs font-semibold text-[var(--pine)] underline">Post a Round</Link>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

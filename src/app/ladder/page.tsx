@@ -258,7 +258,7 @@ export default function LadderPage() {
         <>
           {!isInLadder && (
             <div className="rounded-[6px] border border-emerald-200/60 bg-emerald-50/50 p-4 text-center">
-              <p className="text-sm text-emerald-800">You&apos;re not in the ladder yet.</p>
+              <p className="text-sm text-emerald-800">You&apos;re not on the ladder yet. Join to earn your spot and start climbing — every match counts toward your standing.</p>
               <button
                 onClick={joinLadder}
                 disabled={joining}
