@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx } from "@/lib/utils";
+import WelcomeSplash from "./WelcomeSplash";
 
 type NavItem = { label: string; href: string; icon: string };
 
@@ -398,6 +399,9 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-[var(--paper)]">
+      {/* Welcome splash — first-time users only */}
+      <WelcomeSplash />
+
       {/* Blocking popup — pending completions (creator) or attestations (guest) */}
       {(pendingCompletions.length > 0 || pendingAttestations.length > 0) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
