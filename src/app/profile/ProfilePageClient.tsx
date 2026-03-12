@@ -842,131 +842,171 @@ export default function ProfilePageClient() {
           className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setShowStats(false); }}
         >
-          <div className="w-full max-w-md max-h-[85vh] overflow-auto rounded-[6px] border border-[#D4C4A0] bg-[var(--paper)] p-5 shadow-2xl">
-            <div className="flex items-center justify-between mb-5">
+          <div className="w-full max-w-md max-h-[85vh] overflow-auto rounded-[6px] border border-[#D4C4A0] bg-[var(--paper)] shadow-2xl">
+            {/* Green header band */}
+            <div className="bg-[var(--pine)] border-b-2 border-[var(--gold)] px-5 py-4 flex items-center justify-between rounded-t-[5px]">
               <h2
-                className="text-lg font-semibold text-[var(--ink)]"
+                className="text-[20px] font-semibold text-[var(--paper)]"
                 style={{ fontFamily: "var(--font-heading)" }}
               >
                 Match Statistics
               </h2>
               <button
                 type="button"
-                className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:bg-black/5"
+                className="text-[var(--paper)]/50 text-lg leading-none transition hover:text-[var(--paper)]"
                 onClick={() => setShowStats(false)}
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
+                &times;
               </button>
             </div>
 
-            {statsLoading ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-3">
-                  {[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-[6px] bg-black/[0.03]" style={{ animationDelay: `${i * 75}ms` }} />)}
+            {/* Modal body */}
+            <div className="p-4">
+              {statsLoading ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    {[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-[6px] bg-black/[0.03]" style={{ animationDelay: `${i * 75}ms` }} />)}
+                  </div>
+                  <div className="h-32 animate-pulse rounded-[6px] bg-black/[0.03]" style={{ animationDelay: "225ms" }} />
                 </div>
-                <div className="h-32 animate-pulse rounded-[6px] bg-black/[0.03]" style={{ animationDelay: "225ms" }} />
-              </div>
-            ) : stats && stats.totalRounds === 0 ? (
-              <div className="rounded-[6px] border border-dashed border-[var(--border)] p-6 text-center">
-                <div className="text-sm font-medium text-[var(--ink)]">No completed matches yet</div>
-                <div className="mt-1 text-xs text-[var(--muted)]">Stats will appear after you finish a match.</div>
-              </div>
-            ) : stats ? (
-              <div className="space-y-5">
-                {/* Overview tiles */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 text-center">
-                    <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>Record</div>
-                    <div className="mt-1 text-lg font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
-                      <span className="text-green-700">{stats.wins}</span>
-                      <span className="text-[var(--muted)]">&ndash;</span>
-                      <span className="text-red-600">{stats.losses}</span>
-                      {stats.ties > 0 && <><span className="text-[var(--muted)]">&ndash;</span><span className="text-[var(--muted)]">{stats.ties}</span></>}
-                    </div>
-                  </div>
-                  <div className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 text-center">
-                    <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>Avg Score</div>
-                    <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--ink)]" style={{ fontFamily: "var(--font-heading)" }}>
-                      {stats.avgScore ?? "\u2014"}
-                    </div>
-                  </div>
-                  <div className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 text-center">
-                    <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>Best</div>
-                    <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--ink)]" style={{ fontFamily: "var(--font-heading)" }}>
-                      {stats.bestScore ?? "\u2014"}
-                    </div>
-                  </div>
+              ) : stats && stats.totalRounds === 0 ? (
+                <div className="rounded-[6px] border border-dashed border-[var(--border)] p-6 text-center">
+                  <div className="text-sm font-medium text-[var(--ink)]">No completed matches yet</div>
+                  <div className="mt-1 text-xs text-[var(--muted)]">Stats will appear after you finish a match.</div>
                 </div>
-
-                {/* Win percentage bar */}
-                {(stats.wins + stats.losses) > 0 && (
-                  <div>
-                    <div className="mb-1.5 text-xs text-[var(--muted)]">
-                      Win rate: {Math.round((stats.wins / (stats.wins + stats.losses + stats.ties)) * 100)}%
-                      <span className="ml-1 text-[var(--border)]">&middot;</span>
-                      <span className="ml-1">{stats.totalRounds} round{stats.totalRounds !== 1 ? "s" : ""}</span>
+              ) : stats ? (
+                <div className="space-y-5">
+                  {/* Record / Avg Score / Best */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 text-center">
+                      <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>Record</div>
+                      <div className="mt-1.5 text-[32px] leading-none tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
+                        <span className="text-[var(--pine)]">{stats.wins}</span>
+                        <span className="text-[#C4B090]">&ndash;</span>
+                        <span className="text-[#8B1A1A]">{stats.losses}</span>
+                        {stats.ties > 0 && <><span className="text-[#C4B090]">&ndash;</span><span className="text-[var(--muted)]">{stats.ties}</span></>}
+                      </div>
                     </div>
-                    <div className="flex h-2 overflow-hidden rounded-full bg-black/[0.04]">
-                      <div className="bg-green-500 transition-all" style={{ width: `${(stats.wins / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
-                      {stats.ties > 0 && (
-                        <div className="bg-gray-300 transition-all" style={{ width: `${(stats.ties / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
-                      )}
-                      <div className="bg-red-400 transition-all" style={{ width: `${(stats.losses / (stats.wins + stats.losses + stats.ties)) * 100}%` }} />
+                    <div className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 text-center">
+                      <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>Avg Score</div>
+                      <div className="mt-1.5 text-[32px] leading-none tabular-nums text-[var(--ink)]" style={{ fontFamily: "var(--font-heading)" }}>
+                        {stats.avgScore ?? "\u2014"}
+                      </div>
+                    </div>
+                    <div className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 text-center">
+                      <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>Best</div>
+                      <div className="mt-1.5 text-[32px] leading-none tabular-nums text-[var(--ink)]" style={{ fontFamily: "var(--font-heading)" }}>
+                        {stats.bestScore ?? "\u2014"}
+                      </div>
                     </div>
                   </div>
-                )}
 
-                {/* Head to head */}
-                {stats.headToHead.length > 0 && (
-                  <div>
-                    <div className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Head to Head</div>
-                    <div className="space-y-1.5">
-                      {stats.headToHead.map((h) => (
-                        <div key={h.opponentId} className="flex items-center justify-between rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] px-3 py-2.5">
-                          <span className="text-sm font-medium truncate mr-3">{h.opponentName}</span>
-                          <span className="text-sm tabular-nums flex-shrink-0">
-                            <span className="text-green-700">{h.wins}W</span>
-                            <span className="text-[var(--muted)] mx-1">&ndash;</span>
-                            <span className="text-red-600">{h.losses}L</span>
-                            {h.ties > 0 && (
-                              <>
-                                <span className="text-[var(--muted)] mx-1">&ndash;</span>
-                                <span className="text-[var(--muted)]">{h.ties}T</span>
-                              </>
-                            )}
+                  {/* Win rate — refined split display */}
+                  {(stats.wins + stats.losses) > 0 && (() => {
+                    const total = stats.wins + stats.losses + stats.ties;
+                    const winPct = Math.round((stats.wins / total) * 100);
+                    return (
+                      <div>
+                        <div
+                          className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)] mb-2"
+                          style={{ fontFamily: "var(--font-body)" }}
+                        >
+                          Win Rate
+                        </div>
+                        <div className="flex items-baseline justify-between">
+                          <span
+                            className="text-[18px] tabular-nums text-[var(--pine)]"
+                            style={{ fontFamily: "var(--font-heading)" }}
+                          >
+                            {winPct}%
+                          </span>
+                          <span className="text-[11px] text-[var(--muted)]">
+                            {stats.totalRounds} round{stats.totalRounds !== 1 ? "s" : ""} played
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* By course */}
-                {stats.byCourse.length > 0 && (
-                  <div>
-                    <div className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--muted)]">By Course</div>
-                    <div className="space-y-1.5">
-                      {stats.byCourse.map((c) => (
-                        <div key={c.course} className="flex items-center justify-between rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] px-3 py-2.5">
-                          <div className="min-w-0 mr-3">
-                            <div className="text-sm font-medium truncate">{c.course}</div>
-                            <div className="text-[10px] text-[var(--muted)]">{c.rounds} round{c.rounds !== 1 ? "s" : ""}</div>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <div className="text-sm font-semibold tabular-nums">{c.avgScore}</div>
-                            {c.bestScore != null && (
-                              <div className="text-[10px] text-[var(--muted)]">Best: {c.bestScore}</div>
-                            )}
-                          </div>
+                        <div className="mt-2 flex h-[2px] overflow-hidden rounded-[1px]">
+                          <div className="bg-[var(--pine)] transition-all" style={{ width: `${(stats.wins / total) * 100}%` }} />
+                          {stats.ties > 0 && (
+                            <div className="bg-[var(--border)] transition-all" style={{ width: `${(stats.ties / total) * 100}%` }} />
+                          )}
+                          <div className="bg-[var(--border)] transition-all" style={{ width: `${(stats.losses / total) * 100}%` }} />
                         </div>
-                      ))}
+                        <div className="mt-1.5 h-px bg-[var(--border)]" />
+                      </div>
+                    );
+                  })()}
+
+                  {/* Head to head */}
+                  {stats.headToHead.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="section-flag section-flag--green">Head to head</div>
+                        <div className="flex-1 h-[2px] bg-[var(--gold)]/30" />
+                      </div>
+                      <div className="space-y-1.5">
+                        {stats.headToHead.map((h) => (
+                          <div key={h.opponentId} className="flex items-center justify-between rounded-[6px] border border-[var(--border)] border-l-[3px] border-l-[var(--pine)] bg-[var(--paper-2)] px-3 py-2.5">
+                            <span
+                              className="text-[14px] font-semibold truncate mr-3 text-[var(--ink)]"
+                              style={{ fontFamily: "var(--font-body)" }}
+                            >
+                              {h.opponentName}
+                            </span>
+                            <span className="text-[13px] tabular-nums flex-shrink-0">
+                              <span className="text-[var(--pine)] font-semibold">{h.wins}W</span>
+                              <span className="text-[#C4B090] mx-1">&middot;</span>
+                              <span className="text-[#8B1A1A] font-semibold">{h.losses}L</span>
+                              {h.ties > 0 && (
+                                <>
+                                  <span className="text-[#C4B090] mx-1">&middot;</span>
+                                  <span className="text-[var(--muted)]">{h.ties}T</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : null}
+                  )}
+
+                  {/* By course */}
+                  {stats.byCourse.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="section-flag section-flag--green">By course</div>
+                        <div className="flex-1 h-[2px] bg-[var(--gold)]/30" />
+                      </div>
+                      <div className="space-y-1.5">
+                        {stats.byCourse.map((c) => (
+                          <div key={c.course} className="flex items-center justify-between rounded-[6px] border border-[var(--border)] border-l-[3px] border-l-[var(--pine)] bg-[var(--paper-2)] px-3 py-2.5">
+                            <div className="min-w-0 mr-3">
+                              <div
+                                className="text-[14px] font-semibold truncate text-[var(--ink)]"
+                                style={{ fontFamily: "var(--font-heading)" }}
+                              >
+                                {c.course}
+                              </div>
+                              <div className="text-[11px] text-[var(--muted)]">{c.rounds} round{c.rounds !== 1 ? "s" : ""}</div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div
+                                className="text-[20px] tabular-nums text-[var(--pine)]"
+                                style={{ fontFamily: "var(--font-heading)" }}
+                              >
+                                {c.avgScore}
+                              </div>
+                              {c.bestScore != null && (
+                                <div className="text-[10px] text-[var(--gold)] font-medium">Best: {c.bestScore}</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       )}
