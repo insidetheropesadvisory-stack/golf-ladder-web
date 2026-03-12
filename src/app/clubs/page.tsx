@@ -11,6 +11,7 @@ type ApiCourse = {
   club_name: string;
   city: string | null;
   state: string | null;
+  access_type: string | null;
   courses?: { courseID: string; courseName: string; numHoles?: number }[];
 };
 
@@ -39,6 +40,9 @@ export default function ClubsPage() {
   const [apiResults, setApiResults] = useState<ApiCourse[]>([]);
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Private/public confirmation step
+  const [pendingClub, setPendingClub] = useState<{ name: string; city?: string | null; state?: string | null; accessType?: string | null } | null>(null);
 
   async function refresh(sessionUser?: { id: string; email?: string | null }) {
     try {
@@ -112,7 +116,7 @@ export default function ClubsPage() {
     await supabase.from("profiles").upsert({ id: userId, email }, { onConflict: "id" });
   }
 
-  async function addClub(clubName: string, city?: string | null, state?: string | null) {
+  async function addClub(clubName: string, city?: string | null, state?: string | null, isPrivate?: boolean) {
     if (!meId) return;
     setStatus(null);
     await ensureProfile(meId, meEmail);
@@ -127,9 +131,10 @@ export default function ClubsPage() {
     let clubId = existing?.id;
 
     if (!clubId) {
-      const insertData: Record<string, string> = { name: clubName.trim() };
+      const insertData: Record<string, any> = { name: clubName.trim() };
       if (city) insertData.city = city;
       if (state) insertData.state = state;
+      if (isPrivate != null) insertData.is_private = isPrivate;
       const { data, error } = await supabase
         .from("clubs")
         .insert(insertData)
@@ -137,12 +142,15 @@ export default function ClubsPage() {
         .single();
       if (error) { setStatus(error.message); return; }
       clubId = data.id;
-    } else if (city || state) {
-      // Update existing club with city/state if we have it and it's missing
-      const updates: Record<string, string> = {};
+    } else {
+      // Update existing club with city/state/is_private if we have it
+      const updates: Record<string, any> = {};
       if (city) updates.city = city;
       if (state) updates.state = state;
-      await supabase.from("clubs").update(updates).eq("id", clubId).is("state", null);
+      if (isPrivate != null) updates.is_private = isPrivate;
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("clubs").update(updates).eq("id", clubId);
+      }
     }
 
     const { error } = await supabase.from("club_memberships").insert({ user_id: meId, club_id: clubId });
@@ -152,6 +160,7 @@ export default function ClubsPage() {
       return;
     }
 
+    setPendingClub(null);
     setShowAdd(false);
     setAddQuery("");
     await refresh();
@@ -344,7 +353,7 @@ export default function ClubsPage() {
 
       {/* Add club modal */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowAdd(false); setAddQuery(""); setApiResults([]); } }}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowAdd(false); setAddQuery(""); setApiResults([]); setPendingClub(null); } }}>
           <div className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] shadow-2xl overflow-hidden">
             <div className="bg-red-50 border-b border-red-200/60 px-5 py-3">
               <div className="flex items-start gap-2.5">
@@ -359,11 +368,11 @@ export default function ClubsPage() {
 
             <div className="p-5">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-lg font-semibold">Add a club</div>
+              <div className="text-lg font-semibold">{pendingClub ? "Club type" : "Add a club"}</div>
               <button
                 type="button"
                 className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] hover:bg-black/5"
-                onClick={() => { setShowAdd(false); setAddQuery(""); setApiResults([]); }}
+                onClick={() => { setShowAdd(false); setAddQuery(""); setApiResults([]); setPendingClub(null); }}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -371,6 +380,54 @@ export default function ClubsPage() {
               </button>
             </div>
 
+            {pendingClub ? (
+              /* Step 2: Private / Public selection */
+              <div className="space-y-4">
+                <div className="rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3">
+                  <div className="text-sm font-semibold text-[var(--ink)]">{pendingClub.name}</div>
+                  {(pendingClub.city || pendingClub.state) && (
+                    <div className="text-xs text-[var(--muted)]">{[pendingClub.city, pendingClub.state].filter(Boolean).join(", ")}</div>
+                  )}
+                </div>
+
+                <div className="text-sm text-[var(--muted)]">Is this a private or public club?</div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => addClub(pendingClub.name, pendingClub.city, pendingClub.state, true)}
+                    className="flex flex-col items-center gap-2 rounded-xl border-2 border-[var(--border)] bg-white px-4 py-4 transition hover:border-[var(--pine)] hover:bg-[var(--pine)]/5"
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </svg>
+                    <span className="text-sm font-semibold text-[var(--ink)]">Private</span>
+                    <span className="text-[10px] text-[var(--muted)] text-center leading-tight">Members only — guests need a member host</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => addClub(pendingClub.name, pendingClub.city, pendingClub.state, false)}
+                    className="flex flex-col items-center gap-2 rounded-xl border-2 border-[var(--border)] bg-white px-4 py-4 transition hover:border-[var(--pine)] hover:bg-[var(--pine)]/5"
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+                      <circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/>
+                    </svg>
+                    <span className="text-sm font-semibold text-[var(--ink)]">Public</span>
+                    <span className="text-[10px] text-[var(--muted)] text-center leading-tight">Open to anyone — no membership required to play</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setPendingClub(null)}
+                  className="w-full text-center text-xs text-[var(--muted)] transition hover:text-[var(--ink)]"
+                >
+                  &larr; Back to search
+                </button>
+              </div>
+            ) : (
+              /* Step 1: Search */
+              <>
             <input
               className="w-full rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 text-sm outline-none transition focus:border-[var(--pine)] focus:ring-1 focus:ring-[var(--pine)]"
               value={addQuery}
@@ -378,7 +435,7 @@ export default function ClubsPage() {
               placeholder="Search golf clubs..."
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter" && addQuery.trim()) addClub(addQuery);
+                if (e.key === "Enter" && addQuery.trim()) setPendingClub({ name: addQuery.trim() });
               }}
             />
 
@@ -388,7 +445,7 @@ export default function ClubsPage() {
                 <button
                   key={`ct-${name}`}
                   type="button"
-                  onClick={() => addClub(name, null, "CT")}
+                  onClick={() => setPendingClub({ name, state: "CT" })}
                   className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
                 >
                   <div className="text-sm font-medium">{name}</div>
@@ -404,15 +461,25 @@ export default function ClubsPage() {
                 .filter((c) => !ctSuggestions.some((ct) => ct.toLowerCase() === c.club_name.toLowerCase()))
                 .map((c) => {
                   const loc = [c.city, c.state].filter(Boolean).join(", ");
+                  const isPrivateFromApi = c.access_type?.toLowerCase() === "private" || c.access_type?.toLowerCase() === "privé";
                   return (
                     <button
                       key={`api-${c.id}`}
                       type="button"
-                      onClick={() => addClub(c.club_name, c.city, c.state)}
+                      onClick={() => setPendingClub({ name: c.club_name, city: c.city, state: c.state, accessType: c.access_type })}
                       className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-[var(--pine)]/5"
                     >
-                      <div className="text-sm font-medium">{c.club_name}</div>
-                      {loc && <div className="text-xs text-[var(--muted)]">{loc}</div>}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium">{c.club_name}</span>
+                        {isPrivateFromApi && (
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-amber-500">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                          </svg>
+                        )}
+                      </div>
+                      <div className="text-xs text-[var(--muted)]">
+                        {loc}{loc && c.access_type ? " · " : ""}{c.access_type ?? ""}
+                      </div>
                     </button>
                   );
                 })}
@@ -428,13 +495,15 @@ export default function ClubsPage() {
               {addQuery.trim() && (
                 <button
                   type="button"
-                  onClick={() => addClub(addQuery)}
+                  onClick={() => setPendingClub({ name: addQuery.trim() })}
                   className="w-full rounded-lg bg-[var(--pine)]/5 px-3 py-2.5 text-left text-sm font-medium text-[var(--pine)] transition hover:bg-[var(--pine)]/10"
                 >
                   Add &ldquo;{addQuery.trim()}&rdquo; manually
                 </button>
               )}
             </div>
+              </>
+            )}
           </div>
           </div>
         </div>

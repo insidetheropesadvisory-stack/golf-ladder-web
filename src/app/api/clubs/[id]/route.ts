@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // Fetch club info
     const { data: club, error: clubErr } = await admin
       .from("clubs")
-      .select("id, name, city, state, logo_url")
+      .select("id, name, city, state, logo_url, is_private")
       .eq("id", clubId)
       .single();
 

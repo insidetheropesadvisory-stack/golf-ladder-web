@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx, initials } from "@/lib/utils";
 
-type Club = { id: string; name: string; city: string | null; state: string | null; logo_url: string | null };
+type Club = { id: string; name: string; city: string | null; state: string | null; logo_url: string | null; is_private: boolean | null };
 type Member = { id: string; display_name: string | null; avatar_url: string | null; handicap_index: number | null; guest_fee: number | null };
 type LeaderboardEntry = Member & { wins: number; losses: number; played: number };
 type UpcomingMatch = { id: string; creator_name: string; opponent_name: string; round_time: string | null; format: string; is_ladder_match: boolean; status: string };
@@ -71,6 +71,9 @@ export default function ClubDetailPage() {
   const [editingFee, setEditingFee] = useState(false);
   const [feeInput, setFeeInput] = useState("");
 
+  // Private/public toggle
+  const [isPrivate, setIsPrivate] = useState<boolean>(false);
+
   const isMember = useMemo(() => {
     if (!meId) return false;
     return members.some(m => m.id === meId);
@@ -100,6 +103,7 @@ export default function ClubDetailPage() {
       const json = await res.json();
 
       setClub(json.club);
+      setIsPrivate(json.club?.is_private === true);
       setMembers(json.members ?? []);
       setLeaderboard(json.leaderboard ?? []);
       setUpcoming(json.upcoming ?? []);
@@ -159,6 +163,13 @@ export default function ClubDetailPage() {
     setMyGuestFee(fee);
     setEditingFee(false);
     setMembers(prev => prev.map(m => m.id === meId ? { ...m, guest_fee: fee } : m));
+  }
+
+  async function togglePrivate() {
+    if (!clubId) return;
+    const next = !isPrivate;
+    setIsPrivate(next);
+    await supabase.from("clubs").update({ is_private: next }).eq("id", clubId);
   }
 
   useEffect(() => {
@@ -316,13 +327,29 @@ export default function ClubDetailPage() {
               <div className="mt-1.5 text-[12px] text-[var(--paper)]/60">{loc}</div>
             )}
 
-            {/* Member count — gold pill */}
-            <span
-              className="mt-3 inline-flex items-center rounded-full border border-[var(--gold)] px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--gold)]"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              {members.length} Member{members.length !== 1 ? "s" : ""}
-            </span>
+            {/* Member count + access type pills */}
+            <div className="mt-3 flex items-center gap-2">
+              <span
+                className="inline-flex items-center rounded-full border border-[var(--gold)] px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--gold)]"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                {members.length} Member{members.length !== 1 ? "s" : ""}
+              </span>
+              <span
+                className={cx(
+                  "inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]",
+                  isPrivate
+                    ? "border border-amber-400/50 text-amber-300"
+                    : "border border-emerald-400/40 text-emerald-300"
+                )}
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                {isPrivate && (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                )}
+                {isPrivate ? "Private" : "Public"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -383,6 +410,51 @@ export default function ClubDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ═══ PRIVATE/PUBLIC TOGGLE ═══ */}
+      {isMember && (
+        <button
+          type="button"
+          onClick={togglePrivate}
+          className={cx(
+            "flex w-full items-center justify-between rounded-[6px] border px-5 py-3.5 transition",
+            isPrivate
+              ? "border-amber-200/60 bg-amber-50/50"
+              : "border-[var(--border)] bg-white/60"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            {isPrivate ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+                <circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/>
+              </svg>
+            )}
+            <div className="text-left">
+              <div className="text-sm font-semibold text-[var(--ink)]">{isPrivate ? "Private Club" : "Public Course"}</div>
+              <div className="text-[11px] text-[var(--muted)]">
+                {isPrivate ? "Only members can host matches here" : "Anyone can play — no membership required"}
+              </div>
+            </div>
+          </div>
+          <div
+            className={cx(
+              "relative h-6 w-11 rounded-full transition-colors",
+              isPrivate ? "bg-amber-500" : "bg-black/15"
+            )}
+          >
+            <div
+              className={cx(
+                "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                isPrivate ? "translate-x-[22px]" : "translate-x-0.5"
+              )}
+            />
+          </div>
+        </button>
       )}
 
       {/* ═══ 3. TAB NAVIGATION — underline style ═══ */}
