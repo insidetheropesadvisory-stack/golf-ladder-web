@@ -11,7 +11,7 @@ import {
 type BadgeMarkerProps = {
   badge: BadgeDef;
   earned: boolean;
-  size?: "large" | "small";
+  size?: "large" | "medium" | "small";
 };
 
 const TIER_INITIAL: Record<BadgeTier, string> = {
@@ -55,7 +55,7 @@ export default function BadgeMarker({
 }: BadgeMarkerProps) {
   const [flipped, setFlipped] = useState(false);
 
-  const px = size === "large" ? 96 : 28;
+  const px = size === "large" ? 96 : size === "medium" ? 48 : 28;
   const style = earned ? TIER_STYLES[badge.tier] : null;
   const bg = style?.bg ?? LOCKED_STYLE.bg;
   const rim = style?.rim ?? LOCKED_STYLE.rim;
@@ -65,7 +65,7 @@ export default function BadgeMarker({
 
   const r = px / 2;
   const innerR = r - rimW;
-  const iconSize = size === "large" ? 28 : 10;
+  const iconSize = size === "large" ? 28 : size === "medium" ? 18 : 10;
   const iconOffset = r - iconSize / 2;
 
   const tierChar = TIER_INITIAL[badge.tier];
@@ -108,7 +108,7 @@ export default function BadgeMarker({
             <circle cx={r} cy={r} r={innerR} fill={bg} />
             {/* Icon */}
             <g
-              transform={`translate(${iconOffset},${iconOffset - (size === "large" ? 3 : 0)}) scale(${iconSize / 24})`}
+              transform={`translate(${iconOffset},${iconOffset - (size === "large" ? 3 : size === "medium" ? 2 : 0)}) scale(${iconSize / 24})`}
               opacity={iconOpacity}
             >
               <path
@@ -121,13 +121,13 @@ export default function BadgeMarker({
               />
             </g>
             {/* Tier initial at bottom */}
-            {size === "large" && (
+            {(size === "large" || size === "medium") && (
               <text
                 x={r}
                 y={px - (rimW + 6)}
                 textAnchor="middle"
                 fill={textColor}
-                fontSize={10}
+                fontSize={size === "medium" ? 7 : 10}
                 fontFamily="Source Sans 3, sans-serif"
                 fontWeight={600}
                 opacity={earned ? 0.7 : 0.2}
@@ -148,30 +148,32 @@ export default function BadgeMarker({
             border: `${rimW}px solid ${rim}`,
           }}
         >
-          {size === "large" ? (
+          {size === "large" || size === "medium" ? (
             <>
               <span
                 className="px-2 leading-tight"
                 style={{
                   fontFamily: "Playfair Display, serif",
-                  fontSize: 11,
+                  fontSize: size === "medium" ? 8 : 11,
                   fontWeight: 700,
                   color: textColor,
                 }}
               >
                 {badge.name}
               </span>
-              <span
-                className="mt-1 px-3 leading-tight"
-                style={{
-                  fontFamily: "Source Sans 3, sans-serif",
-                  fontSize: 8,
-                  color: textColor,
-                  opacity: 0.8,
-                }}
-              >
-                {badge.description}
-              </span>
+              {size === "large" && (
+                <span
+                  className="mt-1 px-3 leading-tight"
+                  style={{
+                    fontFamily: "Source Sans 3, sans-serif",
+                    fontSize: 8,
+                    color: textColor,
+                    opacity: 0.8,
+                  }}
+                >
+                  {badge.description}
+                </span>
+              )}
             </>
           ) : (
             <span
