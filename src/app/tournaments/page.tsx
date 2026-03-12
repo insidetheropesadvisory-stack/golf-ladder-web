@@ -130,8 +130,13 @@ export default function TournamentsPage() {
         </Link>
       </div>
 
+      {/* Open Tournaments announcement */}
+      <div className="context-strip context-strip--tan">
+        <strong>Open Tournaments — Summer 2026.</strong> Public tournaments open to all Reciprocity members will be announced at the beginning of summer. Stay tuned.
+      </div>
+
       {/* How it works */}
-      <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 sm:p-5">
+      <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 sm:p-5">
         <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-3">How it works</div>
         <div className="space-y-2 text-sm text-[var(--ink)]">
           <div className="flex items-start gap-2.5">

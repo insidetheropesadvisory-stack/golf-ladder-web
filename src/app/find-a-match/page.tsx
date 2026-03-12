@@ -192,8 +192,8 @@ export default function FindAMatchPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl tracking-tight text-[var(--ink)]">Find a Match</h1>
-          <p className="mt-1 text-[13px] text-[var(--muted)]">Find open spots or post your own round — play anywhere, not just your home club.</p>
+          <h1 className="text-2xl tracking-tight text-[var(--ink)]">Find a Round</h1>
+          <p className="mt-1 text-[13px] text-[var(--muted)]">Meet new players and fill out your foursome. Post a round or join someone else's — any course, any time.</p>
         </div>
         <Link
           href="/pool/new"
@@ -201,6 +201,25 @@ export default function FindAMatchPage() {
         >
           Post a Round
         </Link>
+      </div>
+
+      {/* How it works */}
+      <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 sm:p-5">
+        <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-3">How it works</div>
+        <div className="space-y-2 text-sm text-[var(--ink)]">
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">1</span>
+            <span><span className="font-medium">Post a round</span> at any course with 1–3 open slots, or browse and join someone else's.</span>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">2</span>
+            <span>Joining costs <span className="font-medium">1 Tee</span>. Club members at the listed course are exempt. Hosts can set a guest fee or auto-accept.</span>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">3</span>
+            <span>After the round, the host completes it and guests confirm. <span className="font-medium">Hosts earn 1 Tee per guest</span> who confirms.</span>
+          </div>
+        </div>
       </div>
 
       {/* Tee balance */}
@@ -214,7 +233,7 @@ export default function FindAMatchPage() {
             </div>
             <div>
               <div className="text-lg font-bold text-[var(--ink)]">{credits} Tee{credits !== 1 ? "s" : ""}</div>
-              <div className="text-[11px] text-[var(--muted)]">Host rounds to earn more. 1 Tee per guest who confirms.</div>
+              <div className="text-[11px] text-[var(--muted)]">Joining a round costs 1 Tee. Host rounds to earn them back — 1 per guest who confirms.</div>
             </div>
           </div>
         </div>

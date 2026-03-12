@@ -208,7 +208,7 @@ export default function LadderPage() {
       {myActiveChallenge && (
         <Link
           href={`/ladder/challenge/${myActiveChallenge.id}`}
-          className="block rounded-2xl border border-amber-200/60 bg-amber-50/50 px-4 py-3 transition hover:shadow-sm"
+          className="block rounded-[6px] border border-amber-200/60 bg-amber-50/50 px-4 py-3 transition hover:shadow-sm"
         >
           <div className="flex items-center justify-between">
             <div className="text-sm text-amber-800">
@@ -223,7 +223,7 @@ export default function LadderPage() {
       )}
 
       {/* How it works */}
-      <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 sm:p-5">
+      <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 sm:p-5">
         <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-3">How it works</div>
         <div className="space-y-2.5 text-sm text-[var(--ink)]">
           <div className="flex items-start gap-2.5">
@@ -242,12 +242,12 @@ export default function LadderPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-[var(--border)] bg-white/60 p-1">
+      <div className="flex gap-1 rounded-[6px] border border-[var(--border)] bg-white/60 p-1">
         {(["gross", "net"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`flex-1 rounded-[4px] px-4 py-2 text-sm font-medium transition ${
               tab === t
                 ? "bg-[var(--pine)] text-[var(--paper)] shadow-sm"
                 : "text-[var(--muted)] hover:text-[var(--ink)]"
@@ -263,7 +263,7 @@ export default function LadderPage() {
           Loading ladder...
         </div>
       ) : isEmpty ? (
-        <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-white/60 p-8 text-center">
+        <div className="space-y-4 rounded-[6px] border border-[var(--border)] bg-white/60 p-8 text-center">
           <p className="text-sm text-[var(--muted)]">
             The ladder hasn&apos;t been set up yet.
           </p>
@@ -279,7 +279,7 @@ export default function LadderPage() {
         <>
           {/* Join button */}
           {!isInLadder && (
-            <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/50 p-4 text-center">
+            <div className="rounded-[6px] border border-emerald-200/60 bg-emerald-50/50 p-4 text-center">
               <p className="text-sm text-emerald-800">
                 You&apos;re not in the ladder yet.
               </p>
@@ -293,140 +293,231 @@ export default function LadderPage() {
             </div>
           )}
 
-          {/* Rankings list */}
-          <div className="space-y-2">
-            {filtered.map((r) => {
-              const prof = profiles[r.user_id];
-              const rec = records[r.user_id];
-              const name = prof?.display_name || "Unknown";
-              const isMe = r.user_id === meId;
-
-              const Wrapper = isMe ? "div" as const : Link;
-              const wrapperProps = isMe
-                ? {}
-                : { href: `/players/${r.user_id}` };
-
-              return (
-                <div key={r.id} className="space-y-2">
-                <Wrapper
-                  {...wrapperProps as any}
-                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 transition sm:gap-3 sm:px-4 sm:py-3 ${
-                    isMe
-                      ? "border-[var(--pine)]/30 bg-[var(--pine)]/5"
-                      : "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20 hover:shadow-sm cursor-pointer"
-                  }`}
-                >
-                  {/* Position */}
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
-                    {r.position <= 3 ? (
-                      <span className={`text-lg font-bold ${trophyColors[r.position] ?? ""}`}>
-                        {r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : "🥉"}
-                      </span>
-                    ) : (
-                      <span className="text-sm font-semibold text-[var(--muted)]">
-                        {r.position}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Avatar */}
-                  <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm sm:h-10 sm:w-10">
-                    {prof?.avatar_url ? (
-                      <img
-                        src={prof.avatar_url}
-                        alt={name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-xs font-semibold">
-                        {initials(name)}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-semibold text-[var(--ink)]">
-                        {name}
-                      </span>
-                      {isMe && (
-                        <span className="rounded-full bg-[var(--pine)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--pine)]">
-                          You
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)] sm:gap-2 sm:text-xs">
-                      {prof?.handicap_index != null && (
-                        <span>HCP {prof.handicap_index}</span>
-                      )}
-                      {rec && (
-                        <>
-                          {prof?.handicap_index != null && (
-                            <span className="text-[var(--border)]">&middot;</span>
-                          )}
-                          <span>
-                            {rec.wins}W - {rec.losses}L
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Challenge button */}
-                  {canChallenge(r) && (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (showDeadlinePicker === r.user_id) {
-                          setShowDeadlinePicker(null);
-                        } else {
-                          setShowDeadlinePicker(r.user_id);
-                          // Default deadline: 7 days from now
-                          const d = new Date();
-                          d.setDate(d.getDate() + 7);
-                          setChallengeDeadline(d.toISOString().split("T")[0]);
-                        }
-                      }}
-                      className="flex-shrink-0 rounded-lg border border-[var(--pine)]/30 bg-[var(--pine)]/5 px-2 py-1 text-[11px] font-semibold text-[var(--pine)] transition hover:bg-[var(--pine)]/10 hover:shadow-sm sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs"
-                    >
-                      Challenge
-                    </button>
-                  )}
-                </Wrapper>
-
-                {/* Deadline picker for challenge */}
-                {showDeadlinePicker === r.user_id && (
-                  <div className="rounded-xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 p-3 space-y-2">
-                    <div className="text-xs font-medium text-[var(--pine)]">Set a deadline (max 14 days)</div>
-                    <div className="flex gap-2">
-                      <input
-                        type="date"
-                        className="flex-1 rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--pine)]/40"
-                        value={challengeDeadline}
-                        onChange={(e) => setChallengeDeadline(e.target.value)}
-                      />
-                      <button
-                        onClick={() => sendChallenge(r.user_id)}
-                        disabled={challenging === r.user_id || !challengeDeadline}
-                        className="rounded-lg bg-[var(--pine)] px-4 py-2 text-sm font-bold text-white transition hover:shadow-md disabled:opacity-40"
-                      >
-                        {challenging === r.user_id ? "..." : "Send"}
-                      </button>
-                      <button
-                        onClick={() => { setShowDeadlinePicker(null); setChallengeDeadline(""); }}
-                        className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--muted)]"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
+          {/* Challengeable players */}
+          {isInLadder && !myActiveChallenge && (() => {
+            const challengeable = filtered.filter((r) => canChallenge(r));
+            if (challengeable.length === 0) return (
+              <div className="rounded-[6px] border border-dashed border-[var(--border)] bg-white/60 p-4 text-center">
+                <div className="text-sm font-medium text-[var(--ink)]">
+                  {myRanking?.position === 1 ? "You're #1 — no one to challenge!" : "No one available to challenge right now"}
                 </div>
-              );
-            })}
-          </div>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {myRanking?.position === 1 ? "Defend your spot." : "All nearby players may already be in active challenges."}
+                </p>
+              </div>
+            );
+            return (
+              <section className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--gold)]">You can challenge</div>
+                <div className="space-y-2">
+                  {challengeable.map((r) => {
+                    const prof = profiles[r.user_id];
+                    const rec = records[r.user_id];
+                    const name = prof?.display_name || "Unknown";
+                    const spotsAbove = myRanking!.position - r.position;
+                    return (
+                      <div key={r.id} className="space-y-2">
+                        <div className="flex items-center gap-2 rounded-[6px] border-2 border-[var(--gold)]/30 bg-[var(--gold)]/5 px-3 py-3 sm:gap-3 sm:px-4">
+                          {/* Position */}
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                            {r.position <= 3 ? (
+                              <span className={`text-lg font-bold ${trophyColors[r.position] ?? ""}`}>
+                                {r.position === 1 ? "\u{1F947}" : r.position === 2 ? "\u{1F948}" : "\u{1F949}"}
+                              </span>
+                            ) : (
+                              <span className="text-sm font-semibold text-[var(--muted)]">{r.position}</span>
+                            )}
+                          </div>
+
+                          {/* Avatar */}
+                          <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm sm:h-10 sm:w-10">
+                            {prof?.avatar_url ? (
+                              <img src={prof.avatar_url} alt={name} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="grid h-full w-full place-items-center text-xs font-semibold">{initials(name)}</div>
+                            )}
+                          </div>
+
+                          {/* Info */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-sm font-semibold text-[var(--ink)]">{name}</span>
+                              <span className="rounded-full bg-[var(--gold)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--gold)]">
+                                {spotsAbove} spot{spotsAbove !== 1 ? "s" : ""} above
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)] sm:gap-2 sm:text-xs">
+                              {prof?.handicap_index != null && <span>HCP {prof.handicap_index}</span>}
+                              {rec && (
+                                <>
+                                  {prof?.handicap_index != null && <span className="text-[var(--border)]">&middot;</span>}
+                                  <span>{rec.wins}W - {rec.losses}L</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Challenge CTA */}
+                          <button
+                            onClick={() => {
+                              if (showDeadlinePicker === r.user_id) {
+                                setShowDeadlinePicker(null);
+                              } else {
+                                setShowDeadlinePicker(r.user_id);
+                                const d = new Date();
+                                d.setDate(d.getDate() + 7);
+                                setChallengeDeadline(d.toISOString().split("T")[0]);
+                              }
+                            }}
+                            className="btn-gold flex-shrink-0 !px-4 !py-2 !text-sm"
+                          >
+                            Challenge
+                          </button>
+                        </div>
+
+                        {/* Deadline picker */}
+                        {showDeadlinePicker === r.user_id && (
+                          <div className="rounded-[6px] border border-[var(--gold)]/20 bg-[var(--gold)]/5 p-3 space-y-2">
+                            <div className="text-xs font-medium text-[var(--ink)]">Deadline (max 14 days)</div>
+                            <div className="flex gap-2">
+                              <input
+                                type="date"
+                                className="flex-1 rounded-[6px] border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--pine)]/40"
+                                value={challengeDeadline}
+                                onChange={(e) => setChallengeDeadline(e.target.value)}
+                              />
+                              <button
+                                onClick={() => sendChallenge(r.user_id)}
+                                disabled={challenging === r.user_id || !challengeDeadline}
+                                className="btn-gold !py-2 disabled:opacity-40"
+                              >
+                                {challenging === r.user_id ? "Sending..." : "Send Challenge"}
+                              </button>
+                              <button
+                                onClick={() => { setShowDeadlinePicker(null); setChallengeDeadline(""); }}
+                                className="btn-outline-gold !py-2"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })()}
+
+          {/* Your position */}
+          {myRanking && (
+            <div className="flex items-center gap-3 rounded-[6px] border border-[var(--pine)]/30 bg-[var(--pine)]/5 px-4 py-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                {myRanking.position <= 3 ? (
+                  <span className="text-lg font-bold">
+                    {myRanking.position === 1 ? "\u{1F947}" : myRanking.position === 2 ? "\u{1F948}" : "\u{1F949}"}
+                  </span>
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--pine)]">{myRanking.position}</span>
+                )}
+              </div>
+              <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm sm:h-10 sm:w-10">
+                {profiles[meId!]?.avatar_url ? (
+                  <img src={profiles[meId!].avatar_url!} alt="You" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center text-xs font-semibold">{initials(profiles[meId!]?.display_name || "You")}</div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold text-[var(--ink)]">{profiles[meId!]?.display_name || "You"}</span>
+                  <span className="rounded-full bg-[var(--pine)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--pine)]">You</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)] sm:gap-2 sm:text-xs">
+                  {profiles[meId!]?.handicap_index != null && <span>HCP {profiles[meId!].handicap_index}</span>}
+                  {records[meId!] && (
+                    <>
+                      {profiles[meId!]?.handicap_index != null && <span className="text-[var(--border)]">&middot;</span>}
+                      <span>{records[meId!].wins}W - {records[meId!].losses}L</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              {myActiveChallenge && (
+                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold text-amber-700 border border-amber-200/60">
+                  In challenge
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Full rankings */}
+          <section className="space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Full Rankings</div>
+            <div className="space-y-1.5">
+              {filtered.map((r) => {
+                const prof = profiles[r.user_id];
+                const rec = records[r.user_id];
+                const name = prof?.display_name || "Unknown";
+                const isMe = r.user_id === meId;
+
+                const Wrapper = isMe ? "div" as const : Link;
+                const wrapperProps = isMe ? {} : { href: `/players/${r.user_id}` };
+
+                return (
+                  <Wrapper
+                    key={r.id}
+                    {...wrapperProps as any}
+                    className={`flex items-center gap-2 rounded-[6px] border px-3 py-2.5 transition sm:gap-3 sm:px-4 sm:py-3 ${
+                      isMe
+                        ? "border-[var(--pine)]/30 bg-[var(--pine)]/5"
+                        : "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20 hover:shadow-sm cursor-pointer"
+                    }`}
+                  >
+                    {/* Position */}
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                      {r.position <= 3 ? (
+                        <span className={`text-lg font-bold ${trophyColors[r.position] ?? ""}`}>
+                          {r.position === 1 ? "\u{1F947}" : r.position === 2 ? "\u{1F948}" : "\u{1F949}"}
+                        </span>
+                      ) : (
+                        <span className="text-sm font-semibold text-[var(--muted)]">{r.position}</span>
+                      )}
+                    </div>
+
+                    {/* Avatar */}
+                    <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm sm:h-10 sm:w-10">
+                      {prof?.avatar_url ? (
+                        <img src={prof.avatar_url} alt={name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="grid h-full w-full place-items-center text-xs font-semibold">{initials(name)}</div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-[var(--ink)]">{name}</span>
+                        {isMe && (
+                          <span className="rounded-full bg-[var(--pine)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--pine)]">You</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)] sm:gap-2 sm:text-xs">
+                        {prof?.handicap_index != null && <span>HCP {prof.handicap_index}</span>}
+                        {rec && (
+                          <>
+                            {prof?.handicap_index != null && <span className="text-[var(--border)]">&middot;</span>}
+                            <span>{rec.wins}W - {rec.losses}L</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </Wrapper>
+                );
+              })}
+            </div>
+          </section>
         </>
       )}
 
