@@ -7,20 +7,18 @@ export const metadata = {
 
 export default function CompetePage() {
   return (
-    <div className="space-y-8">
-      {/* Hero */}
+    <div className="space-y-6">
+      {/* Header */}
       <div>
-        <div className="section-flag section-flag--green">Compete</div>
-        <div className="context-strip context-strip--green mt-0">
-          <strong>Matches, Ladders &amp; Tournaments.</strong> Three ways to prove your game — handicap-adjusted, course-rated, and settled on the scorecard.
-        </div>
+        <h1 className="text-2xl tracking-tight text-[var(--ink)]">Compete</h1>
+        <p className="mt-1 text-[13px] text-[var(--muted)]">Three ways to prove your game.</p>
       </div>
 
-      {/* Matches */}
+      {/* ── Matches ── */}
       <section className="space-y-3">
-        <h2 className="text-xl text-[var(--ink)]">Head-to-Head Matches</h2>
+        <div className="section-flag section-flag--green">Matches</div>
         <p className="text-[13px] leading-relaxed text-[var(--muted)]">
-          Challenge any player to a 1v1 match — stroke play or match play, same course or different courses. Handicap differential levels the field so a 12-index can compete fairly against a scratch player.
+          Challenge any player to a 1v1 — stroke play or match play, same course or different courses. Handicap differential levels the field.
         </p>
         <div className="ds-card ds-card--green-accent p-4 space-y-3">
           <div className="flex items-start gap-3">
@@ -37,7 +35,7 @@ export default function CompetePage() {
             <div className="min-w-0">
               <div className="text-sm font-semibold text-[var(--ink)]">Stroke Play</div>
               <p className="text-[12px] text-[var(--muted)] leading-relaxed mt-0.5">
-                Total score adjusted by handicap differential. Lower differential wins. Best for measuring overall consistency.
+                Lower handicap differential wins. Best for overall consistency.
               </p>
             </div>
           </div>
@@ -51,7 +49,7 @@ export default function CompetePage() {
             <div className="min-w-0">
               <div className="text-sm font-semibold text-[var(--ink)]">Match Play</div>
               <p className="text-[12px] text-[var(--muted)] leading-relaxed mt-0.5">
-                Hole-by-hole net comparison. Strokes are distributed across the hardest holes by handicap index. Win more holes, win the match.
+                Hole-by-hole net comparison. Win more holes, win the match.
               </p>
             </div>
           </div>
@@ -65,38 +63,24 @@ export default function CompetePage() {
             <div className="min-w-0">
               <div className="text-sm font-semibold text-[var(--ink)]">Different Courses</div>
               <p className="text-[12px] text-[var(--muted)] leading-relaxed mt-0.5">
-                Play at your own course, on your own schedule. Cross-course handicap calculation handles the rest. No need to be in the same state.
+                Play at your own course, on your own time. Cross-course handicap calculation handles the rest.
               </p>
             </div>
           </div>
         </div>
-        <Link href="/matches/new" className="btn-gold">
-          Start a Match
-        </Link>
-      </section>
-
-      <hr className="gold-rule" />
-
-      {/* How Handicaps Work */}
-      <section className="space-y-3">
-        <h2 className="text-xl text-[var(--ink)]">How Handicaps Work</h2>
-        <div className="ds-card p-4 space-y-2">
-          <div className="text-[12px] leading-relaxed text-[var(--muted)]">
-            <p><strong className="text-[var(--ink)]">Course Rating</strong> measures the expected score of a scratch golfer on a given course. A course rated 72.4 is harder than 70.1.</p>
-            <p className="mt-2"><strong className="text-[var(--ink)]">Slope Rating</strong> (55–155, standard 113) measures relative difficulty for a bogey golfer vs. a scratch golfer. Higher slope = wider gap between skilled and less-skilled play.</p>
-            <p className="mt-2"><strong className="text-[var(--ink)]">Handicap Differential</strong> = (113 / Slope) &times; (Gross Score &minus; Course Rating). This normalizes your score across any course.</p>
-            <p className="mt-2"><strong className="text-[var(--ink)]">Course Handicap</strong> = Index &times; (Slope / 113) + (Rating &minus; Par). This determines strokes given in match play.</p>
-          </div>
+        <div className="flex gap-3">
+          <Link href="/matches/new" className="btn-gold">Start a Match</Link>
+          <Link href="/matches" className="btn-outline-gold">My Matches</Link>
         </div>
       </section>
 
       <hr className="gold-rule" />
 
-      {/* Ladder */}
+      {/* ── Ladder ── */}
       <section className="space-y-3">
-        <h2 className="text-xl text-[var(--ink)]">Ladder</h2>
+        <div className="section-flag section-flag--tan">Ladder</div>
         <p className="text-[13px] leading-relaxed text-[var(--muted)]">
-          A persistent ranking among your club members. Challenge players above you — win and you swap positions. Lose and you stay put. The ladder rewards consistency and courage.
+          A persistent ranking among club members. Challenge players above you — win and you swap positions. The ladder rewards consistency and courage.
         </p>
         <div className="ds-card ds-card--tan-accent p-4">
           <div className="flex items-start gap-3">
@@ -115,18 +99,16 @@ export default function CompetePage() {
             </div>
           </div>
         </div>
-        <Link href="/ladder" className="btn-outline-gold">
-          View Ladder
-        </Link>
+        <Link href="/ladder" className="btn-outline-gold">View Ladder</Link>
       </section>
 
       <hr className="gold-rule" />
 
-      {/* Tournaments */}
+      {/* ── Tournaments ── */}
       <section className="space-y-3">
-        <h2 className="text-xl text-[var(--ink)]">Tournaments</h2>
+        <div className="section-flag section-flag--green">Tournaments</div>
         <p className="text-[13px] leading-relaxed text-[var(--muted)]">
-          Multi-player events with structured brackets or stroke-play leaderboards. Invite your group, set the format, and let the competition run its course.
+          Multi-player events with structured brackets or stroke-play leaderboards. Invite your group and let the competition run its course.
         </p>
         <div className="ds-card ds-card--green-accent p-4">
           <div className="flex items-start gap-3">
@@ -139,14 +121,15 @@ export default function CompetePage() {
             <div className="min-w-0">
               <div className="text-sm font-semibold text-[var(--ink)]">Organized Competition</div>
               <p className="text-[12px] text-[var(--muted)] leading-relaxed mt-0.5">
-                Create a tournament, invite players, and track results in real time. Best suited for club events and group outings.
+                Create a tournament, invite players, and track results in real time.
               </p>
             </div>
           </div>
         </div>
-        <Link href="/tournaments" className="btn-outline-gold">
-          Browse Tournaments
-        </Link>
+        <div className="flex gap-3">
+          <Link href="/tournaments/new" className="btn-gold">Create Tournament</Link>
+          <Link href="/tournaments" className="btn-outline-gold">Browse Tournaments</Link>
+        </div>
       </section>
     </div>
   );

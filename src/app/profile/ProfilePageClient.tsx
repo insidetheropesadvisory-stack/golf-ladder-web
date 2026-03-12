@@ -86,6 +86,9 @@ export default function ProfilePageClient() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [stats, setStats] = useState<StatsData | null>(null);
 
+  type ClubMembership = { club_id: string; club_name: string; city: string | null; state: string | null };
+  const [clubs, setClubs] = useState<ClubMembership[]>([]);
+
   const hasChanges = useMemo(() => {
     const nextHandicap = safeNum(handicap);
 
@@ -122,6 +125,23 @@ export default function ProfilePageClient() {
         if (error) throw error;
 
         const row = (p as ProfileRow | null) ?? null;
+
+        // Fetch club memberships
+        const { data: memberships } = await supabase
+          .from("club_memberships")
+          .select("club_id, clubs(id, name, city, state)")
+          .eq("user_id", user.id);
+
+        if (mounted && memberships) {
+          setClubs(
+            memberships.map((m: any) => ({
+              club_id: m.club_id,
+              club_name: m.clubs?.name ?? "Unknown",
+              city: m.clubs?.city ?? null,
+              state: m.clubs?.state ?? null,
+            }))
+          );
+        }
 
         const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
         const metaName = String(meta.display_name ?? meta.name ?? "").trim();
@@ -598,6 +618,73 @@ export default function ProfilePageClient() {
               </svg>
             </div>
           </div>
+        </button>
+      )}
+
+      {/* Memberships */}
+      {!loading && (
+        <div className="rounded-[6px] border border-[var(--border)] bg-white/70 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[var(--border)]/60 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="icon-box icon-box--tan">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+                  <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+                  <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-[var(--ink)]">Memberships</div>
+                <div className="text-[11px] text-[var(--muted)]">{clubs.length} club{clubs.length !== 1 ? "s" : ""}</div>
+              </div>
+            </div>
+            <Link
+              href="/clubs"
+              className="btn-outline-gold text-[10px] px-3 py-1.5"
+            >
+              Manage
+            </Link>
+          </div>
+          {clubs.length === 0 ? (
+            <div className="px-5 py-6 text-center">
+              <p className="text-[12px] text-[var(--muted)]">No club memberships yet.</p>
+              <Link href="/clubs" className="btn-gold mt-3 inline-flex text-[11px] px-4 py-2">Join a Club</Link>
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--border)]/60">
+              {clubs.map((c) => (
+                <Link
+                  key={c.club_id}
+                  href={`/clubs/${c.club_id}`}
+                  className="flex items-center gap-3 px-5 py-3 transition hover:bg-[var(--green-light)]/30"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-[3px] bg-[var(--pine)] text-[10px] font-bold text-[var(--gold)]">
+                    {initials(c.club_name)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-semibold text-[var(--ink)]">{c.club_name}</div>
+                    {(c.city || c.state) && (
+                      <div className="text-[11px] text-[var(--muted)]">{[c.city, c.state].filter(Boolean).join(", ")}</div>
+                    )}
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 text-[var(--muted)]">
+                    <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Logout */}
+      {!loading && (
+        <button
+          type="button"
+          onClick={logout}
+          className="w-full rounded-[6px] border border-[var(--border)] bg-white/70 p-4 text-center text-[13px] font-semibold text-[var(--muted)] transition hover:border-red-200 hover:text-red-600"
+        >
+          Sign Out
         </button>
       )}
 

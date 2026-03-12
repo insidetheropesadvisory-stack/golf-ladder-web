@@ -10,26 +10,42 @@ type NavItem = { label: string; href: string; icon: string };
 
 const NAV: NavItem[] = [
   { label: "Home", href: "/", icon: "home" },
-  { label: "Matches", href: "/matches", icon: "matches" },
   { label: "Compete", href: "/compete", icon: "compete" },
-  { label: "Find a Round", href: "/find-a-round", icon: "find" },
-  { label: "Pool", href: "/pool", icon: "pool" },
-  { label: "Tournaments", href: "/tournaments", icon: "tournaments" },
-  { label: "Ladder", href: "/ladder", icon: "ladder" },
-  { label: "Memberships", href: "/clubs", icon: "clubs" },
+  { label: "Find a Match", href: "/find-a-match", icon: "find" },
   { label: "Profile", href: "/profile", icon: "profile" },
 ];
+
+/** Map sub-routes to their parent nav href for active highlighting */
+function isNavActive(navHref: string, pathname: string): boolean {
+  if (navHref === "/" && pathname === "/") return true;
+  if (navHref === "/") return false;
+  if (pathname.startsWith(navHref)) return true;
+  // Compete groups: matches, ladder, tournaments
+  if (navHref === "/compete") {
+    return pathname.startsWith("/matches") || pathname.startsWith("/ladder") || pathname.startsWith("/tournaments");
+  }
+  // Find a Match groups: pool, find-a-round (legacy)
+  if (navHref === "/find-a-match") {
+    return pathname.startsWith("/pool") || pathname.startsWith("/find-a-round");
+  }
+  // Profile groups: clubs
+  if (navHref === "/profile") {
+    return pathname.startsWith("/clubs") || pathname.startsWith("/players");
+  }
+  return false;
+}
 
 function titleFromPath(pathname: string) {
   const hit = NAV.find((n) => n.href === pathname);
   if (hit) return hit.label;
-  if (pathname.startsWith("/matches")) return "Matches";
+  if (pathname.startsWith("/matches")) return "Compete";
   if (pathname.startsWith("/compete")) return "Compete";
-  if (pathname.startsWith("/find-a-round")) return "Find a Round";
-  if (pathname.startsWith("/pool")) return "Pool";
-  if (pathname.startsWith("/tournaments")) return "Tournaments";
-  if (pathname.startsWith("/ladder")) return "Ladder";
-  if (pathname.startsWith("/clubs")) return "Memberships";
+  if (pathname.startsWith("/find-a-match")) return "Find a Match";
+  if (pathname.startsWith("/find-a-round")) return "Find a Match";
+  if (pathname.startsWith("/pool")) return "Find a Match";
+  if (pathname.startsWith("/tournaments")) return "Compete";
+  if (pathname.startsWith("/ladder")) return "Compete";
+  if (pathname.startsWith("/clubs")) return "Profile";
   if (pathname.startsWith("/profile")) return "Profile";
   return "Home";
 }
@@ -563,9 +579,7 @@ export function AppShell({
 
           <nav className="space-y-0.5">
             {NAV.map((item) => {
-              const active =
-                pathname === item.href ||
-                (item.href !== "/" && pathname.startsWith(item.href));
+              const active = isNavActive(item.href, pathname);
 
               return (
                 <Link
@@ -612,10 +626,8 @@ export function AppShell({
       {/* Mobile bottom tab bar — visible only on small screens */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--paper-2)] shadow-[0_-2px_12px_rgba(26,18,8,.06)] pb-[env(safe-area-inset-bottom)] md:hidden">
         <div className="mx-auto flex max-w-md items-stretch overflow-x-auto">
-          {NAV.filter(item => ["home","matches","compete","find","profile"].includes(item.icon)).map((item) => {
-            const active =
-              pathname === item.href ||
-              (item.href !== "/" && pathname.startsWith(item.href));
+          {NAV.map((item) => {
+            const active = isNavActive(item.href, pathname);
 
             return (
               <Link
