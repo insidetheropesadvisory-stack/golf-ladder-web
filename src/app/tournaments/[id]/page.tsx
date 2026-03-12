@@ -339,7 +339,7 @@ export default function TournamentDetailPage() {
                 const name = prof?.display_name || "Unknown";
                 return (
                   <div key={p.user_id} className="flex items-center gap-2.5">
-                    <div className="relative h-7 w-7 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white">
+                    <div className="relative h-7 w-7 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)]">
                       {prof?.avatar_url ? (
                         <img src={prof.avatar_url} alt={name} className="h-full w-full object-cover" />
                       ) : (
@@ -597,7 +597,7 @@ export default function TournamentDetailPage() {
                               position
                             )}
                           </div>
-                          <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-9 sm:w-9">
+                          <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] sm:h-9 sm:w-9">
                             {prof?.avatar_url ? (
                               <img src={prof.avatar_url} alt={name} className="h-full w-full object-cover" />
                             ) : (
@@ -689,7 +689,7 @@ export default function TournamentDetailPage() {
                         position
                       )}
                     </div>
-                    <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-9 sm:w-9">
+                    <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] sm:h-9 sm:w-9">
                       {prof?.avatar_url ? (
                         <img src={prof.avatar_url} alt={name} className="h-full w-full object-cover" />
                       ) : (

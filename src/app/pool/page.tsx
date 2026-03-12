@@ -383,7 +383,7 @@ export default function PoolPage() {
                     <div className="mt-1.5 flex items-center gap-2">
                       {/* Creator */}
                       <div className="flex items-center gap-1.5">
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--pine)] text-[8px] font-bold text-white">
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--green-light)] text-[8px] font-bold text-[var(--pine)]">
                           {initials(l.creator?.display_name ?? "?")}
                         </div>
                         <span className="text-xs text-[var(--muted)]">

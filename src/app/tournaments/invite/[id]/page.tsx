@@ -144,7 +144,7 @@ export default function TournamentInvitePage() {
             <div className="rounded-2xl border-2 border-[var(--pine)]/30 bg-gradient-to-br from-[var(--pine)]/5 to-white p-6 shadow-sm">
               {/* Creator */}
               <div className="flex items-center gap-3 mb-5">
-                <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm">
+                <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] shadow-sm">
                   {creator?.avatar_url ? (
                     <img src={creator.avatar_url} alt={creatorName} className="h-full w-full object-cover" />
                   ) : (

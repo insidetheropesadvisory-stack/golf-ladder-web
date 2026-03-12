@@ -259,7 +259,7 @@ export default function NewPoolPage() {
                   className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-white/70 px-3 py-2"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--pine)] text-[9px] font-bold text-white">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--green-light)] text-[9px] font-bold text-[var(--pine)]">
                       {initials(c.name)}
                     </div>
                     <span className="text-sm font-medium">{c.name}</span>
@@ -300,7 +300,7 @@ export default function NewPoolPage() {
                         onClick={() => addCommittedPlayer(p)}
                         className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/[0.03]"
                       >
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--pine)] text-[9px] font-bold text-white">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--green-light)] text-[9px] font-bold text-[var(--pine)]">
                           {initials(p.display_name ?? "?")}
                         </div>
                         <span className="font-medium">{p.display_name}</span>

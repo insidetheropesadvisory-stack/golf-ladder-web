@@ -144,7 +144,7 @@ export default function ChallengeDetailPage() {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-white/60 p-4">
         <div className="flex items-center gap-3">
-          <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm">
+          <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] shadow-sm">
             {prof?.avatar_url ? (
               <img src={prof.avatar_url} alt={name} className="h-full w-full object-cover" />
             ) : (

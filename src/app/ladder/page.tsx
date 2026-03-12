@@ -302,7 +302,7 @@ export default function LadderPage() {
                     </div>
 
                     {/* Avatar */}
-                    <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm sm:h-10 sm:w-10">
+                    <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] shadow-sm sm:h-10 sm:w-10">
                       {prof?.avatar_url ? (
                         <img src={prof.avatar_url} alt={name} className="h-full w-full object-cover" />
                       ) : (

@@ -520,7 +520,7 @@ export default function ClubDetailPage() {
               href={`/players/${m.id}`}
               className="group flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white/60 px-4 py-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm"
             >
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--pine)] text-white text-xs font-semibold">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] text-xs font-semibold">
                 {m.avatar_url ? (
                   <img src={m.avatar_url} alt="" className="h-full w-full object-cover" />
                 ) : (
@@ -556,7 +556,7 @@ export default function ClubDetailPage() {
               )}>
                 {i + 1}
               </div>
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--pine)] text-white text-xs font-semibold">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] text-xs font-semibold">
                 {m.avatar_url ? (
                   <img src={m.avatar_url} alt="" className="h-full w-full object-cover" />
                 ) : (

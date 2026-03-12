@@ -418,7 +418,7 @@ export default function PoolDetailPage() {
         <div>
           <div className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide mb-2">Organizer</div>
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--pine)] text-[10px] font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--green-light)] text-[10px] font-bold text-[var(--pine)]">
               {initials(listing.creator?.display_name ?? "?")}
             </div>
             <div>
@@ -441,7 +441,7 @@ export default function PoolDetailPage() {
                 const name = c.profile?.display_name ?? c.player_name ?? "Player";
                 return (
                   <div key={c.id} className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-white/60 px-3 py-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--pine)] text-[8px] font-bold text-white">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--green-light)] text-[8px] font-bold text-[var(--pine)]">
                       {initials(name)}
                     </div>
                     <span className="text-sm font-medium">{name}</span>
@@ -497,7 +497,7 @@ export default function PoolDetailPage() {
           {pendingApps.map((a) => (
             <div key={a.id} className="rounded-xl border border-[var(--border)] bg-white p-3 space-y-2">
               <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--pine)] text-[9px] font-bold text-white">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--green-light)] text-[9px] font-bold text-[var(--pine)]">
                   {initials(a.profile?.display_name ?? "?")}
                 </div>
                 <div className="flex-1">
@@ -564,7 +564,7 @@ export default function PoolDetailPage() {
           {ratablePlayers.map((a) => (
             <div key={a.id} className="rounded-xl border border-[var(--border)] bg-white p-3 space-y-2">
               <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--pine)] text-[9px] font-bold text-white">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--green-light)] text-[9px] font-bold text-[var(--pine)]">
                   {initials(a.profile?.display_name ?? "?")}
                 </div>
                 <span className="text-sm font-semibold">{a.profile?.display_name ?? "Player"}</span>

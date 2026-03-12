@@ -152,7 +152,7 @@ export function OpponentPicker({
           OPPONENT
         </label>
         <div className="flex items-center gap-3 rounded-xl border border-[var(--pine)]/30 bg-[var(--pine)]/5 px-4 py-3">
-          <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm">
+          <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] shadow-sm">
             {value.avatar_url ? (
               <img src={value.avatar_url} alt={name} className="h-full w-full object-cover" />
             ) : (
@@ -266,7 +266,7 @@ export function OpponentPicker({
                       className="w-full rounded-xl border border-transparent bg-white p-3 text-left transition hover:border-[var(--border)] hover:bg-black/[0.02] hover:shadow-sm"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white">
+                        <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)]">
                           {p.avatar_url ? (
                             <img src={p.avatar_url} alt={name} className="h-full w-full object-cover" />
                           ) : (

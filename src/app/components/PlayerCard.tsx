@@ -31,7 +31,7 @@ export function PlayerCard({
         href={`/players/${player.id}`}
         className="group flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white/70 p-3 transition-all duration-200 hover:bg-white hover:shadow-sm"
       >
-        <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm">
+        <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] shadow-sm">
           {player.avatar_url ? (
             <img
               src={player.avatar_url}
@@ -74,7 +74,7 @@ export function PlayerCard({
       className="group block rounded-2xl border border-[var(--border)] bg-white/70 p-5 transition-all duration-200 hover:bg-white hover:shadow-md hover:-translate-y-[1px]"
     >
       <div className="flex items-start gap-4">
-        <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white shadow-sm">
+        <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] shadow-sm">
           {player.avatar_url ? (
             <img
               src={player.avatar_url}

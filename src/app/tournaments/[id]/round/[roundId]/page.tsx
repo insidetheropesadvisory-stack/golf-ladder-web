@@ -165,7 +165,7 @@ export default function ViewRoundPage() {
 
       {/* Player card */}
       <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-white/60 px-4 py-4">
-        <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white">
+        <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)]">
           {profile?.avatar_url ? (
             <img src={profile.avatar_url} alt={playerName} className="h-full w-full object-cover" />
           ) : (
