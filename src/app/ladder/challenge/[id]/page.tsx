@@ -202,7 +202,7 @@ export default function ChallengeDetailPage() {
                 <span className="text-sm font-semibold tabular-nums text-[var(--pine)]">{round.differential?.toFixed(1)} diff</span>
               </div>
             ) : (
-              <div className="mt-1 text-sm text-amber-600 font-medium">Scoring in progress...</div>
+              <div className="mt-1 text-sm text-[var(--gold)] font-medium">Scoring in progress...</div>
             )}
           </div>
         ) : isAccepted ? (
