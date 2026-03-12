@@ -47,6 +47,16 @@ type LadderRank = {
   type: string;
 };
 
+type LadderChallenge = {
+  id: string;
+  challenger_id: string;
+  opponent_id: string;
+  status: string;
+  deadline: string;
+  winner_id: string | null;
+  created_at: string;
+};
+
 const DEADLINE_MS = 12 * 60 * 60 * 1000;
 
 function deriveBucket(r: MatchRow): "proposal" | "active" | "completed" {
@@ -99,6 +109,22 @@ function countdownText(isoDate: string): string {
   return `${mins}m`;
 }
 
+function ladderDeadlineInfo(deadline: string): { text: string; color: string } {
+  const deadlineDate = new Date(deadline + "T23:59:59");
+  const now = new Date();
+  const msLeft = deadlineDate.getTime() - now.getTime();
+  const daysLeft = msLeft / (1000 * 60 * 60 * 24);
+
+  if (msLeft <= 0) return { text: "Overdue", color: "text-red-600" };
+
+  const dt = new Date(deadline + "T00:00:00");
+  const formatted = `Complete by ${dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`;
+
+  if (daysLeft <= 1) return { text: formatted, color: "text-red-600" };
+  if (daysLeft <= 3) return { text: formatted, color: "text-[var(--gold)]" };
+  return { text: formatted, color: "text-[var(--muted)]" };
+}
+
 function deadlineText(roundTime: string): string {
   const deadline = new Date(roundTime).getTime() + DEADLINE_MS;
   const remaining = deadline - Date.now();
@@ -122,6 +148,7 @@ export default function HomePage() {
   const [clubMap, setClubMap] = useState<Record<string, string>>({});
   const [tournaments, setTournaments] = useState<TournamentLite[]>([]);
   const [ladderRanks, setLadderRanks] = useState<LadderRank[]>([]);
+  const [ladderChallenges, setLadderChallenges] = useState<LadderChallenge[]>([]);
 
   type PoolUpcoming = { id: string; course_name: string; round_time: string; creator_id: string; creator_name: string | null };
   const [poolUpcoming, setPoolUpcoming] = useState<PoolUpcoming[]>([]);
@@ -161,7 +188,7 @@ export default function HomePage() {
           email ? `opponent_email.ilike.${email}` : null,
         ].filter(Boolean).join(",");
 
-        const [matchResult, tournamentResult, ladderResult, clubResult, poolResult] = await Promise.all([
+        const [matchResult, tournamentResult, ladderResult, clubResult, poolResult, ladderChallengeResult] = await Promise.all([
           supabase
             .from("matches")
             .select("id,created_at,creator_id,opponent_id,opponent_email,course_name,completed,status,format,use_handicap,terms_status,terms_last_proposed_by,round_time,is_ladder_match")
@@ -207,6 +234,12 @@ export default function HomePage() {
               }));
             } catch { return []; }
           })(),
+          // Ladder challenges (accepted/pending)
+          supabase
+            .from("ladder_challenges")
+            .select("id,challenger_id,opponent_id,status,deadline,winner_id,created_at")
+            .or(`challenger_id.eq.${sessionUser.id},opponent_id.eq.${sessionUser.id}`)
+            .in("status", ["accepted", "pending"]),
         ]);
 
         if (matchResult.error) throw new Error(matchResult.error.message);
@@ -216,6 +249,7 @@ export default function HomePage() {
         setTournaments(tournamentResult as TournamentLite[]);
         setLadderRanks((ladderResult.data ?? []) as LadderRank[]);
         setPoolUpcoming(poolResult as PoolUpcoming[]);
+        setLadderChallenges((ladderChallengeResult.data ?? []) as LadderChallenge[]);
 
 
         if (clubResult.data && mounted) {
@@ -227,11 +261,13 @@ export default function HomePage() {
         }
 
         // Fetch player profiles for opponents
+        const ladderPlayerIds = (ladderChallengeResult.data ?? []).flatMap((c: any) => [c.challenger_id, c.opponent_id]);
         const ids = Array.from(
           new Set(
-            matchRows
-              .flatMap((r) => [r.creator_id, r.opponent_id].filter(Boolean) as string[])
-              .filter((id) => id !== sessionUser.id)
+            [
+              ...matchRows.flatMap((r) => [r.creator_id, r.opponent_id].filter(Boolean) as string[]),
+              ...ladderPlayerIds,
+            ].filter((id) => id !== sessionUser.id)
           )
         );
 
@@ -314,6 +350,29 @@ export default function HomePage() {
   }, [rows, meId]);
 
   const grossRank = ladderRanks.find((r) => r.type === "gross");
+
+  // Split ladder challenges into active (accepted) and pending
+  const activeLadderChallenges = useMemo(() => {
+    return ladderChallenges.filter((c) => c.status === "accepted");
+  }, [ladderChallenges]);
+
+  const ladderNeedsMyResponse = useMemo(() => {
+    const myId = meId ?? "";
+    return ladderChallenges.filter((c) => c.status === "pending" && c.opponent_id === myId);
+  }, [ladderChallenges, meId]);
+
+  const ladderAwaitingTheir = useMemo(() => {
+    const myId = meId ?? "";
+    return ladderChallenges.filter((c) => c.status === "pending" && c.challenger_id === myId);
+  }, [ladderChallenges, meId]);
+
+  function ladderOpponent(c: LadderChallenge) {
+    const myId = meId ?? "";
+    const oppId = myId === c.challenger_id ? c.opponent_id : c.challenger_id;
+    const p = players[oppId];
+    const name = p?.display_name?.trim() || "Opponent";
+    return { name, avatarUrl: p?.avatar_url ?? null, id: oppId };
+  }
 
   // Upcoming: merge match upcoming + pool upcoming, sorted by round_time
   type UpcomingItem = { id: string; kind: "match" | "ladder" | "pool"; course_name: string; round_time: string; label: string; sublabel: string; href: string; avatarText: string };
@@ -434,8 +493,8 @@ export default function HomePage() {
       {/* Stat tiles */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         {[
-          { label: "Needs response", value: String(buckets.needsMyResponse.length), href: "/matches", special: false },
-          { label: "Active", value: String(buckets.allActive.length), href: "/matches", special: false },
+          { label: "Needs response", value: String(buckets.needsMyResponse.length + ladderNeedsMyResponse.length), href: "/matches", special: false },
+          { label: "Active", value: String(buckets.allActive.length + activeLadderChallenges.length), href: "/matches", special: false },
           { label: "Tournaments", value: String(tournaments.length), href: "/tournaments", special: false },
           { label: "Ladder rank", value: grossRank ? `#${grossRank.position}` : "—", href: "/ladder", special: true },
         ].map((t) => (
@@ -517,13 +576,52 @@ export default function HomePage() {
             <div className="h-16 animate-pulse rounded-[6px] bg-black/[0.03]" />
             <div className="h-16 animate-pulse rounded-[6px] bg-black/[0.03]" style={{ animationDelay: "75ms" }} />
           </div>
-        ) : buckets.inProgress.length === 0 ? (
+        ) : buckets.inProgress.length === 0 && activeLadderChallenges.length === 0 ? (
           <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 text-sm text-[var(--muted)]">
             No active matches yet. Challenge a player on the ladder or start a new match — you play your course, they play theirs.{" "}
             <Link href={newMatchHref} className="font-medium text-[var(--pine)] underline">Start a Match</Link>
           </div>
         ) : (
           <div className="space-y-2">
+            {/* Ladder challenges */}
+            {activeLadderChallenges.map((c) => {
+              const opp = ladderOpponent(c);
+              const dl = ladderDeadlineInfo(c.deadline);
+              return (
+                <Link
+                  key={`lc-${c.id}`}
+                  href={`/ladder/challenge/${c.id}`}
+                  className="group flex items-center gap-2.5 rounded-[6px] border border-l-[3px] border-[var(--gold)]/30 border-l-[var(--gold)] bg-[var(--gold-light)]/20 p-3 transition hover:border-[var(--gold)] hover:shadow-sm sm:gap-3 sm:p-4"
+                >
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--gold-light)] text-[var(--tan)] sm:h-10 sm:w-10">
+                    {opp.avatarUrl ? (
+                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
+                        {initials(opp.name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold">{opp.name}</span>
+                      {opp.id && <BadgeRow userId={opp.id} />}
+                      <span className="shrink-0 rounded-[3px] bg-[var(--pine)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--gold)] uppercase tracking-wide">Ladder</span>
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+                      Ladder Challenge &middot; Differential
+                    </div>
+                    <div className={cx("mt-0.5 text-[11px] font-medium", dl.color)}>
+                      {dl.text}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-[3px] bg-[var(--pine)] px-3 py-1.5 text-[11px] font-bold text-white">
+                    View challenge
+                  </span>
+                </Link>
+              );
+            })}
+            {/* Regular active matches */}
             {sliceFor("active", buckets.inProgress).map((r) => {
               const opp = opponentFor(r);
               return (
@@ -553,7 +651,7 @@ export default function HomePage() {
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold">{opp.name}</span>
                       {opp.id && <BadgeRow userId={opp.id} />}
-                      {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
+                      {r.is_ladder_match && <span className="shrink-0 rounded-[3px] bg-[var(--pine)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--gold)] uppercase tracking-wide">Ladder</span>}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
                       {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}{r.use_handicap ? " (Net)" : ""}
@@ -565,7 +663,7 @@ export default function HomePage() {
                 </Link>
               );
             })}
-            <ShowMoreButton sectionKey="active" total={buckets.inProgress.length} />
+            <ShowMoreButton sectionKey="active" total={buckets.inProgress.length + activeLadderChallenges.length} />
           </div>
         )}
       </section>
@@ -635,10 +733,49 @@ export default function HomePage() {
       )}
 
       {/* ── NEEDS YOUR RESPONSE ── */}
-      {!loading && buckets.needsMyResponse.length > 0 && (
+      {!loading && (buckets.needsMyResponse.length > 0 || ladderNeedsMyResponse.length > 0) && (
         <section className="space-y-3">
           <div className="flex items-center gap-3"><div className="section-flag section-flag--green">Needs your response</div><div className="flex-1 h-[2px] bg-[var(--border)]" /></div>
           <div className="space-y-2">
+            {/* Ladder challenge invites */}
+            {ladderNeedsMyResponse.map((c) => {
+              const opp = ladderOpponent(c);
+              const dl = ladderDeadlineInfo(c.deadline);
+              return (
+                <Link
+                  key={`lc-${c.id}`}
+                  href={`/ladder/challenge/${c.id}`}
+                  className="group flex items-center gap-2.5 rounded-[6px] border border-[var(--gold)]/40 bg-[var(--gold-light)]/30 p-3 transition hover:border-[var(--gold)] hover:shadow-sm sm:gap-3 sm:p-4"
+                >
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--gold-light)] text-[var(--tan)] sm:h-10 sm:w-10">
+                    {opp.avatarUrl ? (
+                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
+                        {initials(opp.name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold">{opp.name}</span>
+                      {opp.id && <BadgeRow userId={opp.id} />}
+                      <span className="shrink-0 rounded-[3px] bg-[var(--pine)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--gold)] uppercase tracking-wide">Ladder</span>
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+                      Ladder Challenge &middot; Differential
+                    </div>
+                    <div className={cx("mt-0.5 text-[11px] font-medium", dl.color)}>
+                      {dl.text}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-[3px] bg-[var(--gold)] px-3 py-1 text-[11px] font-bold text-[var(--pine)]">
+                    Accept / Decline
+                  </span>
+                </Link>
+              );
+            })}
+            {/* Regular match proposals */}
             {sliceFor("needsResponse", buckets.needsMyResponse).map((r) => {
               const opp = opponentFor(r);
               const ts = String(r.terms_status ?? "").toLowerCase();
@@ -661,7 +798,7 @@ export default function HomePage() {
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold">{opp.name}</span>
                       {opp.id && <BadgeRow userId={opp.id} />}
-                      {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
+                      {r.is_ladder_match && <span className="shrink-0 rounded-[3px] bg-[var(--pine)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--gold)] uppercase tracking-wide">Ladder</span>}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
                       {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}
@@ -673,16 +810,55 @@ export default function HomePage() {
                 </Link>
               );
             })}
-            <ShowMoreButton sectionKey="needsResponse" total={buckets.needsMyResponse.length} />
+            <ShowMoreButton sectionKey="needsResponse" total={buckets.needsMyResponse.length + ladderNeedsMyResponse.length} />
           </div>
         </section>
       )}
 
       {/* ── AWAITING THEIR RESPONSE ── */}
-      {!loading && buckets.awaitingTheir.length > 0 && (
+      {!loading && (buckets.awaitingTheir.length > 0 || ladderAwaitingTheir.length > 0) && (
         <section className="space-y-3">
           <div className="flex items-center gap-3"><div className="section-flag section-flag--tan">Awaiting response</div><div className="flex-1 h-[2px] bg-[var(--border)]" /></div>
           <div className="space-y-2">
+            {/* Ladder challenges I sent */}
+            {ladderAwaitingTheir.map((c) => {
+              const opp = ladderOpponent(c);
+              const dl = ladderDeadlineInfo(c.deadline);
+              return (
+                <Link
+                  key={`lc-${c.id}`}
+                  href={`/ladder/challenge/${c.id}`}
+                  className="group flex items-center gap-2.5 rounded-[6px] border border-[var(--border)] bg-white/60 p-3 transition hover:border-[var(--pine)]/20 hover:shadow-sm sm:gap-3 sm:p-4"
+                >
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--muted)]/20 text-[var(--muted)] sm:h-10 sm:w-10">
+                    {opp.avatarUrl ? (
+                      <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
+                        {initials(opp.name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold text-[var(--muted)]">{opp.name}</span>
+                      {opp.id && <BadgeRow userId={opp.id} />}
+                      <span className="shrink-0 rounded-[3px] bg-[var(--pine)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--gold)] uppercase tracking-wide">Ladder</span>
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+                      Ladder Challenge &middot; Differential
+                    </div>
+                    <div className={cx("mt-0.5 text-[11px] font-medium", dl.color)}>
+                      {dl.text}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-[3px] border border-[var(--border)] px-3 py-1 text-[11px] font-medium text-[var(--muted)]">
+                    Sent
+                  </span>
+                </Link>
+              );
+            })}
+            {/* Regular match awaiting */}
             {sliceFor("awaiting", buckets.awaitingTheir).map((r) => {
               const opp = opponentFor(r);
               return (
@@ -704,7 +880,7 @@ export default function HomePage() {
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold text-[var(--muted)]">{opp.name}</span>
                       {opp.id && <BadgeRow userId={opp.id} />}
-                      {r.is_ladder_match && <span className="pill-waiting text-[9px] py-0 px-1.5">Ladder</span>}
+                      {r.is_ladder_match && <span className="shrink-0 rounded-[3px] bg-[var(--pine)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--gold)] uppercase tracking-wide">Ladder</span>}
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
                       {r.course_name} &middot; {r.format === "match_play" ? "Match Play" : "Stroke Play"}
@@ -716,7 +892,7 @@ export default function HomePage() {
                 </Link>
               );
             })}
-            <ShowMoreButton sectionKey="awaiting" total={buckets.awaitingTheir.length} />
+            <ShowMoreButton sectionKey="awaiting" total={buckets.awaitingTheir.length + ladderAwaitingTheir.length} />
           </div>
         </section>
       )}
