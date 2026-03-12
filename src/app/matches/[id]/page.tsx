@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx } from "@/lib/utils";
+import dynamic from "next/dynamic";
+
+const DifferentCoursesMatch = dynamic(() => import("./DifferentCoursesMatch"), { ssr: false });
 
 type MatchRow = {
   id: string;
@@ -25,6 +28,7 @@ type MatchRow = {
   golf_course_api_id?: string | number | null;
   selected_tee?: string | null;
   opponent_tee?: string | null;
+  play_mode?: "same_course" | "different_courses";
 };
 
 type TeeData = {
@@ -290,7 +294,7 @@ export default function MatchScoringPage() {
         const { data: matchData, error: matchErr } = await supabase
           .from("matches")
           .select(
-            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match, hole_count, golf_course_api_id, selected_tee, opponent_tee"
+            "id, creator_id, opponent_id, opponent_email, course_name, status, completed, terms_status, format, use_handicap, round_time, guest_fee, is_ladder_match, hole_count, golf_course_api_id, selected_tee, opponent_tee, play_mode"
           )
           .eq("id", matchId)
           .single();
@@ -1037,6 +1041,11 @@ export default function MatchScoringPage() {
   }
 
   if (!matchId) return <div className="p-4 text-sm text-[var(--muted)]">Missing match id.</div>;
+
+  // Route to DifferentCoursesMatch component for different_courses play mode
+  if (match?.play_mode === "different_courses") {
+    return <DifferentCoursesMatch matchId={matchId} />;
+  }
 
   if (loading) {
     return (

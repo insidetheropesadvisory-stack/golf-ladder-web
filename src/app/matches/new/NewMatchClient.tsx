@@ -38,6 +38,7 @@ export default function NewMatchPage() {
   const [isLadderMatch, setIsLadderMatch] = useState(false);
   const [holeCount, setHoleCount] = useState<9 | 18>(18);
 
+  const [playMode, setPlayMode] = useState<"same_course" | "different_courses">("same_course");
   const [inviteMode, setInviteMode] = useState<"player" | "link">("player");
   const [inviteMatchId, setInviteMatchId] = useState<string | null>(null);
 
@@ -123,7 +124,8 @@ export default function NewMatchPage() {
       return;
     }
 
-    const course = courseName.trim();
+    const isDifferentCourses = playMode === "different_courses" && !isLadderMatch;
+    const course = isDifferentCourses ? "Different Courses" : courseName.trim();
     if (!course) {
       setStatus("Pick a club/course.");
       setLoading(false);
@@ -147,8 +149,8 @@ export default function NewMatchPage() {
         opponent_id: isLinkInvite ? null : (opponent?.id ?? null),
         opponent_email: oppEmail,
         course_name: course,
-        golf_course_api_id: courseApiId,
-        selected_tee: selectedTee,
+        golf_course_api_id: isDifferentCourses ? null : courseApiId,
+        selected_tee: isDifferentCourses ? null : selectedTee,
         status: "proposed",
         round_time: roundTimeISO,
         format,
@@ -156,6 +158,7 @@ export default function NewMatchPage() {
         guest_fee: guestFee,
         is_ladder_match: isLadderMatch,
         hole_count: holeCount,
+        play_mode: playMode,
         terms_status: "pending",
         terms_last_proposed_by: meId,
         terms_last_proposed_at: new Date().toISOString(),
@@ -335,7 +338,56 @@ export default function NewMatchPage() {
           </div>
         )}
 
-        {meId ? (
+        {/* Play mode toggle (hidden for ladder matches) */}
+        {!isLadderMatch && (
+          <div>
+            <div className="flex gap-1 rounded-xl border border-[var(--border)] bg-white/60 p-1">
+              <button
+                type="button"
+                onClick={() => setPlayMode("same_course")}
+                className={cx(
+                  "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition",
+                  playMode === "same_course"
+                    ? "bg-[var(--pine)] text-white shadow-sm"
+                    : "text-[var(--muted)] hover:text-[var(--ink)]"
+                )}
+              >
+                Same Course
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlayMode("different_courses");
+                  setUseHandicap(true);
+                }}
+                className={cx(
+                  "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition",
+                  playMode === "different_courses"
+                    ? "bg-[var(--pine)] text-white shadow-sm"
+                    : "text-[var(--muted)] hover:text-[var(--ink)]"
+                )}
+              >
+                Different Courses
+              </button>
+            </div>
+            {playMode === "different_courses" && (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                Each player plays at their own course. Winner determined by handicap differential.
+              </p>
+            )}
+          </div>
+        )}
+
+        {playMode === "different_courses" && !isLadderMatch ? (
+          <div className="rounded-2xl border border-dashed border-[var(--pine)]/30 bg-[var(--pine)]/5 p-5 text-center">
+            <div className="text-sm font-medium text-[var(--ink)]">
+              Different courses
+            </div>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Each player will choose their own course and tee when submitting their round.
+            </p>
+          </div>
+        ) : meId ? (
           <div>
             <ClubPicker
               value={courseName}
@@ -391,6 +443,7 @@ export default function NewMatchPage() {
           </div>
         )}
 
+        {playMode !== "different_courses" && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1">
             <label className="text-xs font-medium tracking-[0.18em] text-[var(--muted)]">
@@ -415,6 +468,7 @@ export default function NewMatchPage() {
             />
           </div>
         </div>
+        )}
 
         <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-5">
           <div className="text-xs font-medium tracking-[0.18em] text-[var(--muted)]">
@@ -466,7 +520,7 @@ export default function NewMatchPage() {
                   type="checkbox"
                   checked={useHandicap}
                   onChange={(e) => setUseHandicap(e.target.checked)}
-                  disabled={isLadderMatch}
+                  disabled={isLadderMatch || (playMode === "different_courses" && !isLadderMatch)}
                   className="h-4 w-4 rounded border-[var(--border)] disabled:opacity-50"
                 />
                 <label htmlFor="useHandicap" className="text-sm font-medium">
