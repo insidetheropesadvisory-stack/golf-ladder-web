@@ -195,6 +195,36 @@ export async function POST(request: Request) {
 
     const admin = adminClient();
 
+    // Check membership for private courses
+    const isPrivate = body.is_private === true;
+    if (isPrivate) {
+      const { data: membership } = await admin
+        .from("club_memberships")
+        .select("id")
+        .eq("user_id", user.id)
+        .ilike("clubs.name", courseName)
+        .limit(1);
+
+      // Also check by club_id if provided
+      let isMember = (membership && membership.length > 0);
+      if (!isMember && body.club_id) {
+        const { data: byClubId } = await admin
+          .from("club_memberships")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("club_id", body.club_id)
+          .limit(1);
+        isMember = (byClubId && byClubId.length > 0);
+      }
+
+      if (!isMember) {
+        return NextResponse.json(
+          { error: "This is a private club. Only members can host rounds here." },
+          { status: 403 }
+        );
+      }
+    }
+
     // Geocode city/state to lat/lng for distance filtering
     let latitude: number | null = body.latitude ?? null;
     let longitude: number | null = body.longitude ?? null;
@@ -227,6 +257,7 @@ export async function POST(request: Request) {
         city,
         state,
         club_id: body.club_id || null,
+        is_private: isPrivate,
       })
       .select()
       .single();

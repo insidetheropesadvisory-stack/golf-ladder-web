@@ -33,6 +33,7 @@ export default function NewMatchPage() {
   const [courseTees, setCourseTees] = useState<ApiTeeInfo[]>([]);
   const [selectedTee, setSelectedTee] = useState<string | null>(null);
   const [guestFee, setGuestFee] = useState<number | null>(null);
+  const [courseAccessType, setCourseAccessType] = useState<string | null>(null);
   const [format, setFormat] = useState<"stroke_play" | "match_play">("stroke_play");
   const [useHandicap, setUseHandicap] = useState(false);
   const [isLadderMatch, setIsLadderMatch] = useState(false);
@@ -395,6 +396,7 @@ export default function NewMatchPage() {
               onGuestFeeChange={setGuestFee}
               onCourseApiIdChange={(id) => { setCourseApiId(id); if (!id) { setCourseTees([]); setSelectedTee(null); } }}
               onTeesChange={(tees) => { setCourseTees(tees); setSelectedTee(tees.length > 0 ? tees[0].name : null); }}
+              onAccessTypeChange={setCourseAccessType}
               userId={meId}
             />
             {courseTees.length > 0 && (

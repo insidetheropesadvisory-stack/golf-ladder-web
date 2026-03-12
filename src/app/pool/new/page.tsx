@@ -28,6 +28,7 @@ export default function NewPoolPage() {
   const [courseName, setCourseName] = useState("");
   const [courseApiId, setCourseApiId] = useState<string | null>(null);
   const [clubId, setClubId] = useState<string | null>(null);
+  const [courseAccessType, setCourseAccessType] = useState<string | null>(null);
   const [courseCity, setCourseCity] = useState<string | null>(null);
   const [courseState, setCourseState] = useState<string | null>(null);
   const [roundDate, setRoundDate] = useState("");
@@ -138,6 +139,7 @@ export default function NewPoolPage() {
           auto_accept: autoAccept,
           city: courseCity,
           state: courseState,
+          is_private: courseAccessType?.toLowerCase() === "private" || courseAccessType?.toLowerCase() === "privé",
           committed_players: committed.map((c) => ({ id: c.id, name: c.name })),
         }),
       });
@@ -174,6 +176,7 @@ export default function NewPoolPage() {
           onCourseApiIdChange={setCourseApiId}
           onClubIdChange={setClubId}
           onGuestFeeChange={(fee) => { if (fee != null) setGuestFee(String(fee)); }}
+          onAccessTypeChange={setCourseAccessType}
           onLocationChange={(city, state) => { setCourseCity(city); setCourseState(state); }}
           userId={meId}
           placeholder="Search your clubs…"

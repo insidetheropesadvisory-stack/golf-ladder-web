@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase/supabase";
 
 import { cx, initials } from "@/lib/utils";
@@ -14,6 +15,7 @@ type Club = {
   source: "my" | "db" | "ct" | "api";
   guest_fee?: number | null;
   apiCourseId?: string;
+  accessType?: string | null;
 };
 
 function normalizeClubRow(row: any): Club | null {
@@ -73,6 +75,7 @@ export function ClubPicker({
   onCourseApiIdChange,
   onClubIdChange,
   onTeesChange,
+  onAccessTypeChange,
   onLocationChange,
   userId,
   placeholder = "Search clubs…",
@@ -84,6 +87,7 @@ export function ClubPicker({
   onCourseApiIdChange?: (id: string | null) => void;
   onClubIdChange?: (clubId: string | null) => void;
   onTeesChange?: (tees: ApiTeeInfo[]) => void;
+  onAccessTypeChange?: (accessType: string | null) => void;
   onLocationChange?: (city: string | null, state: string | null) => void;
   userId: string;
   placeholder?: string;
@@ -125,6 +129,7 @@ export function ClubPicker({
         const clubs: Club[] = [];
         for (const c of results) {
           const clubCourses: any[] = c.courses ?? [];
+          const at = c.access_type ?? null;
           if (clubCourses.length === 0) {
             // Club with no courses — use club name
             clubs.push({
@@ -135,6 +140,7 @@ export function ClubPicker({
               logo_url: null,
               source: "api" as const,
               apiCourseId: undefined,
+              accessType: at,
             });
           } else if (clubCourses.length === 1) {
             // Single course — use club name
@@ -146,6 +152,7 @@ export function ClubPicker({
               logo_url: null,
               source: "api" as const,
               apiCourseId: clubCourses[0].courseID,
+              accessType: at,
             });
           } else {
             // Multiple courses — list each one
@@ -158,6 +165,7 @@ export function ClubPicker({
                 logo_url: null,
                 source: "api" as const,
                 apiCourseId: co.courseID,
+                accessType: at,
               });
             }
           }
@@ -219,6 +227,7 @@ export function ClubPicker({
         const ctFromApi: Club[] = [];
         for (const c of ctResults) {
           const clubCourses: any[] = c.courses ?? [];
+          const at = c.access_type ?? null;
           if (clubCourses.length === 0) {
             ctFromApi.push({
               id: `ctapi::${c.id}`,
@@ -228,6 +237,7 @@ export function ClubPicker({
               logo_url: null,
               source: "ct",
               apiCourseId: undefined,
+              accessType: at,
             });
           } else if (clubCourses.length === 1) {
             ctFromApi.push({
@@ -238,6 +248,7 @@ export function ClubPicker({
               logo_url: null,
               source: "ct",
               apiCourseId: clubCourses[0].courseID,
+              accessType: at,
             });
           } else {
             for (const co of clubCourses) {
@@ -249,6 +260,7 @@ export function ClubPicker({
                 logo_url: null,
                 source: "ct",
                 apiCourseId: co.courseID,
+                accessType: at,
               });
             }
           }
@@ -333,15 +345,35 @@ export function ClubPicker({
     return { mine, ct, other, api: dedupedApiClubs };
   }, [filtered, dedupedApiClubs]);
 
-  async function pick(name: string, guestFee?: number | null, apiCourseId?: string | null, city?: string | null, state?: string | null, clubId?: string | null) {
+  const [privateBlock, setPrivateBlock] = useState<string | null>(null);
+
+  function isPrivateAccess(at: string | null | undefined): boolean {
+    if (!at) return false;
+    const lower = at.toLowerCase();
+    return lower === "private" || lower === "privé";
+  }
+
+  async function pick(name: string, guestFee?: number | null, apiCourseId?: string | null, city?: string | null, state?: string | null, clubId?: string | null, accessType?: string | null) {
     const n = name.trim();
     if (!n) return;
+
+    // Block private clubs for non-members
+    if (isPrivateAccess(accessType)) {
+      const isMember = myClubs.some((c) => c.name.trim().toLowerCase() === n.toLowerCase());
+      if (!isMember) {
+        setPrivateBlock(n);
+        return;
+      }
+    }
+
+    setPrivateBlock(null);
     onChange(n);
     setQuery(n);
     setOpen(false);
     onGuestFeeChange?.(guestFee ?? null);
     onLocationChange?.(city ?? null, state ?? null);
     onClubIdChange?.(clubId ?? null);
+    onAccessTypeChange?.(accessType ?? null);
 
     let resolvedCourseId = apiCourseId ?? null;
 
@@ -432,6 +464,19 @@ export function ClubPicker({
         </div>
       </div>
 
+      {privateBlock && (
+        <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 font-semibold text-amber-800">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            Private Club
+          </div>
+          <p className="mt-1 text-xs text-amber-700">
+            <span className="font-medium">{privateBlock}</span> is a private club. Only members can host matches here. Add it to{" "}
+            <Link href="/profile" className="font-semibold text-[var(--pine)] underline">your memberships</Link> first.
+          </p>
+        </div>
+      )}
+
       {open && (
         <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border bg-white shadow-lg">
           <div className="max-h-[360px] overflow-auto p-2">
@@ -478,7 +523,7 @@ export function ClubPicker({
                 {grouped.mine.length > 0 && (
                   <Section title="My clubs">
                     {grouped.mine.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, c.guest_fee, undefined, c.city, c.state, c.id)} />
+                      <ClubRow key={c.id} club={c} isMember onPick={() => pick(c.name, c.guest_fee, undefined, c.city, c.state, c.id, c.accessType)} />
                     ))}
                   </Section>
                 )}
@@ -486,7 +531,7 @@ export function ClubPicker({
                 {!myClubsOnly && grouped.ct.length > 0 && (
                   <Section title="Connecticut">
                     {grouped.ct.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId, c.city, c.state)} />
+                      <ClubRow key={c.id} club={c} isMember={myClubs.some((m) => m.name.trim().toLowerCase() === c.name.trim().toLowerCase())} onPick={() => pick(c.name, null, c.apiCourseId, c.city, c.state, undefined, c.accessType)} />
                     ))}
                   </Section>
                 )}
@@ -494,7 +539,7 @@ export function ClubPicker({
                 {!myClubsOnly && grouped.other.length > 0 && (
                   <Section title="Other">
                     {grouped.other.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, undefined, c.city, c.state)} />
+                      <ClubRow key={c.id} club={c} isMember={myClubs.some((m) => m.name.trim().toLowerCase() === c.name.trim().toLowerCase())} onPick={() => pick(c.name, null, undefined, c.city, c.state, undefined, c.accessType)} />
                     ))}
                   </Section>
                 )}
@@ -506,7 +551,7 @@ export function ClubPicker({
                 {!myClubsOnly && grouped.api.length > 0 && (
                   <Section title="Nationwide">
                     {grouped.api.map((c) => (
-                      <ClubRow key={c.id} club={c} onPick={() => pick(c.name, null, c.apiCourseId, c.city, c.state)} />
+                      <ClubRow key={c.id} club={c} isMember={myClubs.some((m) => m.name.trim().toLowerCase() === c.name.trim().toLowerCase())} onPick={() => pick(c.name, null, c.apiCourseId, c.city, c.state, undefined, c.accessType)} />
                     ))}
                   </Section>
                 )}
@@ -541,9 +586,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function ClubRow({ club, onPick }: { club: Club; onPick: () => void }) {
+function ClubRow({ club, onPick, isMember }: { club: Club; onPick: () => void; isMember?: boolean }) {
   const crest = initials(club.name);
   const loc = [club.city, club.state].filter(Boolean).join(", ");
+  const isPrivate = club.accessType?.toLowerCase() === "private" || club.accessType?.toLowerCase() === "privé";
 
   return (
     <button
@@ -561,8 +607,17 @@ function ClubRow({ club, onPick }: { club: Club; onPick: () => void }) {
         </div>
 
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold">{club.name}</div>
-          <div className="truncate text-xs text-black/55">{loc || (club.source === "ct" ? "CT club list" : "Club")}</div>
+          <div className="flex items-center gap-1.5 truncate text-sm font-semibold">
+            {club.name}
+            {isPrivate && !isMember && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-amber-500">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+            )}
+          </div>
+          <div className="truncate text-xs text-black/55">
+            {isPrivate && !isMember ? "Private · Members only" : loc || (club.source === "ct" ? "CT club list" : "Club")}
+          </div>
         </div>
 
         <div className="ml-auto shrink-0 text-right">

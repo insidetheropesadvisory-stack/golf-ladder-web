@@ -17,6 +17,7 @@ type PoolListing = {
   status: string;
   city: string | null;
   state: string | null;
+  is_private: boolean | null;
   creator: { display_name: string | null; handicap_index: number | null; avatar_url: string | null } | null;
   slots_filled: number;
   my_application: string | null;
@@ -360,6 +361,12 @@ export default function PoolPage() {
                       <div className="truncate text-sm font-semibold tracking-tight group-hover:text-[var(--pine)] transition-colors">
                         {l.course_name}
                       </div>
+                      {l.is_private && (
+                        <span className="shrink-0 flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-200/60">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                          Private · Member hosted
+                        </span>
+                      )}
                       {l.distance != null && (
                         <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
                           {l.distance} mi

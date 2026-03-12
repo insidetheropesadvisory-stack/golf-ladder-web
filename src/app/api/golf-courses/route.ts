@@ -136,6 +136,7 @@ export async function GET(request: Request) {
       state: c.state ?? null,
       country: c.country ?? null,
       address: c.address ?? null,
+      access_type: c.type ?? null,
       courses: (c.courses ?? []).map((co: any) => ({
         courseID: co.courseID,
         courseName: co.courseName,
