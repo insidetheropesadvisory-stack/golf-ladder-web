@@ -9,7 +9,7 @@ export const metadata = {
   title: "Reciprocity",
   description: "Where serious golfers settle scores.",
   manifest: "/manifest.json",
-  themeColor: "#0b3b2e",
+  themeColor: "#1B3A2D",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent" as const,

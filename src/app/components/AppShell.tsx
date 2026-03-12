@@ -11,6 +11,8 @@ type NavItem = { label: string; href: string; icon: string };
 const NAV: NavItem[] = [
   { label: "Home", href: "/", icon: "home" },
   { label: "Matches", href: "/matches", icon: "matches" },
+  { label: "Compete", href: "/compete", icon: "compete" },
+  { label: "Find a Round", href: "/find-a-round", icon: "find" },
   { label: "Pool", href: "/pool", icon: "pool" },
   { label: "Tournaments", href: "/tournaments", icon: "tournaments" },
   { label: "Ladder", href: "/ladder", icon: "ladder" },
@@ -22,6 +24,8 @@ function titleFromPath(pathname: string) {
   const hit = NAV.find((n) => n.href === pathname);
   if (hit) return hit.label;
   if (pathname.startsWith("/matches")) return "Matches";
+  if (pathname.startsWith("/compete")) return "Compete";
+  if (pathname.startsWith("/find-a-round")) return "Find a Round";
   if (pathname.startsWith("/pool")) return "Pool";
   if (pathname.startsWith("/tournaments")) return "Tournaments";
   if (pathname.startsWith("/ladder")) return "Ladder";
@@ -85,6 +89,20 @@ function NavIcon({ name, size = 18 }: { name: string; size?: number }) {
           <path d="M10 10h4" />
           <path d="M10 14h4" />
           <path d="M10 18h4" />
+        </svg>
+      );
+    case "compete":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+          <line x1="4" y1="22" x2="4" y2="15" />
+        </svg>
+      );
+    case "find":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       );
     case "profile":
@@ -362,7 +380,7 @@ export function AppShell({
       {/* Blocking popup — pending completions (creator) or attestations (guest) */}
       {(pendingCompletions.length > 0 || pendingAttestations.length > 0) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-2xl space-y-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] p-6 shadow-2xl space-y-4">
             <div className="text-center">
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--pine)]/10">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -381,7 +399,7 @@ export function AppShell({
 
             {/* Creator: complete rounds first */}
             {pendingCompletions.map((pc) => (
-              <div key={pc.id} className="rounded-xl border border-[var(--border)] bg-white p-4 space-y-3">
+              <div key={pc.id} className="rounded-[6px] border border-[var(--border)] bg-white p-4 space-y-3">
                 <div>
                   <div className="text-sm font-semibold text-[var(--ink)]">{pc.course_name}</div>
                   <div className="mt-0.5 text-xs text-[var(--muted)]">
@@ -399,7 +417,7 @@ export function AppShell({
                   type="button"
                   onClick={() => handleCompleteRound(pc)}
                   disabled={completeLoading !== null}
-                  className="w-full rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
+                  className="w-full rounded-[3px] bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
                 >
                   {completeLoading === pc.id ? "Completing..." : "Complete Round"}
                 </button>
@@ -408,7 +426,7 @@ export function AppShell({
 
             {/* Guest: attest rounds (only show if no pending completions) */}
             {pendingCompletions.length === 0 && pendingAttestations.map((att) => (
-              <div key={att.id} className="rounded-xl border border-[var(--border)] bg-white p-4 space-y-3">
+              <div key={att.id} className="rounded-[6px] border border-[var(--border)] bg-white p-4 space-y-3">
                 <div>
                   <div className="text-sm font-semibold text-[var(--ink)]">{att.course_name}</div>
                   <div className="mt-0.5 text-xs text-[var(--muted)]">
@@ -424,7 +442,7 @@ export function AppShell({
                   type="button"
                   onClick={() => handleAttest(att)}
                   disabled={attestLoading !== null}
-                  className="w-full rounded-xl bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
+                  className="w-full rounded-[3px] bg-[var(--pine)] py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
                 >
                   {attestLoading === att.id ? "Confirming..." : "Confirm — Round Occurred"}
                 </button>
@@ -435,34 +453,21 @@ export function AppShell({
       )}
 
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-[rgba(246,241,231,.14)] bg-[var(--pine)] text-[var(--paper)] shadow-[0_1px_3px_rgba(0,0,0,.12)]">
+      <header className="sticky top-0 z-30 border-b-2 border-[var(--gold)] bg-[var(--pine)] text-[var(--paper)]">
         <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center justify-between px-4 sm:px-6">
-          <div className="flex items-baseline gap-3">
-            <Link href="/" className="text-[11px] font-medium tracking-[0.3em] opacity-90 hover:opacity-100">
-              RECIPROCITY
-            </Link>
-            <span className="hidden text-[13px] opacity-40 sm:inline">/</span>
-            <span className="hidden text-[13px] font-medium opacity-70 sm:inline">{pageTitle}</span>
-          </div>
+          <Link href="/" className="flex flex-col items-start hover:opacity-90 transition">
+            <span className="text-[8px] font-bold tracking-[0.16em] uppercase text-[var(--gold)]" style={{ fontFamily: "var(--font-body)" }}>Est. 2024</span>
+            <span className="text-[20px] leading-none sm:text-[22px]" style={{ fontFamily: "var(--font-heading)" }}>Reciprocity</span>
+          </Link>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden text-[13px] opacity-80 md:block">
-              {isAuthed ? (
-                <>
-                  Signed in as <span className="font-medium opacity-100">{email}</span>
-                </>
-              ) : (
-                <span className="opacity-70">Not signed in</span>
-              )}
-            </div>
-
             {isAuthed ? (
               <>
                 <Link
                   href={newMatchHref}
-                  className="rounded-full bg-[var(--paper)] px-3 py-1.5 text-xs font-semibold text-[var(--pine)] shadow-[var(--shadow-sm)] transition hover:-translate-y-[1px] hover:shadow-[var(--shadow)] sm:px-4 sm:py-2 sm:text-sm"
+                  className="btn-gold rounded-[3px] px-3 py-1.5 text-[11px] sm:px-4 sm:py-2 sm:text-xs"
                 >
-                  New match
+                  New Match
                 </Link>
 
                 {/* Notification bell */}
@@ -483,7 +488,7 @@ export function AppShell({
                   </button>
 
                   {showNotifs && (
-                    <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] shadow-xl z-50">
+                    <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] shadow-xl z-50">
                       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
                         <span className="text-sm font-semibold text-[var(--ink)]">Notifications</span>
                         {unreadCount > 0 && (
@@ -551,9 +556,9 @@ export function AppShell({
       {/* Main layout */}
       <div className="mx-auto w-full max-w-[1200px] gap-6 px-3 py-4 pb-24 sm:px-6 sm:py-6 md:grid md:grid-cols-[240px_1fr] md:pb-6">
         {/* Desktop sidebar — hidden on mobile */}
-        <aside className="hidden h-fit rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)] md:block">
+        <aside className="hidden h-fit rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow-sm)] md:block">
           <div className="mb-4">
-            <div className="text-[10px] font-medium tracking-[0.24em] text-[var(--muted)]">MENU</div>
+            <div className="text-[9px] font-bold tracking-[0.16em] uppercase text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>Menu</div>
           </div>
 
           <nav className="space-y-0.5">
@@ -567,14 +572,14 @@ export function AppShell({
                   key={item.href}
                   href={item.href}
                   className={cx(
-                    "relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition",
+                    "relative flex items-center gap-2.5 rounded-[3px] px-3 py-2 text-[13px] font-medium transition",
                     active
-                      ? "bg-[rgba(11,59,46,.10)] font-semibold text-[var(--pine)]"
-                      : "text-[var(--ink)] hover:bg-[rgba(17,19,18,.04)]"
+                      ? "bg-[var(--green-light)] text-[var(--pine)] font-semibold"
+                      : "text-[var(--ink)] hover:bg-[var(--green-light)]/50"
                   )}
                 >
                   {active && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[var(--pine)]" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[var(--gold)]" />
                   )}
                   <NavIcon name={item.icon} size={16} />
                   <span>{item.label}</span>
@@ -584,7 +589,7 @@ export function AppShell({
           </nav>
 
           <div className="mt-5 border-t border-[var(--border)] pt-4">
-            <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--pine)]/50">
+            <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>
               Where serious golfers settle scores.
             </div>
           </div>
@@ -592,12 +597,12 @@ export function AppShell({
 
         {/* Content area */}
         <main className="min-w-0">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow)] sm:p-6">
+          <div className="rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] p-4 shadow-[var(--shadow-sm)] sm:p-6">
             {children}
           </div>
 
           <footer className="mt-6 hidden text-center md:block">
-            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--muted)]/60">
+            <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>
               &copy; {new Date().getFullYear()} Reciprocity &bull; Earn your standing.
             </span>
           </footer>
@@ -605,9 +610,9 @@ export function AppShell({
       </div>
 
       {/* Mobile bottom tab bar — visible only on small screens */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--paper-2)] shadow-[0_-2px_12px_rgba(17,19,18,.06)] pb-[env(safe-area-inset-bottom)] md:hidden">
-        <div className="mx-auto flex max-w-md items-stretch">
-          {NAV.map((item) => {
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--paper-2)] shadow-[0_-2px_12px_rgba(26,18,8,.06)] pb-[env(safe-area-inset-bottom)] md:hidden">
+        <div className="mx-auto flex max-w-md items-stretch overflow-x-auto">
+          {NAV.filter(item => ["home","matches","compete","find","profile"].includes(item.icon)).map((item) => {
             const active =
               pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(item.href));
@@ -617,7 +622,7 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 className={cx(
-                  "flex flex-1 flex-col items-center gap-1 py-3 text-[10px] font-medium transition",
+                  "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[9px] font-bold tracking-wide transition",
                   active
                     ? "text-[var(--pine)]"
                     : "text-[var(--muted)] active:text-[var(--ink)]"
@@ -625,31 +630,18 @@ export function AppShell({
               >
                 <span
                   className={cx(
-                    "flex h-8 w-8 items-center justify-center rounded-xl transition",
+                    "flex h-7 w-7 items-center justify-center rounded-[3px] transition",
                     active
-                      ? "bg-[rgba(11,59,46,.10)] text-[var(--pine)]"
+                      ? "bg-[var(--green-light)] text-[var(--pine)]"
                       : "text-[var(--muted)]"
                   )}
                 >
-                  <NavIcon name={item.icon} size={20} />
+                  <NavIcon name={item.icon} size={18} />
                 </span>
                 {item.label}
               </Link>
             );
           })}
-
-          {/* Logout in tab bar for mobile */}
-          {isAuthed && (
-            <Link
-              href={logoutHref}
-              className="flex flex-1 flex-col items-center gap-1 py-3 text-[10px] font-medium text-[var(--muted)] transition active:text-[var(--ink)]"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl">
-                <NavIcon name="logout" size={20} />
-              </span>
-              Logout
-            </Link>
-          )}
         </div>
       </nav>
 

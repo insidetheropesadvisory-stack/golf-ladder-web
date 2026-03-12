@@ -1,17 +1,32 @@
 @import "tailwindcss";
 
-/* ---------- Theme tokens (Old-money club) ---------- */
-:root{
-  --paper: #f6f1e7;      /* warm ivory */
-  --paper-2: #fbf8f1;    /* lifted ivory */
-  --pine: #0b3b2e;       /* deep green */
-  --ink: #111312;        /* near-black */
-  --muted: rgba(17, 19, 18, .58);
-  --border: rgba(17, 19, 18, .09);
-  --shadow: 0 8px 28px rgba(17, 19, 18, .07);
-  --shadow-sm: 0 2px 8px rgba(17, 19, 18, .05);
+/* ---------- Google Fonts ---------- */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&display=swap");
 
-  --brass: #b08d57;      /* accent */
+/* ---------- Theme tokens — Old-money club ---------- */
+:root{
+  /* Core palette */
+  --pine: #1B3A2D;
+  --gold: #C9A84C;
+  --paper: #F5F0E8;
+  --paper-2: #FFFFFF;
+  --ink: #1A1208;
+  --muted: #7A6A50;
+  --border: #D4C4A0;
+  --brass: #C9A84C;
+
+  /* Extended palette */
+  --green-light: #EDF4F0;
+  --gold-light: #F5EDD8;
+  --tan: #8B6914;
+
+  /* Shadows */
+  --shadow: 0 8px 28px rgba(26, 18, 8, .07);
+  --shadow-sm: 0 2px 8px rgba(26, 18, 8, .05);
+
+  /* Typography */
+  --font-heading: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-body: "Source Sans 3", "Source Sans Pro", system-ui, -apple-system, sans-serif;
 }
 
 html, body { height: 100%; }
@@ -19,8 +34,14 @@ html, body { height: 100%; }
 body{
   background: var(--paper);
   color: var(--ink);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings use Playfair Display */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
 }
 
 /* Subtle transition on interactive elements */
@@ -29,9 +50,154 @@ a, button, input, select, textarea,
   transition: all 0.18s ease;
 }
 
-/* Nice focus ring (brass-forward, understated) */
+/* Focus ring — gold-forward */
 :focus-visible{
-  outline: 2px solid rgba(176, 141, 87, .36);
+  outline: 2px solid rgba(201, 168, 76, .40);
   outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* ---------- Gold rule divider ---------- */
+.gold-rule {
+  height: 2px;
+  background: var(--gold);
+  border: none;
+}
+
+/* ---------- Section flag ---------- */
+.section-flag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-radius: 3px 3px 0 0;
+}
+.section-flag--green {
+  background: var(--pine);
+  color: var(--gold);
+}
+.section-flag--tan {
+  background: var(--tan);
+  color: var(--paper);
+}
+
+/* ---------- Context strip ---------- */
+.context-strip {
+  padding: 10px 14px;
+  font-size: 11px;
+  line-height: 1.55;
+  border-radius: 3px;
+}
+.context-strip--green {
+  background: var(--pine);
+  border-left: 3px solid var(--gold);
+  color: #D4C5A0;
+}
+.context-strip--green strong {
+  color: var(--gold);
+}
+.context-strip--tan {
+  background: #3D2800;
+  border-left: 3px solid #E8C86A;
+  color: #F0DFB0;
+}
+.context-strip--tan strong {
+  color: #E8C86A;
+}
+
+/* ---------- Cards ---------- */
+.ds-card {
+  background: var(--paper-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.ds-card--green-accent {
+  border-left: 3px solid var(--pine);
+}
+.ds-card--tan-accent {
+  border-left: 3px solid var(--tan);
+}
+
+/* ---------- Buttons ---------- */
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  background: var(--gold);
+  color: var(--pine);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn-gold:hover {
+  filter: brightness(1.08);
+}
+.btn-outline-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--gold);
+  border-radius: 3px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn-outline-gold:hover {
+  background: rgba(201, 168, 76, .08);
+}
+
+/* ---------- Status pills ---------- */
+.pill-live {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 3px;
+  background: var(--green-light);
+  color: var(--pine);
+  border: 1px solid #B8D4C4;
+}
+.pill-waiting {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 3px;
+  background: #FBF5E6;
+  color: var(--tan);
+  border: 1px solid #D4B96A;
+}
+
+/* ---------- Icon container ---------- */
+.icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
   border-radius: 4px;
 }
+.icon-box--green { background: var(--green-light); color: var(--pine); }
+.icon-box--tan { background: var(--gold-light); color: var(--tan); }
