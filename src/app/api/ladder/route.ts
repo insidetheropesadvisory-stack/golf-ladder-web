@@ -204,7 +204,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ---- ACTION: join (add user to ladder) ----
+    // ---- ACTION: join (add user to ladder, inserted by handicap) ----
     if (action === "join") {
       // Check if already in ladder
       const { data: existing } = await admin
@@ -218,28 +218,83 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true, message: "Already in ladder" });
       }
 
-      // Get last position
-      const { data: lastRow } = await admin
-        .from("ladder_rankings")
-        .select("position")
-        .eq("type", "gross")
-        .order("position", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Get the joining user's handicap
+      const { data: myProfile } = await admin
+        .from("profiles")
+        .select("handicap_index")
+        .eq("id", user.id)
+        .single();
 
-      const nextPos = (lastRow?.position ?? 0) + 1;
+      const myHcp = (myProfile as any)?.handicap_index ?? null;
+
+      // Get all current rankings with profiles to find insertion point
+      const { data: allRankings } = await admin
+        .from("ladder_rankings")
+        .select("id, user_id, position")
+        .eq("type", "gross")
+        .order("position", { ascending: true });
+
+      const rankings = allRankings ?? [];
+
+      // Find the right position based on handicap
+      // If no handicap, go to the bottom
+      let insertPos = rankings.length + 1;
+
+      if (myHcp != null) {
+        // Get profiles for all ranked users
+        const userIds = rankings.map((r: any) => r.user_id);
+        const { data: rankedProfiles } = await admin
+          .from("profiles")
+          .select("id, handicap_index")
+          .in("id", userIds);
+
+        const hcpMap: Record<string, number | null> = {};
+        for (const p of (rankedProfiles ?? []) as any[]) {
+          hcpMap[p.id] = p.handicap_index;
+        }
+
+        // Insert before the first player with a worse (higher) handicap or no handicap
+        for (const r of rankings as any[]) {
+          const theirHcp = hcpMap[r.user_id] ?? null;
+          if (theirHcp == null || theirHcp > myHcp) {
+            insertPos = r.position;
+            break;
+          }
+        }
+      }
+
       const now = new Date().toISOString();
 
+      // Shift everyone at insertPos and below down by 1 (both types)
+      if (insertPos <= rankings.length) {
+        for (const type of ["gross", "net"]) {
+          const { data: toShift } = await admin
+            .from("ladder_rankings")
+            .select("id, position")
+            .eq("type", type)
+            .gte("position", insertPos)
+            .order("position", { ascending: false });
+
+          for (const row of (toShift ?? []) as any[]) {
+            await admin
+              .from("ladder_rankings")
+              .update({ position: row.position + 1, updated_at: now })
+              .eq("id", row.id);
+          }
+        }
+      }
+
+      // Insert the new user at the correct position
       const { error: insErr } = await admin.from("ladder_rankings").insert([
-        { user_id: user.id, position: nextPos, type: "net", updated_at: now },
-        { user_id: user.id, position: nextPos, type: "gross", updated_at: now },
+        { user_id: user.id, position: insertPos, type: "net", updated_at: now },
+        { user_id: user.id, position: insertPos, type: "gross", updated_at: now },
       ]);
 
       if (insErr) {
         return NextResponse.json({ error: insErr.message }, { status: 500 });
       }
 
-      return NextResponse.json({ ok: true, position: nextPos });
+      return NextResponse.json({ ok: true, position: insertPos });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
