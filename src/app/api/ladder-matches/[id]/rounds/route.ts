@@ -65,6 +65,7 @@ export async function POST(
     const slopeRating = Number(body.slope_rating);
     const par = body.par != null ? Number(body.par) : null;
     const playedAt = String(body.played_at ?? "").trim();
+    const golfCourseApiId = body.golf_course_api_id != null ? Number(body.golf_course_api_id) : null;
 
     if (!courseName) return NextResponse.json({ error: "Course name is required" }, { status: 400 });
     if (!courseRating || courseRating < 50 || courseRating > 90) {
@@ -98,6 +99,7 @@ export async function POST(
         differential: null,
         played_at: playedAt,
         completed: false,
+        golf_course_api_id: golfCourseApiId,
       })
       .select("*")
       .single();

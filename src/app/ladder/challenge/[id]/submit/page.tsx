@@ -24,6 +24,7 @@ export default function LadderSubmitPage() {
   const [slopeRating, setSlopeRating] = useState("");
   const [par, setPar] = useState("");
   const [playedAt, setPlayedAt] = useState(() => new Date().toISOString().split("T")[0]);
+  const [courseApiId, setCourseApiId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -96,6 +97,7 @@ export default function LadderSubmitPage() {
           slope_rating: Number(slopeRating),
           par: par ? Number(par) : null,
           played_at: playedAt,
+          golf_course_api_id: courseApiId ? Number(courseApiId) : null,
         }),
       });
 
@@ -165,6 +167,7 @@ export default function LadderSubmitPage() {
             value={courseName}
             onChange={setCourseName}
             onTeesChange={setTees}
+            onCourseApiIdChange={setCourseApiId}
             userId={userId}
             placeholder="Search for the course you played..."
           />
