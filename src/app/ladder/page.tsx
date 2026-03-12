@@ -23,6 +23,14 @@ type Profile = {
 
 type WLRecord = { wins: number; losses: number };
 
+type ActiveChallenge = {
+  id: string;
+  challenger_id: string;
+  opponent_id: string;
+  status: string;
+  deadline: string;
+};
+
 export default function LadderPage() {
   const router = useRouter();
   const [meId, setMeId] = useState<string | null>(null);
@@ -31,10 +39,14 @@ export default function LadderPage() {
   const [rankings, setRankings] = useState<Ranking[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [records, setRecords] = useState<Record<string, WLRecord>>({});
+  const [activeChallenges, setActiveChallenges] = useState<ActiveChallenge[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [initing, setIniting] = useState(false);
+  const [challenging, setChallenging] = useState<string | null>(null);
+  const [challengeDeadline, setChallengeDeadline] = useState("");
+  const [showDeadlinePicker, setShowDeadlinePicker] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,17 +72,30 @@ export default function LadderPage() {
       data: { session },
     } = await supabase.auth.getSession();
 
-    const res = await fetch("/api/ladder", {
-      headers: session?.access_token
-        ? { Authorization: `Bearer ${session.access_token}` }
-        : {},
-    });
+    const headers: Record<string, string> = session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {};
 
-    if (res.ok) {
-      const json = await res.json();
+    const [ladderRes, challengesRes] = await Promise.all([
+      fetch("/api/ladder", { headers }),
+      fetch("/api/ladder-matches", { headers }),
+    ]);
+
+    if (ladderRes.ok) {
+      const json = await ladderRes.json();
       setRankings(json.rankings ?? []);
       setProfiles(json.profiles ?? {});
       setRecords(json.records ?? {});
+    }
+    if (challengesRes.ok) {
+      const json = await challengesRes.json();
+      setActiveChallenges(
+        (json.challenges ?? []).filter((c: any) => c.status === "pending" || c.status === "accepted")
+      );
+      // Merge any new profiles
+      if (json.profiles) {
+        setProfiles((prev) => ({ ...prev, ...json.profiles }));
+      }
     }
     setLoading(false);
   }
@@ -121,14 +146,47 @@ export default function LadderPage() {
     setIniting(false);
   }
 
+  // Check if either player already has an active challenge
+  const myActiveChallenge = activeChallenges.find(
+    (c) => c.challenger_id === meId || c.opponent_id === meId
+  );
+
   function canChallenge(target: Ranking) {
     if (!myRanking) return false;
     if (target.user_id === meId) return false;
+    // Only one active challenge at a time per player
+    if (myActiveChallenge) return false;
+    // Check if target has an active challenge
+    const targetHasChallenge = activeChallenges.some(
+      (c) => c.challenger_id === target.user_id || c.opponent_id === target.user_id
+    );
+    if (targetHasChallenge) return false;
     // Can challenge up to 3 spots above
     return (
       myRanking.position > target.position &&
       myRanking.position - target.position <= 3
     );
+  }
+
+  async function sendChallenge(opponentId: string) {
+    if (!challengeDeadline) { setStatus("Pick a deadline"); return; }
+    setChallenging(opponentId);
+    setStatus(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/ladder-matches", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ action: "create", opponent_id: opponentId, deadline: challengeDeadline }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setStatus(json.error ?? "Failed to create challenge"); setChallenging(null); return; }
+    setChallenging(null);
+    setShowDeadlinePicker(null);
+    setChallengeDeadline("");
+    router.push(`/ladder/challenge/${json.challenge.id}`);
   }
 
   const trophyColors: Record<number, string> = {
@@ -146,21 +204,39 @@ export default function LadderPage() {
         </p>
       </div>
 
+      {/* Active challenge banner */}
+      {myActiveChallenge && (
+        <Link
+          href={`/ladder/challenge/${myActiveChallenge.id}`}
+          className="block rounded-2xl border border-amber-200/60 bg-amber-50/50 px-4 py-3 transition hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-amber-800">
+              <span className="font-bold">Active challenge</span> — deadline {myActiveChallenge.deadline}
+              {myActiveChallenge.status === "pending" && myActiveChallenge.opponent_id === meId && (
+                <span className="ml-1.5 rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white">Action needed</span>
+              )}
+            </div>
+            <span className="text-xs font-medium text-[var(--pine)]">View &rarr;</span>
+          </div>
+        </Link>
+      )}
+
       {/* How it works */}
       <div className="rounded-2xl border border-[var(--border)] bg-white/60 p-4 sm:p-5">
         <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-3">How it works</div>
         <div className="space-y-2.5 text-sm text-[var(--ink)]">
           <div className="flex items-start gap-2.5">
             <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">1</span>
-            <span>Your starting position is based on your <span className="font-medium">handicap index</span> — lower handicaps rank higher.</span>
+            <span>Challenge anyone up to <span className="font-medium">3 spots above</span> you. Set a deadline (max 14 days).</span>
           </div>
           <div className="flex items-start gap-2.5">
             <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">2</span>
-            <span>You can challenge anyone up to <span className="font-medium">3 spots above</span> your current position.</span>
+            <span>Each player plays their own round at <span className="font-medium">any course, any tee</span>. Scores are compared by handicap differential.</span>
           </div>
           <div className="flex items-start gap-2.5">
             <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--pine)]/10 text-[10px] font-bold text-[var(--pine)]">3</span>
-            <span>Win a challenge and you <span className="font-medium">swap positions</span> with your opponent. Lose and you stay put.</span>
+            <span>Lower differential wins. The winner <span className="font-medium">swaps positions</span>. Decline a challenge and you drop a spot.</span>
           </div>
         </div>
       </div>
@@ -231,8 +307,8 @@ export default function LadderPage() {
                 : { href: `/players/${r.user_id}` };
 
               return (
+                <div key={r.id} className="space-y-2">
                 <Wrapper
-                  key={r.id}
                   {...wrapperProps as any}
                   className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 transition sm:gap-3 sm:px-4 sm:py-3 ${
                     isMe
@@ -303,9 +379,15 @@ export default function LadderPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        router.push(
-                          `/matches/new?opponent=${r.user_id}&ladder=true`
-                        );
+                        if (showDeadlinePicker === r.user_id) {
+                          setShowDeadlinePicker(null);
+                        } else {
+                          setShowDeadlinePicker(r.user_id);
+                          // Default deadline: 7 days from now
+                          const d = new Date();
+                          d.setDate(d.getDate() + 7);
+                          setChallengeDeadline(d.toISOString().split("T")[0]);
+                        }
                       }}
                       className="flex-shrink-0 rounded-lg border border-[var(--pine)]/30 bg-[var(--pine)]/5 px-2 py-1 text-[11px] font-semibold text-[var(--pine)] transition hover:bg-[var(--pine)]/10 hover:shadow-sm sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs"
                     >
@@ -313,6 +395,35 @@ export default function LadderPage() {
                     </button>
                   )}
                 </Wrapper>
+
+                {/* Deadline picker for challenge */}
+                {showDeadlinePicker === r.user_id && (
+                  <div className="rounded-xl border border-[var(--pine)]/20 bg-[var(--pine)]/5 p-3 space-y-2">
+                    <div className="text-xs font-medium text-[var(--pine)]">Set a deadline (max 14 days)</div>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        className="flex-1 rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--pine)]/40"
+                        value={challengeDeadline}
+                        onChange={(e) => setChallengeDeadline(e.target.value)}
+                      />
+                      <button
+                        onClick={() => sendChallenge(r.user_id)}
+                        disabled={challenging === r.user_id || !challengeDeadline}
+                        className="rounded-lg bg-[var(--pine)] px-4 py-2 text-sm font-bold text-white transition hover:shadow-md disabled:opacity-40"
+                      >
+                        {challenging === r.user_id ? "..." : "Send"}
+                      </button>
+                      <button
+                        onClick={() => { setShowDeadlinePicker(null); setChallengeDeadline(""); }}
+                        className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--muted)]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                </div>
               );
             })}
           </div>

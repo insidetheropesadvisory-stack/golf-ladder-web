@@ -37,51 +37,25 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fetch W-L records for ladder matches
-    const { data: matches } = await admin
-      .from("matches")
-      .select("id, creator_id, opponent_id, completed, is_ladder_match")
-      .eq("is_ladder_match", true)
-      .eq("completed", true);
+    // Fetch W-L records from ladder_challenges
+    const { data: challenges } = await admin
+      .from("ladder_challenges")
+      .select("challenger_id, opponent_id, winner_id, status")
+      .eq("status", "completed");
 
-    // Fetch holes for completed ladder matches to compute W-L
-    const matchIds = (matches ?? []).map((m: any) => m.id);
-    let holesByMatch: Record<string, any[]> = {};
-    if (matchIds.length > 0) {
-      const { data: holesData } = await admin
-        .from("holes")
-        .select("match_id, player_id, strokes")
-        .in("match_id", matchIds);
-      if (holesData) {
-        for (const h of holesData as any[]) {
-          if (!holesByMatch[h.match_id]) holesByMatch[h.match_id] = [];
-          holesByMatch[h.match_id].push(h);
-        }
-      }
-    }
-
-    // Compute W-L per user
     const records: Record<string, { wins: number; losses: number }> = {};
-    for (const m of (matches ?? []) as any[]) {
-      const holes = holesByMatch[m.id] ?? [];
-      let creatorTotal = 0, oppTotal = 0, cCount = 0, oCount = 0;
-      for (const h of holes) {
-        if (h.strokes == null) continue;
-        if (h.player_id === m.creator_id) { creatorTotal += h.strokes; cCount++; }
-        else if (h.player_id === m.opponent_id) { oppTotal += h.strokes; oCount++; }
-      }
-      if (cCount === 0 || oCount === 0) continue;
+    for (const c of (challenges ?? []) as any[]) {
+      if (!records[c.challenger_id]) records[c.challenger_id] = { wins: 0, losses: 0 };
+      if (!records[c.opponent_id]) records[c.opponent_id] = { wins: 0, losses: 0 };
 
-      if (!records[m.creator_id]) records[m.creator_id] = { wins: 0, losses: 0 };
-      if (!records[m.opponent_id]) records[m.opponent_id] = { wins: 0, losses: 0 };
-
-      if (creatorTotal < oppTotal) {
-        records[m.creator_id].wins++;
-        records[m.opponent_id].losses++;
-      } else if (oppTotal < creatorTotal) {
-        records[m.opponent_id].wins++;
-        records[m.creator_id].losses++;
+      if (c.winner_id === c.challenger_id) {
+        records[c.challenger_id].wins++;
+        records[c.opponent_id].losses++;
+      } else if (c.winner_id === c.opponent_id) {
+        records[c.opponent_id].wins++;
+        records[c.challenger_id].losses++;
       }
+      // Ties: no W or L
     }
 
     return NextResponse.json({
