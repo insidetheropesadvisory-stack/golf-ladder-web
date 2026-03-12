@@ -1069,21 +1069,32 @@ export default function MatchScoringPage() {
           {clubId ? (
             <Link
               href={`/clubs/${clubId}`}
-              className="mb-1 inline-flex items-center gap-1 rounded-full bg-[var(--pine)]/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--pine)] transition hover:bg-[var(--pine)]/20"
+              className="mb-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--muted)] transition hover:text-[var(--pine)]"
             >
               {match?.course_name ?? "Match"}
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
+              <span className="text-[var(--gold)]">&rsaquo;</span>
             </Link>
           ) : (
-            <div className="mb-1 inline-flex items-center rounded-full bg-[var(--pine)]/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--pine)]">
+            <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
               {match?.course_name ?? "Match"}
             </div>
           )}
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scorecard</h1>
-          <div className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
-            Hole-by-hole scoring -- totals update automatically
+          <h1
+            className="text-[28px] font-semibold tracking-tight"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
+            Scorecard
+          </h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span
+              className="text-[12px] text-[var(--muted)]"
+              style={{ fontStyle: "italic" }}
+            >
+              Hole-by-hole scoring — totals update automatically
+            </span>
+            <span className="rounded-[3px] border border-[var(--border)] bg-[var(--paper-2)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--ink)]" style={{ fontFamily: "var(--font-body)" }}>
+              {isMatchPlay ? "Match Play" : "Stroke Play"}
+            </span>
           </div>
         </div>
 
@@ -1335,24 +1346,20 @@ export default function MatchScoringPage() {
         </div>
       )}
 
-      {/* Format indicator */}
+      {/* Format details */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center rounded-full bg-black/[0.04] px-3 py-1 text-xs font-medium text-[var(--ink)]">
-          {isMatchPlay ? "Match Play" : "Stroke Play"}
-        </span>
         {useHcp && (
-          <span className="inline-flex items-center rounded-full bg-amber-100/80 px-3 py-1 text-xs font-medium text-amber-800">
-            Net Scoring (Handicap)
+          <span className="rounded-[3px] border border-[var(--gold)]/40 bg-[var(--gold-light)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--gold)]">
+            Net (Handicap)
           </span>
         )}
         {useHcp && isMatchPlay && myHandicap != null && oppHandicap != null && Math.round(Math.abs(myHandicap - oppHandicap)) > 0 && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-            <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+          <span className="rounded-[3px] border border-[var(--gold)]/30 px-2 py-0.5 text-[10px] font-semibold text-[var(--gold)]">
             {strokeReceiver === "me" ? "You" : opponentLabel} get{strokeReceiver === "me" ? "" : "s"} {Math.round(Math.abs(myHandicap - oppHandicap))} stroke{Math.round(Math.abs(myHandicap - oppHandicap)) !== 1 ? "s" : ""}
           </span>
         )}
         {match?.guest_fee != null && !isCreator && (
-          <span className="inline-flex items-center rounded-full bg-emerald-100/80 px-3 py-1 text-xs font-medium text-emerald-800">
+          <span className="rounded-[3px] border border-[var(--border)] px-2 py-0.5 text-[10px] font-semibold text-[var(--muted)]">
             Guest fee: ${match.guest_fee}
           </span>
         )}
@@ -1360,27 +1367,25 @@ export default function MatchScoringPage() {
 
       {/* Tee info */}
       {teeNames.length > 0 && (
-        <div className="rounded-2xl border border-[var(--border)] bg-white/60 px-5 py-3">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Your Tees</span>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="section-flag section-flag--green">Your tees</div>
+            <div className="flex-1 h-[2px] bg-[var(--gold)]/30" />
             {teeLocked && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
+              <span className="rounded-[3px] border border-[var(--gold)]/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--gold)]">
                 Locked
               </span>
             )}
           </div>
           {!teeLocked && !isCompleted && (
-            <div className="mb-2 text-[11px] text-amber-600">
+            <div className="text-[11px] text-[var(--muted)]" style={{ fontStyle: "italic" }}>
               Tee selection locks once you enter your first score.
             </div>
           )}
           <div className="flex flex-wrap gap-2">
             {teeNames.map((name) => {
               const isActive = selectedTee === name;
+              const isGoldTee = name.toLowerCase() === "gold" || name.toLowerCase() === "golden";
               return (
                 <button
                   key={name}
@@ -1388,7 +1393,6 @@ export default function MatchScoringPage() {
                   onClick={() => {
                     if (teeLocked) return;
                     setSelectedTee(name);
-                    // Persist tee selection to match record
                     if (matchId && meId && match) {
                       const field = meId === match.creator_id ? "selected_tee" : "opponent_tee";
                       supabase.from("matches").update({ [field]: name }).eq("id", matchId).then(() => {
@@ -1398,13 +1402,14 @@ export default function MatchScoringPage() {
                   }}
                   disabled={teeLocked}
                   className={cx(
-                    "rounded-xl px-3 py-1.5 text-sm font-semibold transition",
+                    "rounded-[3px] px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.08em] transition",
                     isActive
-                      ? "bg-[var(--pine)] text-white shadow-sm"
+                      ? isGoldTee ? "bg-[var(--gold)] text-[var(--pine)]" : "bg-[var(--pine)] text-[var(--paper)]"
                       : teeLocked
-                        ? "border border-[var(--border)] bg-slate-50 text-slate-400 cursor-not-allowed"
-                        : "border border-[var(--border)] bg-white text-[var(--ink)] hover:bg-[var(--paper)]"
+                        ? "border border-[var(--border)] bg-[var(--paper)] text-[var(--muted)] cursor-not-allowed"
+                        : "border border-[var(--border)] bg-[var(--paper-2)] text-[var(--muted)] hover:text-[var(--ink)] hover:border-[var(--ink)]/20"
                   )}
+                  style={{ fontFamily: "var(--font-body)" }}
                 >
                   {name}
                 </button>
@@ -1412,11 +1417,18 @@ export default function MatchScoringPage() {
             })}
           </div>
           {activeTee && (
-            <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--muted)]">
-              {activeTee.slope != null && <span>Slope: <span className="font-semibold text-[var(--ink)]">{activeTee.slope}</span></span>}
-              {getTeeRating(activeTee) != null && <span>Rating: <span className="font-semibold text-[var(--ink)]">{getTeeRating(activeTee)}</span></span>}
-              {activeTee.par != null && <span>Par: <span className="font-semibold text-[var(--ink)]">{activeTee.par}</span></span>}
-              {getTeeTotalYards(activeTee) != null && <span>Yards: <span className="font-semibold text-[var(--ink)]">{getTeeTotalYards(activeTee)}</span></span>}
+            <div className="flex items-center divide-x divide-[var(--border)] text-[12px]">
+              {[
+                activeTee.slope != null && { label: "Slope", value: activeTee.slope },
+                getTeeRating(activeTee) != null && { label: "Rating", value: getTeeRating(activeTee) },
+                activeTee.par != null && { label: "Par", value: activeTee.par },
+                getTeeTotalYards(activeTee) != null && { label: "Yards", value: getTeeTotalYards(activeTee)?.toLocaleString() },
+              ].filter(Boolean).map((s: any, i) => (
+                <div key={s.label} className={cx("flex items-center gap-1.5", i > 0 ? "pl-3" : "", "pr-3")}>
+                  <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--muted)]">{s.label}</span>
+                  <span className="font-bold text-[var(--pine)]">{s.value}</span>
+                </div>
+              ))}
             </div>
           )}
           {/* Show opponent's tee if different */}
@@ -1437,101 +1449,88 @@ export default function MatchScoringPage() {
       )}
 
       {/* Score summary cards */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         {(() => {
           const { myWins, oppWins, isTie } = isCompleted ? resultData : { myWins: false, oppWins: false, isTie: false };
 
           return (
             <>
-              <div className={cx(
-                "rounded-2xl border p-5",
-                isCompleted && myWins
-                  ? "border-emerald-300 bg-gradient-to-br from-emerald-100 to-emerald-50 ring-2 ring-emerald-300/50"
-                  : "border-emerald-200/50 bg-gradient-to-br from-emerald-50/80 to-emerald-50/30"
-              )}>
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-                    You {isCompleted && myWins ? "- Winner" : isCompleted && isTie ? "- Tie" : ""}
+              {/* YOU card — dark green */}
+              <div className="relative rounded-[6px] bg-[var(--pine)] p-4 overflow-hidden">
+                {myHandicap != null && (
+                  <div className="absolute top-3 right-3 rounded-[3px] bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--pine)]">
+                    {myHandicap}
                   </div>
-                  {!isMatchPlay && (
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
-                      {myScoresByHole.size}
-                    </div>
-                  )}
+                )}
+                <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--gold)]">
+                  You {isCompleted && myWins ? "— Winner" : isCompleted && isTie ? "— Tie" : ""}
                 </div>
                 {isMatchPlay ? (
                   <>
-                    <div className="mt-2 text-4xl font-bold tracking-tight text-emerald-800">
+                    <div className="mt-2 text-[48px] leading-none tracking-tight text-[var(--paper)]" style={{ fontFamily: "var(--font-heading)" }}>
                       {matchPlayData ? matchPlayData.p1Holes : 0}
                     </div>
-                    <div className="mt-1 text-xs text-emerald-600/70">holes won</div>
+                    <div className="mt-1 text-[11px] text-[var(--paper)]/50">holes won</div>
                   </>
                 ) : (
                   <>
-                    <div className="mt-2 text-4xl font-bold tracking-tight text-emerald-800">
+                    <div className="mt-2 text-[48px] leading-none tracking-tight text-[var(--paper)]" style={{ fontFamily: "var(--font-heading)" }}>
                       {useHcp ? myNetTotal ?? 0 : myTotal ?? 0}
                     </div>
                     {useHcp && myTotal != null && myHandicap != null && (
-                      <div className="mt-0.5 text-xs text-emerald-600/60">
-                        Gross: {myTotal} &middot; HCP: {myHandicap}
+                      <div className="mt-1 text-[11px] text-[var(--paper)]/40">
+                        Gross: {myTotal}
                       </div>
                     )}
-                    <div className="mt-1 truncate text-xs text-emerald-600/70">{meEmail ?? ""}</div>
+                    <div className="mt-0.5 truncate text-[11px] text-[var(--paper)]/40">{meEmail ?? ""}</div>
                   </>
                 )}
               </div>
 
+              {/* OPPONENT card — white */}
               {oppId ? (
                 <Link
                   href={`/players/${oppId}`}
-                  className={cx(
-                    "rounded-2xl border p-5 block transition hover:shadow-md hover:-translate-y-px",
-                    isCompleted && oppWins
-                      ? "border-slate-300 bg-gradient-to-br from-slate-100 to-slate-50 ring-2 ring-slate-300/50"
-                      : "border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-slate-50/30"
-                  )}
+                  className="relative rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] p-4 block transition hover:shadow-sm hover:-translate-y-px"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Opponent {isCompleted && oppWins ? "- Winner" : isCompleted && isTie ? "- Tie" : ""}
+                    <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      Opponent {isCompleted && oppWins ? "— Winner" : isCompleted && isTie ? "— Tie" : ""}
                     </div>
-                    <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <svg className="h-3.5 w-3.5 text-[var(--gold)]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
                   </div>
                   {isMatchPlay ? (
                     <>
-                      <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">
-                        {matchPlayData ? matchPlayData.p2Holes : "--"}
+                      <div className="mt-2 text-[48px] leading-none tracking-tight text-[var(--pine)]" style={{ fontFamily: "var(--font-heading)" }}>
+                        {matchPlayData ? matchPlayData.p2Holes : "—"}
                       </div>
-                      <div className="mt-1 text-xs text-slate-400">holes won</div>
+                      <div className="mt-1 text-[11px] text-[var(--muted)]">holes won</div>
                     </>
                   ) : (
                     <>
-                      <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">
-                        {useHcp ? (oppNetTotal ?? "--") : (oppTotal ?? "--")}
+                      <div className="mt-2 text-[48px] leading-none tracking-tight text-[var(--pine)]" style={{ fontFamily: "var(--font-heading)" }}>
+                        {useHcp ? (oppNetTotal ?? "—") : (oppTotal ?? "—")}
                       </div>
                       {useHcp && oppTotal != null && oppHandicap != null && (
-                        <div className="mt-0.5 text-xs text-slate-400/80">
+                        <div className="mt-1 text-[11px] text-[var(--muted)]">
                           Gross: {oppTotal} &middot; HCP: {oppHandicap}
                         </div>
                       )}
-                      <div className="mt-1 truncate text-xs text-slate-400">
+                      <div className="mt-0.5 truncate text-[11px] text-[var(--muted)]">
                         {opponentLabel}
                       </div>
                     </>
                   )}
                 </Link>
               ) : (
-                <div className={cx(
-                  "rounded-2xl border p-5",
-                  "border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-slate-50/30"
-                )}>
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <div className="rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] p-4">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
                     Opponent
                   </div>
-                  <div className="mt-2 text-4xl font-bold tracking-tight text-slate-700">--</div>
-                  <div className="mt-1 text-xs text-slate-400">Not linked yet</div>
+                  <div className="mt-2 text-[48px] leading-none tracking-tight text-[var(--muted)]" style={{ fontFamily: "var(--font-heading)" }}>—</div>
+                  <div className="mt-1 text-[11px] text-[var(--muted)]">Not linked yet</div>
                 </div>
               )}
             </>
@@ -1652,27 +1651,27 @@ export default function MatchScoringPage() {
         function diffClass(strokes: number | undefined, par: number | null) {
           if (strokes == null || par == null) return "";
           const d = strokes - par;
-          if (d <= -2) return "text-amber-700 font-bold";
-          if (d === -1) return "text-rose-600 font-bold";
-          if (d === 0) return "text-slate-700";
-          if (d === 1) return "text-slate-500";
-          return "text-slate-400";
+          if (d <= -2) return "font-bold text-white";
+          if (d === -1) return "font-bold text-white";
+          if (d === 0) return "text-[var(--ink)]";
+          if (d === 1) return "text-[var(--muted)]";
+          return "font-bold text-white";
         }
-        function diffDot(strokes: number | undefined, par: number | null) {
-          if (strokes == null || par == null) return null;
+        function diffBg(strokes: number | undefined, par: number | null) {
+          if (strokes == null || par == null) return "";
           const d = strokes - par;
-          if (d <= -2) return <span className="absolute inset-0 rounded-full border-2 border-amber-400 pointer-events-none" />;
-          if (d === -1) return <span className="absolute inset-0 rounded-full border-2 border-rose-400 pointer-events-none" />;
-          if (d === 1) return <span className="absolute inset-0 border border-slate-300 pointer-events-none" />;
-          if (d >= 2) return <span className="absolute inset-0 border-2 border-slate-300 pointer-events-none" />;
-          return null;
+          if (d <= -2) return "bg-[var(--gold)]";
+          if (d === -1) return "bg-[var(--pine)]";
+          if (d === 0) return "bg-white border border-[var(--border)]";
+          if (d === 1) return "bg-[#F0EADD]";
+          return "bg-[#8B1A1A]";
         }
 
         const hasTeeData = activeTee != null;
         const hasYards = hasTeeData && getHoleYards(activeTee!, 1) != null;
         const hasHdcp = hasTeeData && getHoleHandicap(activeTee!, 1) != null;
 
-        const sumCellCx = "border-l border-slate-200/80";
+        const sumCellCx = "border-l border-[var(--border)]/60";
 
         const labelCx = "sticky left-0 z-10 w-[44px] min-w-[44px] max-w-[44px] px-2";
         const holeCx = "w-[28px] min-w-[28px] px-0";
@@ -1681,84 +1680,82 @@ export default function MatchScoringPage() {
         function renderNine(holeNos: number[], label: string, parTotal: number | null, yardsTotal: number | null, showTotal: boolean) {
           return (
             <div className="overflow-x-auto">
-              <table className="w-full text-[11px] tabular-nums" style={{ fontFamily: "Inter, system-ui, -apple-system, sans-serif" }}>
+              <table className="w-full text-[11px] tabular-nums" style={{ fontFamily: "var(--font-body), sans-serif" }}>
                 <thead>
-                  <tr className="bg-slate-50/80">
-                    <th className={cx(labelCx, "bg-slate-50 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400")}>Hole</th>
+                  <tr className="bg-[var(--pine)]">
+                    <th className={cx(labelCx, "bg-[var(--pine)] py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[#F5F0E8]")}>Hole</th>
                     {holeNos.map(h => (
-                      <th key={h} className={cx(holeCx, "py-1.5 text-center font-semibold text-slate-500")}>{h}</th>
+                      <th key={h} className={cx(holeCx, "py-1.5 text-center font-semibold text-[#F5F0E8]")}>{h}</th>
                     ))}
-                    <th className={cx(sumW, "py-1.5 text-center font-bold text-slate-700 bg-slate-100/60", sumCellCx)}>{label}</th>
-                    {showTotal && <th className={cx(sumW, "py-1.5 text-center font-bold text-slate-700 bg-slate-100/60", sumCellCx)}>Tot</th>}
+                    <th className={cx(sumW, "py-1.5 text-center font-bold text-[#F5F0E8] bg-[var(--pine)]", sumCellCx)}>{label}</th>
+                    {showTotal && <th className={cx(sumW, "py-1.5 text-center font-bold text-[#F5F0E8] bg-[var(--pine)]", sumCellCx)}>Tot</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {hasYards && (
-                    <tr className="border-t border-slate-100 bg-[#f3f6fa]">
-                      <td className={cx(labelCx, "bg-[#f3f6fa] py-1 text-[10px] font-semibold uppercase tracking-wider text-blue-400")}>Yds</td>
+                    <tr className="border-t border-[var(--border)]/40 bg-[var(--paper)]">
+                      <td className={cx(labelCx, "bg-[var(--paper)] py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--gold)]")}>Yds</td>
                       {holeNos.map(h => (
-                        <td key={h} className={cx(holeCx, "py-1 text-center text-slate-500")}>{getHoleYards(activeTee!, h) ?? ""}</td>
+                        <td key={h} className={cx(holeCx, "py-1 text-center text-[var(--gold)]")}>{getHoleYards(activeTee!, h) ?? ""}</td>
                       ))}
-                      <td className={cx(sumW, "py-1 text-center font-semibold text-slate-600 bg-[#ebeef3]", sumCellCx)}>{yardsTotal ?? ""}</td>
-                      {showTotal && <td className={cx(sumW, "py-1 text-center font-semibold text-slate-600 bg-[#ebeef3]", sumCellCx)}>{getTeeTotalYards(activeTee!) ?? ""}</td>}
+                      <td className={cx(sumW, "py-1 text-center font-semibold text-[var(--gold)] bg-[var(--paper)]", sumCellCx)}>{yardsTotal ?? ""}</td>
+                      {showTotal && <td className={cx(sumW, "py-1 text-center font-semibold text-[var(--gold)] bg-[var(--paper)]", sumCellCx)}>{getTeeTotalYards(activeTee!) ?? ""}</td>}
                     </tr>
                   )}
                   {hasTeeData && (
-                    <tr className="border-t border-slate-100 bg-white">
-                      <td className={cx(labelCx, "bg-white py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400")}>Par</td>
+                    <tr className="border-t border-[var(--border)]/40 bg-[var(--paper-2)]">
+                      <td className={cx(labelCx, "bg-[var(--paper-2)] py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]")}>Par</td>
                       {holeNos.map(h => (
-                        <td key={h} className={cx(holeCx, "py-1 text-center text-slate-600")}>{getHolePar(activeTee!, h) ?? ""}</td>
+                        <td key={h} className={cx(holeCx, "py-1 text-center text-[var(--ink)]")}>{getHolePar(activeTee!, h) ?? ""}</td>
                       ))}
-                      <td className={cx(sumW, "py-1 text-center font-bold text-slate-700 bg-slate-50/60", sumCellCx)}>{parTotal ?? ""}</td>
-                      {showTotal && <td className={cx(sumW, "py-1 text-center font-bold text-slate-700 bg-slate-50/60", sumCellCx)}>{parOut != null && parIn != null ? parOut + parIn : ""}</td>}
+                      <td className={cx(sumW, "py-1 text-center font-bold text-[var(--ink)] bg-[var(--paper)]/60", sumCellCx)}>{parTotal ?? ""}</td>
+                      {showTotal && <td className={cx(sumW, "py-1 text-center font-bold text-[var(--ink)] bg-[var(--paper)]/60", sumCellCx)}>{parOut != null && parIn != null ? parOut + parIn : ""}</td>}
                     </tr>
                   )}
                   {hasHdcp && (
-                    <tr className="border-t border-slate-100 bg-[#fefcf8]">
-                      <td className={cx(labelCx, "bg-[#fefcf8] py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-400")}>Hdcp</td>
+                    <tr className="border-t border-[var(--border)]/40 bg-[#fefcf8]">
+                      <td className={cx(labelCx, "bg-[#fefcf8] py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--gold)]")}>Hdcp</td>
                       {holeNos.map(h => (
-                        <td key={h} className={cx(holeCx, "py-1 text-center", strokeHolesMap.has(h) ? "font-bold text-amber-600" : "text-slate-400")}>
+                        <td key={h} className={cx(holeCx, "py-1 text-center", strokeHolesMap.has(h) ? "font-bold text-[var(--gold)]" : "text-[var(--muted)]")}>
                           {getHoleHandicap(activeTee!, h) ?? ""}
-                          {strokeHolesMap.has(h) && <span className="ml-px inline-block h-1 w-1 rounded-full bg-amber-500 align-super" />}
+                          {strokeHolesMap.has(h) && <span className="ml-px inline-block h-1 w-1 rounded-full bg-[var(--gold)] align-super" />}
                         </td>
                       ))}
                       <td className={cx(sumW, "py-1 bg-[#fdf9f0]", sumCellCx)}></td>
                       {showTotal && <td className={cx(sumW, "py-1 bg-[#fdf9f0]", sumCellCx)}></td>}
                     </tr>
                   )}
-                  <tr className="border-t-2 border-slate-200 bg-[#f4faf6]">
-                    <td className={cx(labelCx, "bg-[#f4faf6] py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600")}>You</td>
+                  <tr className="border-t-2 border-[var(--border)] bg-[var(--pine)]/5">
+                    <td className={cx(labelCx, "bg-[var(--pine)]/5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--pine)]")}>You</td>
                     {holeNos.map(h => {
                       const s = myHoleScores.get(h);
                       const par = hasTeeData ? getHolePar(activeTee!, h) : null;
                       return (
                         <td key={h} className={cx(holeCx, "py-1.5 text-center")}>
-                          <span className={cx("relative inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]", s != null ? diffClass(s, par) : "text-slate-200")}>
+                          <span className={cx("relative inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]", s != null ? diffClass(s, par) : "text-[var(--muted)]/30", s != null ? diffBg(s, par) : "")}>
                             {s ?? ""}
-                            {s != null && diffDot(s, par)}
                           </span>
                         </td>
                       );
                     })}
-                    <td className={cx(sumW, "py-1.5 text-center font-bold text-emerald-700 bg-emerald-50/60", sumCellCx)}>{sumRange(myHoleScores, holeNos) || ""}</td>
-                    {showTotal && <td className={cx(sumW, "py-1.5 text-center font-bold text-emerald-700 bg-emerald-50/60", sumCellCx)}>{myTotal ?? ""}</td>}
+                    <td className={cx(sumW, "py-1.5 text-center font-bold text-[var(--pine)] bg-[var(--pine)]/5", sumCellCx)}>{sumRange(myHoleScores, holeNos) || ""}</td>
+                    {showTotal && <td className={cx(sumW, "py-1.5 text-center font-bold text-[var(--pine)] bg-[var(--pine)]/5", sumCellCx)}>{myTotal ?? ""}</td>}
                   </tr>
-                  <tr className="border-t border-slate-100 bg-slate-50/30">
-                    <td className={cx(labelCx, "bg-slate-50/50 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate")}>{opponentLabel}</td>
+                  <tr className="border-t border-[var(--border)]/40 bg-[var(--paper)]/50">
+                    <td className={cx(labelCx, "bg-[var(--paper)]/50 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] truncate")}>{opponentLabel}</td>
                     {holeNos.map(h => {
                       const s = oppHoleScores.get(h);
                       const par = hasTeeData ? getHolePar(activeTee!, h) : null;
                       return (
                         <td key={h} className={cx(holeCx, "py-1.5 text-center")}>
-                          <span className={cx("relative inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]", s != null ? diffClass(s, par) : "text-slate-200")}>
+                          <span className={cx("relative inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]", s != null ? diffClass(s, par) : "text-[var(--muted)]/30", s != null ? diffBg(s, par) : "")}>
                             {s ?? ""}
-                            {s != null && diffDot(s, par)}
                           </span>
                         </td>
                       );
                     })}
-                    <td className={cx(sumW, "py-1.5 text-center font-bold text-slate-600 bg-slate-100/50", sumCellCx)}>{sumRange(oppHoleScores, holeNos) || ""}</td>
-                    {showTotal && <td className={cx(sumW, "py-1.5 text-center font-bold text-slate-600 bg-slate-100/50", sumCellCx)}>{oppTotal ?? ""}</td>}
+                    <td className={cx(sumW, "py-1.5 text-center font-bold text-[var(--muted)] bg-[var(--paper)]/50", sumCellCx)}>{sumRange(oppHoleScores, holeNos) || ""}</td>
+                    {showTotal && <td className={cx(sumW, "py-1.5 text-center font-bold text-[var(--muted)] bg-[var(--paper)]/50", sumCellCx)}>{oppTotal ?? ""}</td>}
                   </tr>
                 </tbody>
               </table>
@@ -1767,36 +1764,39 @@ export default function MatchScoringPage() {
         }
 
         return (
-          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-            <div className="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
-              <div className="text-[13px] font-bold tracking-tight text-slate-800">Scorecard</div>
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                {selectedTee && <span className="font-medium text-slate-500">{selectedTee}</span>}
-                {selectedTee && <span>&middot;</span>}
-                <span>Final</span>
+          <div>
+            <div className="section-flag section-flag--green mb-3">Scorecard</div>
+            <div className="rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] overflow-hidden">
+              <div className="bg-[var(--pine)] px-4 py-2.5 flex items-center justify-between">
+                <div className="text-[12px] font-bold tracking-tight text-[#F5F0E8]" style={{ fontFamily: "var(--font-heading)" }}>Final Score</div>
+                <div className="flex items-center gap-1.5 text-[11px] text-[#F5F0E8]/70">
+                  {selectedTee && <span className="font-medium text-[#F5F0E8]">{selectedTee}</span>}
+                  {selectedTee && <span className="text-[var(--gold)]">&middot;</span>}
+                  <span>18 Holes</span>
+                </div>
               </div>
-            </div>
 
-            {!hasTeeData && (
-              <div className="px-4 py-2.5 text-[11px] text-slate-400 bg-amber-50/40 border-b border-amber-100/60">
-                Course data unavailable — hole details not shown.
-              </div>
-            )}
-
-            {renderNine(front, "Out", parOut, yardsOut, false)}
-            <div className="border-t border-slate-200">
-              {renderNine(back, "In", parIn, yardsIn, true)}
-            </div>
-
-            <div className="border-t border-slate-200 bg-slate-50/50 px-4 py-2 flex flex-wrap items-center gap-3 text-[10px] text-slate-400">
-              <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-amber-400" /> Eagle+</span>
-              <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-rose-400" /> Birdie</span>
-              <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-200" /> Par</span>
-              <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border border-slate-300" /> Bogey</span>
-              <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-slate-300" /> Dbl+</span>
-              {strokeHolesMap.size > 0 && (
-                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" /> Stroke</span>
+              {!hasTeeData && (
+                <div className="px-4 py-2.5 text-[11px] text-[var(--muted)] bg-[var(--paper)] border-b border-[var(--border)]/60">
+                  Course data unavailable — hole details not shown.
+                </div>
               )}
+
+              {renderNine(front, "Out", parOut, yardsOut, false)}
+              <div className="border-t-2 border-[var(--border)]">
+                {renderNine(back, "In", parIn, yardsIn, true)}
+              </div>
+
+              <div className="border-t border-[var(--border)]/60 bg-[var(--paper)] px-4 py-2 flex flex-wrap items-center gap-3 text-[10px] text-[var(--muted)]">
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--gold)]" /> Eagle+</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--pine)]" /> Birdie</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border border-[var(--border)] bg-white" /> Par</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#F0EADD]" /> Bogey</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#8B1A1A]" /> Dbl+</span>
+                {strokeHolesMap.size > 0 && (
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--gold)]" /> Stroke</span>
+                )}
+              </div>
             </div>
           </div>
         );
@@ -1833,10 +1833,10 @@ export default function MatchScoringPage() {
 
       {/* Waiting for opponent scores */}
       {!isCompleted && !isExpired && isActive && allScoredByMe && !canComplete && (
-        <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 px-5 py-4 text-center">
-          <div className="text-sm font-semibold text-amber-800">Waiting for opponent</div>
-          <div className="mt-1 text-xs text-amber-700/70">
-            You've scored all your holes. Your opponent has scored {oppScoredCount} of {totalHoles}.
+        <div className="rounded-[6px] bg-[var(--pine)] border-l-[3px] border-l-[var(--gold)] px-5 py-4">
+          <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--gold)]">Waiting for opponent</div>
+          <div className="mt-1 text-[12px] text-[var(--paper)]/60">
+            You&apos;ve scored all your holes. Your opponent has scored {oppScoredCount} of {totalHoles}.
           </div>
         </div>
       )}
@@ -1872,66 +1872,77 @@ export default function MatchScoringPage() {
         </div>
       )}
 
-      {/* Scoring input area - only show when match is not completed, not locked, and not expired */}
+      {/* Scoring input area */}
       {!isCompleted && !scoringLocked && !isExpired && (
-        <div className="overflow-hidden rounded-2xl border-2 border-[var(--pine)]/20 bg-gradient-to-b from-white to-[var(--paper)] shadow-sm">
-          <div className="border-b border-[var(--border)] bg-[var(--pine)]/5 px-5 py-3">
+        <div className="overflow-hidden rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] shadow-sm">
+          {/* Hole header */}
+          <div className="border-b border-[var(--border)] bg-[var(--paper)] px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--pine)] text-sm font-bold text-white">
+                <span
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--gold)] text-[var(--pine)] shadow-sm"
+                  style={{ fontFamily: "var(--font-heading)", fontSize: "16px", fontWeight: 600 }}
+                >
                   {holeNo}
                 </span>
                 <div>
-                  <div className="text-sm font-bold tracking-tight">Hole {holeNo} of {totalHoles}</div>
-                  <div className="text-[11px] text-[var(--muted)]">
-                    {myScoresByHole.has(holeNo) ? "Scored" : "Not scored yet"}
+                  <div className="text-[16px] font-semibold text-[var(--ink)]" style={{ fontFamily: "var(--font-heading)" }}>
+                    Hole {holeNo} of {totalHoles}
+                  </div>
+                  <div className="text-[11px]">
+                    {myScoresByHole.has(holeNo)
+                      ? <span className="pill-live">Scored</span>
+                      : <span className="text-[var(--muted)]">Not scored yet</span>
+                    }
                   </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
+                <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
                   {isMatchPlay ? "Holes won" : useHcp ? "Net total" : "Running total"}
                 </div>
-                <div className="text-lg font-bold text-[var(--pine)]">
+                <div
+                  className="text-[28px] leading-none text-[var(--pine)]"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
                   {isMatchPlay ? (matchPlayData?.p1Holes ?? 0) : (useHcp ? myNetTotal ?? 0 : myTotal ?? 0)}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-5">
+          <div className="p-4">
+            {/* Par / Yards / Tee info strip */}
             {activeTee && (
-              <div className="mb-4 flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--paper-2)] px-4 py-2.5">
-                {getHolePar(activeTee, holeNo) != null && (
-                  <div className="text-xs text-[var(--muted)]">
-                    Par <span className="font-bold text-[var(--ink)]">{getHolePar(activeTee, holeNo)}</span>
-                  </div>
-                )}
-                {getHoleYards(activeTee, holeNo) != null && (
-                  <div className="text-xs text-[var(--muted)]">
-                    <span className="font-bold text-[var(--ink)]">{getHoleYards(activeTee, holeNo)}</span> yds
-                  </div>
-                )}
-                {getHoleHandicap(activeTee, holeNo) != null && (
-                  <div className="text-xs text-[var(--muted)]">
-                    HDCP <span className="font-bold text-[var(--ink)]">{getHoleHandicap(activeTee, holeNo)}</span>
-                  </div>
-                )}
-                {isMatchPlay && useHcp && strokeHolesMap.has(holeNo) && (
-                  <div className="flex items-center gap-1 text-xs font-semibold text-amber-700">
-                    <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-                    {strokeReceiver === "me" ? "You get" : "Opp gets"} {strokeHolesMap.get(holeNo)} stroke{(strokeHolesMap.get(holeNo) ?? 0) > 1 ? "s" : ""}
-                  </div>
-                )}
-                <div className="ml-auto text-[10px] text-[var(--muted)]">{selectedTee} tees</div>
+              <div className="mb-4 rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] px-3.5 py-2.5">
+                <div className="flex items-center gap-0 text-[12px]">
+                  {getHolePar(activeTee, holeNo) != null && (
+                    <span>Par <span className="font-bold text-[var(--ink)]">{getHolePar(activeTee, holeNo)}</span></span>
+                  )}
+                  {getHoleYards(activeTee, holeNo) != null && (
+                    <><span className="mx-2 text-[var(--gold)]">&middot;</span><span><span className="font-bold text-[var(--ink)]">{getHoleYards(activeTee, holeNo)}</span> yds</span></>
+                  )}
+                  {getHoleHandicap(activeTee, holeNo) != null && (
+                    <><span className="mx-2 text-[var(--gold)]">&middot;</span><span className="text-[var(--muted)]">HDCP {getHoleHandicap(activeTee, holeNo)}</span></>
+                  )}
+                  {isMatchPlay && useHcp && strokeHolesMap.has(holeNo) && (
+                    <><span className="mx-2 text-[var(--gold)]">&middot;</span><span className="font-bold text-[var(--gold)]">{strokeReceiver === "me" ? "You" : "Opp"} +{strokeHolesMap.get(holeNo)}</span></>
+                  )}
+                  <span className="ml-auto text-[10px] text-[var(--muted)]">{selectedTee} tees</span>
+                </div>
               </div>
             )}
+
+            {/* Strokes input */}
+            <div className="mb-1">
+              <div className="section-flag section-flag--green text-[8px]">Your strokes</div>
+            </div>
             <div className="flex items-end gap-3">
               <div className="flex-1">
-                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Your strokes</label>
                 <input
                   ref={strokesInputRef}
-                  className="mt-2 w-full rounded-xl border-2 border-[var(--border)] bg-white px-4 py-3.5 text-center text-2xl font-bold tracking-tight outline-none transition focus:border-[var(--pine)] focus:ring-2 focus:ring-[var(--pine)]/20"
+                  className="w-full rounded-[3px] border border-[var(--border)] bg-[var(--paper)] px-4 py-3.5 text-center outline-none transition focus:border-[var(--gold)] focus:ring-1 focus:ring-[var(--gold)]/20"
+                  style={{ fontFamily: "var(--font-heading)", fontSize: "36px" }}
                   inputMode="numeric"
                   value={strokesInput}
                   onChange={(e) => setStrokesInput(e.target.value)}
@@ -1943,7 +1954,7 @@ export default function MatchScoringPage() {
               </div>
 
               <button
-                className="rounded-xl bg-[var(--pine)] px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:shadow-md hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:shadow-none disabled:translate-y-0"
+                className="btn-gold rounded-[3px] px-6 py-3.5 text-[13px] shadow-sm transition hover:shadow-md hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:shadow-none disabled:translate-y-0"
                 onClick={saveHole}
                 disabled={saving}
               >
@@ -1953,7 +1964,7 @@ export default function MatchScoringPage() {
                 <button
                   type="button"
                   onClick={deleteHoleScore}
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-3.5 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+                  className="rounded-[3px] border border-[var(--ink)]/20 bg-[var(--paper-2)] px-3 py-3.5 text-[13px] font-bold uppercase tracking-[0.04em] text-[var(--ink)] transition hover:bg-[var(--paper)]"
                   title="Remove score for this hole"
                 >
                   Undo
@@ -1961,7 +1972,7 @@ export default function MatchScoringPage() {
               )}
             </div>
             <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--muted)]">
-              <span>Enter to save. Arrow keys to navigate holes.</span>
+              <span style={{ fontStyle: "italic" }}>Enter to save. Arrow keys to navigate holes.</span>
               {strokesInput && (
                 <button type="button" onClick={clearHole} className="text-[var(--muted)] hover:text-[var(--ink)] transition">
                   Clear
@@ -1969,29 +1980,30 @@ export default function MatchScoringPage() {
               )}
             </div>
 
+            {/* Prev / Next navigation */}
             <div className="mt-5 flex items-center justify-between gap-3">
               <button
-                className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-[3px] border border-[var(--border)] bg-[var(--paper-2)] px-4 py-2.5 text-[12px] font-bold uppercase tracking-[0.04em] transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
                 onClick={goPrev}
                 disabled={holeNo <= 1}
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                   <path d="M8.5 3L4.5 7L8.5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                Previous
+                Prev
               </button>
 
-              <div className="text-xs font-medium text-[var(--muted)]">
+              <div className="text-[11px] font-semibold text-[var(--gold)]">
                 {myScoresByHole.size} of {totalHoles} scored
               </div>
 
               <button
-                className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-[3px] border border-[var(--border)] bg-[var(--paper-2)] px-4 py-2.5 text-[12px] font-bold uppercase tracking-[0.04em] transition hover:bg-[var(--paper)] hover:border-[var(--pine)]/30 disabled:opacity-40"
                 onClick={goNext}
                 disabled={!myScoresByHole.has(holeNo) || holeNo >= totalHoles}
               >
                 Next
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                   <path d="M5.5 3L9.5 7L5.5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
@@ -2034,20 +2046,20 @@ export default function MatchScoringPage() {
         function liveDiffClass(strokes: number | undefined, par: number | null) {
           if (strokes == null || par == null) return "";
           const d = strokes - par;
-          if (d <= -2) return "text-amber-700 font-bold";
-          if (d === -1) return "text-rose-600 font-bold";
-          if (d === 0) return "text-slate-700";
-          if (d === 1) return "text-slate-500";
-          return "text-slate-400";
+          if (d <= -2) return "font-bold text-white";
+          if (d === -1) return "font-bold text-white";
+          if (d === 0) return "text-[var(--ink)]";
+          if (d === 1) return "text-[var(--muted)]";
+          return "font-bold text-white";
         }
-        function liveDiffDot(strokes: number | undefined, par: number | null) {
-          if (strokes == null || par == null) return null;
+        function liveDiffBg(strokes: number | undefined, par: number | null) {
+          if (strokes == null || par == null) return "";
           const d = strokes - par;
-          if (d <= -2) return <span className="absolute inset-0 rounded-full border-2 border-amber-400 pointer-events-none" />;
-          if (d === -1) return <span className="absolute inset-0 rounded-full border-2 border-rose-400 pointer-events-none" />;
-          if (d === 1) return <span className="absolute inset-0 border border-slate-300 pointer-events-none" />;
-          if (d >= 2) return <span className="absolute inset-0 border-2 border-slate-300 pointer-events-none" />;
-          return null;
+          if (d <= -2) return "bg-[var(--gold)]";
+          if (d === -1) return "bg-[var(--pine)]";
+          if (d === 0) return "bg-white border border-[var(--border)]";
+          if (d === 1) return "bg-[#F0EADD]";
+          return "bg-[#8B1A1A]";
         }
 
         const hasTeeData = activeTee != null;
@@ -2062,83 +2074,83 @@ export default function MatchScoringPage() {
         const liveLabelCx = "sticky left-0 z-10 w-[44px] min-w-[44px] max-w-[44px] px-2";
         const liveHoleCx = "w-[28px] min-w-[28px] px-0";
         const liveSumW = "w-[36px] min-w-[36px] px-1.5";
-        const liveSumCx = "border-l border-slate-200/80";
+        const liveSumCx = "border-l border-[var(--border)]/60";
 
         function renderLiveNine(holeNos: number[], label: string, parTotal: number | null, yardsTotal: number | null, showTotal: boolean) {
           return (
             <div className="overflow-x-auto">
-              <table className="w-full text-[11px] tabular-nums" style={{ fontFamily: "Inter, system-ui, -apple-system, sans-serif" }}>
+              <table className="w-full text-[11px] tabular-nums" style={{ fontFamily: "var(--font-body), sans-serif" }}>
                 <thead>
-                  <tr className="bg-slate-50/80">
-                    <th className={cx(liveLabelCx, "bg-slate-50 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400")}>Hole</th>
+                  <tr className="bg-[var(--pine)]">
+                    <th className={cx(liveLabelCx, "bg-[var(--pine)] py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[#F5F0E8]")}>Hole</th>
                     {holeNos.map(h => (
                       <th
                         key={h}
-                        className={cx(liveHoleCx, "py-1.5 text-center font-semibold cursor-pointer transition", h === holeNo ? "text-emerald-600" : "text-slate-500")}
+                        className={cx(liveHoleCx, "py-1.5 text-center font-semibold cursor-pointer transition", h === holeNo ? "text-[var(--gold)]" : "text-[#F5F0E8]")}
                         onClick={() => navigateToHole(h)}
                       >{h}</th>
                     ))}
-                    <th className={cx(liveSumW, "py-1.5 text-center font-bold text-slate-700 bg-slate-100/60", liveSumCx)}>{label}</th>
-                    {showTotal && <th className={cx(liveSumW, "py-1.5 text-center font-bold text-slate-700 bg-slate-100/60", liveSumCx)}>Tot</th>}
+                    <th className={cx(liveSumW, "py-1.5 text-center font-bold text-[#F5F0E8] bg-[var(--pine)]", liveSumCx)}>{label}</th>
+                    {showTotal && <th className={cx(liveSumW, "py-1.5 text-center font-bold text-[#F5F0E8] bg-[var(--pine)]", liveSumCx)}>Tot</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {hasYards && (
-                    <tr className="border-t border-slate-100 bg-[#f3f6fa]">
-                      <td className={cx(liveLabelCx, "bg-[#f3f6fa] py-1 text-[10px] font-semibold uppercase tracking-wider text-blue-400")}>Yds</td>
+                    <tr className="border-t border-[var(--border)]/40 bg-[var(--paper)]">
+                      <td className={cx(liveLabelCx, "bg-[var(--paper)] py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--gold)]")}>Yds</td>
                       {holeNos.map(h => (
-                        <td key={h} className={cx(liveHoleCx, "py-1 text-center", h === holeNo ? "font-semibold text-slate-600" : "text-slate-500")}>{getHoleYards(activeTee!, h) ?? ""}</td>
+                        <td key={h} className={cx(liveHoleCx, "py-1 text-center", h === holeNo ? "font-semibold text-[var(--gold)]" : "text-[var(--gold)]")}>{getHoleYards(activeTee!, h) ?? ""}</td>
                       ))}
-                      <td className={cx(liveSumW, "py-1 text-center font-semibold text-slate-600 bg-[#ebeef3]", liveSumCx)}>{yardsTotal ?? ""}</td>
-                      {showTotal && <td className={cx(liveSumW, "py-1 text-center font-semibold text-slate-600 bg-[#ebeef3]", liveSumCx)}>{getTeeTotalYards(activeTee!) ?? ""}</td>}
+                      <td className={cx(liveSumW, "py-1 text-center font-semibold text-[var(--gold)] bg-[var(--paper)]", liveSumCx)}>{yardsTotal ?? ""}</td>
+                      {showTotal && <td className={cx(liveSumW, "py-1 text-center font-semibold text-[var(--gold)] bg-[var(--paper)]", liveSumCx)}>{getTeeTotalYards(activeTee!) ?? ""}</td>}
                     </tr>
                   )}
                   {hasTeeData && (
-                    <tr className="border-t border-slate-100 bg-white">
-                      <td className={cx(liveLabelCx, "bg-white py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400")}>Par</td>
+                    <tr className="border-t border-[var(--border)]/40 bg-[var(--paper-2)]">
+                      <td className={cx(liveLabelCx, "bg-[var(--paper-2)] py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]")}>Par</td>
                       {holeNos.map(h => (
-                        <td key={h} className={cx(liveHoleCx, "py-1 text-center", h === holeNo ? "font-semibold text-slate-700" : "text-slate-600")}>{getHolePar(activeTee!, h) ?? ""}</td>
+                        <td key={h} className={cx(liveHoleCx, "py-1 text-center", h === holeNo ? "font-semibold text-[var(--ink)]" : "text-[var(--ink)]")}>{getHolePar(activeTee!, h) ?? ""}</td>
                       ))}
-                      <td className={cx(liveSumW, "py-1 text-center font-bold text-slate-700 bg-slate-50/60", liveSumCx)}>{parTotal ?? ""}</td>
-                      {showTotal && <td className={cx(liveSumW, "py-1 text-center font-bold text-slate-700 bg-slate-50/60", liveSumCx)}>{frontPar != null && backPar != null ? frontPar + backPar : ""}</td>}
+                      <td className={cx(liveSumW, "py-1 text-center font-bold text-[var(--ink)] bg-[var(--paper)]/60", liveSumCx)}>{parTotal ?? ""}</td>
+                      {showTotal && <td className={cx(liveSumW, "py-1 text-center font-bold text-[var(--ink)] bg-[var(--paper)]/60", liveSumCx)}>{frontPar != null && backPar != null ? frontPar + backPar : ""}</td>}
                     </tr>
                   )}
                   {hasHdcp && (
-                    <tr className="border-t border-slate-100 bg-[#fefcf8]">
-                      <td className={cx(liveLabelCx, "bg-[#fefcf8] py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-400")}>Hdcp</td>
+                    <tr className="border-t border-[var(--border)]/40 bg-[#fefcf8]">
+                      <td className={cx(liveLabelCx, "bg-[#fefcf8] py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--gold)]")}>Hdcp</td>
                       {holeNos.map(h => (
-                        <td key={h} className={cx(liveHoleCx, "py-1 text-center", strokeHolesMap.has(h) ? "font-bold text-amber-600" : "text-slate-400")}>
+                        <td key={h} className={cx(liveHoleCx, "py-1 text-center", strokeHolesMap.has(h) ? "font-bold text-[var(--gold)]" : "text-[var(--muted)]")}>
                           {getHoleHandicap(activeTee!, h) ?? ""}
-                          {strokeHolesMap.has(h) && <span className="ml-px inline-block h-1 w-1 rounded-full bg-amber-500 align-super" />}
+                          {strokeHolesMap.has(h) && <span className="ml-px inline-block h-1 w-1 rounded-full bg-[var(--gold)] align-super" />}
                         </td>
                       ))}
                       <td className={cx(liveSumW, "py-1 bg-[#fdf9f0]", liveSumCx)}></td>
                       {showTotal && <td className={cx(liveSumW, "py-1 bg-[#fdf9f0]", liveSumCx)}></td>}
                     </tr>
                   )}
-                  <tr className="border-t-2 border-slate-200 bg-[#f4faf6]">
-                    <td className={cx(liveLabelCx, "bg-[#f4faf6] py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600")}>Score</td>
+                  <tr className="border-t-2 border-[var(--border)] bg-[var(--pine)]/5">
+                    <td className={cx(liveLabelCx, "bg-[var(--pine)]/5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--pine)]")}>Score</td>
                     {holeNos.map(h => {
                       const s = myScoresByHole.get(h);
                       const par = hasTeeData ? getHolePar(activeTee!, h) : null;
                       return (
                         <td
                           key={h}
-                          className={cx(liveHoleCx, "py-1.5 text-center cursor-pointer transition", h === holeNo && "bg-emerald-100/60")}
+                          className={cx(liveHoleCx, "py-1.5 text-center cursor-pointer transition", h === holeNo && "bg-[var(--gold)]/10")}
                           onClick={() => navigateToHole(h)}
                         >
                           <span className={cx(
                             "relative inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]",
-                            s != null ? liveDiffClass(s, par) : "text-slate-200"
+                            s != null ? liveDiffClass(s, par) : "text-[var(--muted)]/30",
+                            s != null ? liveDiffBg(s, par) : ""
                           )}>
                             {s ?? "\u2013"}
-                            {s != null && liveDiffDot(s, par)}
                           </span>
                         </td>
                       );
                     })}
-                    <td className={cx(liveSumW, "py-1.5 text-center font-bold text-emerald-700 bg-emerald-50/60", liveSumCx)}>{sumMyRange(holeNos) || ""}</td>
-                    {showTotal && <td className={cx(liveSumW, "py-1.5 text-center font-bold text-emerald-700 bg-emerald-50/60", liveSumCx)}>{(sumMyRange(front) + sumMyRange(back)) || ""}</td>}
+                    <td className={cx(liveSumW, "py-1.5 text-center font-bold text-[var(--pine)] bg-[var(--pine)]/5", liveSumCx)}>{sumMyRange(holeNos) || ""}</td>
+                    {showTotal && <td className={cx(liveSumW, "py-1.5 text-center font-bold text-[var(--pine)] bg-[var(--pine)]/5", liveSumCx)}>{(sumMyRange(front) + sumMyRange(back)) || ""}</td>}
                   </tr>
                 </tbody>
               </table>
@@ -2147,43 +2159,46 @@ export default function MatchScoringPage() {
         }
 
         return (
-          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-            <div className="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
-              <div className="text-[13px] font-bold tracking-tight text-slate-800">Scorecard</div>
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                {selectedTee && <span className="font-medium text-slate-500">{selectedTee}</span>}
-                {selectedTee && <span>&middot;</span>}
-                <span>{myScoresByHole.size}/{totalHoles} scored</span>
+          <div>
+            <div className="section-flag section-flag--green mb-3">Scorecard</div>
+            <div className="rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] overflow-hidden">
+              <div className="bg-[var(--pine)] px-4 py-2.5 flex items-center justify-between">
+                <div className="text-[12px] font-bold tracking-tight text-[#F5F0E8]" style={{ fontFamily: "var(--font-heading)" }}>Live Score</div>
+                <div className="flex items-center gap-1.5 text-[11px] text-[#F5F0E8]/70">
+                  {selectedTee && <span className="font-medium text-[#F5F0E8]">{selectedTee}</span>}
+                  {selectedTee && <span className="text-[var(--gold)]">&middot;</span>}
+                  <span>{myScoresByHole.size}/{totalHoles} scored</span>
+                </div>
               </div>
+
+              {!hasTeeData && (
+                <div className="px-4 py-2.5 text-[11px] text-[var(--muted)] bg-[var(--paper)] border-b border-[var(--border)]/60">
+                  Course data unavailable — hole details not shown.
+                </div>
+              )}
+
+              {/* Front 9 */}
+              {renderLiveNine(front, "Out", frontPar, frontYards, false)}
+
+              {/* Back 9 */}
+              <div className="border-t-2 border-[var(--border)]">
+                {renderLiveNine(back, "In", backPar, backYards, true)}
+              </div>
+
+              {/* Legend */}
+              {hasTeeData && (
+                <div className="border-t border-[var(--border)]/60 bg-[var(--paper)] px-4 py-2 flex flex-wrap items-center gap-3 text-[10px] text-[var(--muted)]">
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--gold)]" /> Eagle+</span>
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--pine)]" /> Birdie</span>
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border border-[var(--border)] bg-white" /> Par</span>
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#F0EADD]" /> Bogey</span>
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#8B1A1A]" /> Dbl+</span>
+                  {strokeHolesMap.size > 0 && (
+                    <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--gold)]" /> Stroke</span>
+                  )}
+                </div>
+              )}
             </div>
-
-            {!hasTeeData && (
-              <div className="px-4 py-2.5 text-[11px] text-slate-400 bg-amber-50/40 border-b border-amber-100/60">
-                Course data unavailable — hole details not shown.
-              </div>
-            )}
-
-            {/* Front 9 */}
-            {renderLiveNine(front, "Out", frontPar, frontYards, false)}
-
-            {/* Back 9 */}
-            <div className="border-t border-slate-200">
-              {renderLiveNine(back, "In", backPar, backYards, true)}
-            </div>
-
-            {/* Legend */}
-            {hasTeeData && (
-              <div className="border-t border-slate-200 bg-slate-50/50 px-4 py-2 flex flex-wrap items-center gap-3 text-[10px] text-slate-400">
-                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-amber-400" /> Eagle+</span>
-                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-rose-400" /> Birdie</span>
-                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-200" /> Par</span>
-                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border border-slate-300" /> Bogey</span>
-                <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-slate-300" /> Dbl+</span>
-                {strokeHolesMap.size > 0 && (
-                  <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" /> Stroke</span>
-                )}
-              </div>
-            )}
           </div>
         );
       })()}
@@ -2195,8 +2210,9 @@ export default function MatchScoringPage() {
             <button
               type="button"
               onClick={() => setShowDispute(true)}
-              className="text-xs font-medium text-[var(--muted)]/60 underline decoration-dotted underline-offset-2 transition hover:text-red-500"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--muted)]/60 underline decoration-dotted underline-offset-2 transition hover:text-[#8B1A1A]"
             >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
               Flag this match
             </button>
           ) : (
