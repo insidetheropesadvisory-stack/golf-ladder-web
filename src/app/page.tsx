@@ -394,15 +394,24 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
+      {/* Hero */}
+      <div className="border-l-2 border-[var(--gold)] pl-4">
         <div className="text-[11px] tracking-[0.28em] text-[var(--muted)]">RECIPROCITY</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Welcome back{displayName !== "Player" ? `, ${displayName}` : ""}
-        </h1>
+        <div className="mt-1 flex items-center gap-2.5 flex-wrap">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Welcome back{displayName !== "Player" ? `, ${displayName}` : ""}
+          </h1>
+          {grossRank && (
+            <span className="inline-flex items-center gap-1 rounded-[3px] bg-[var(--gold)] px-2.5 py-1 text-[11px] font-bold text-[var(--pine)]" style={{ fontFamily: "var(--font-body)" }}>
+              #{grossRank.position} Ladder
+            </span>
+          )}
+        </div>
         {handicap != null && (
-          <div className="mt-0.5 text-xs text-[var(--muted)]">
-            Handicap: <span className="font-semibold text-[var(--ink)]">{handicap}</span>
+          <div className="mt-1.5 flex items-center gap-2">
+            <span className="inline-flex items-center rounded-full border border-[var(--gold)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--pine)]" style={{ fontFamily: "var(--font-body)" }}>
+              HCP {handicap}
+            </span>
           </div>
         )}
       </div>
@@ -423,18 +432,26 @@ export default function HomePage() {
       {/* Stat tiles */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         {[
-          { label: "Needs response", value: buckets.needsMyResponse.length, href: "/matches" },
-          { label: "Active", value: buckets.allActive.length, href: "/matches" },
-          { label: "Tournaments", value: tournaments.length, href: "/tournaments" },
-          { label: "Ladder rank", value: grossRank ? `#${grossRank.position}` : "—", href: "/ladder" },
+          { label: "Needs response", value: String(buckets.needsMyResponse.length), href: "/matches", special: false },
+          { label: "Active", value: String(buckets.allActive.length), href: "/matches", special: false },
+          { label: "Tournaments", value: String(tournaments.length), href: "/tournaments", special: false },
+          { label: "Ladder rank", value: grossRank ? `#${grossRank.position}` : "—", href: "/ladder", special: true },
         ].map((t) => (
           <Link
             key={t.label}
             href={t.href}
-            className="rounded-[6px] border border-[var(--border)] bg-[var(--paper-2)] p-3 sm:p-4 shadow-[var(--shadow-sm)] transition hover:-translate-y-[1px] hover:shadow-[var(--shadow)]"
+            className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 sm:p-4 shadow-[var(--shadow-sm)] transition hover:-translate-y-[1px] hover:shadow-[var(--shadow)]"
           >
-            <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--muted)] sm:text-[10px] sm:tracking-[0.2em]">{t.label}</div>
-            <div className="mt-1 text-xl font-semibold tabular-nums text-[var(--ink)] sm:text-2xl">{t.value}</div>
+            <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--muted)] sm:text-[10px] sm:tracking-[0.2em]" style={{ fontFamily: "var(--font-body)" }}>{t.label}</div>
+            <div
+              className={cx(
+                "mt-1.5 tabular-nums",
+                t.special ? "text-2xl text-[var(--gold)] sm:text-4xl" : "text-2xl text-[var(--ink)] sm:text-4xl"
+              )}
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              {t.value}
+            </div>
           </Link>
         ))}
       </div>
@@ -442,15 +459,15 @@ export default function HomePage() {
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         <Link href={newMatchHref} className="btn-gold text-center py-2.5 sm:py-3">New match</Link>
+        <Link href="/tournaments/new" className="rounded-[3px] bg-[var(--pine)] px-3 py-2.5 text-center text-[13px] font-bold uppercase tracking-wide text-[var(--paper)] transition hover:brightness-110 sm:py-3" style={{ fontFamily: "var(--font-body)", letterSpacing: "0.06em" }}>New tournament</Link>
         <Link href="/matches/new?mode=link" className="btn-outline-gold text-center py-2.5 sm:py-3">Invite friend</Link>
-        <Link href="/tournaments/new" className="btn-outline-gold text-center py-2.5 sm:py-3">New tournament</Link>
-        <Link href="/find-a-match" className="rounded-[3px] border border-[var(--border)] bg-white/60 px-3 py-2.5 text-center text-[13px] font-bold uppercase tracking-wide text-[var(--ink)] transition hover:-translate-y-[1px] hover:shadow-sm sm:py-3">Find a match</Link>
+        <Link href="/find-a-match" className="rounded-[3px] border border-[var(--ink)]/30 bg-transparent px-3 py-2.5 text-center text-[13px] font-bold uppercase tracking-wide text-[var(--ink)] transition hover:bg-black/[0.03] sm:py-3" style={{ fontFamily: "var(--font-body)", letterSpacing: "0.06em" }}>Find a round</Link>
       </div>
 
       {/* Scoring now — matches in the 12h window */}
       {!loading && scoringNow.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Score now</h2>
+          <div className="flex items-center gap-3"><div className="section-flag section-flag--green">Score now</div><div className="flex-1 h-[2px] bg-[var(--border)]" /></div>
           <div className="space-y-2">
             {scoringNow.map((m) => {
               const opp = opponentFor(m);
@@ -485,7 +502,7 @@ export default function HomePage() {
 
       {/* ── ACTIVE — top of the list ── */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Active</h2>
+        <div className="flex items-center gap-3"><div className="section-flag section-flag--green">Active</div><div className="flex-1 h-[2px] bg-[var(--border)]" /></div>
         {loading ? (
           <div className="space-y-2">
             <div className="h-16 animate-pulse rounded-[6px] bg-black/[0.03]" />
@@ -505,15 +522,15 @@ export default function HomePage() {
                   key={r.id}
                   href={`/matches/${r.id}`}
                   className={cx(
-                    "group flex items-center gap-2.5 rounded-[6px] border p-3 transition hover:shadow-sm sm:gap-3 sm:p-4",
+                    "group flex items-center gap-2.5 rounded-[6px] border border-l-[3px] p-3 transition hover:shadow-sm sm:gap-3 sm:p-4",
                     r.is_ladder_match
-                      ? "border-[var(--gold)]/30 bg-[var(--gold-light)]/20 hover:border-[var(--gold)]"
-                      : "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20"
+                      ? "border-[var(--gold)]/30 border-l-[var(--gold)] bg-[var(--gold-light)]/20 hover:border-[var(--gold)]"
+                      : "border-[var(--border)] border-l-[var(--pine)] bg-white/60 hover:border-[var(--pine)]/20"
                   )}
                 >
                   <div className={cx(
-                    "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full text-white sm:h-10 sm:w-10",
-                    r.is_ladder_match ? "bg-[var(--tan)]" : "bg-[var(--pine)]"
+                    "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full sm:h-10 sm:w-10",
+                    r.is_ladder_match ? "bg-[var(--gold-light)] text-[var(--tan)]" : "bg-[var(--green-light)] text-[var(--pine)]"
                   )}>
                     {opp.avatarUrl ? (
                       <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
@@ -544,7 +561,7 @@ export default function HomePage() {
       {/* ── UPCOMING ── */}
       {!loading && upcomingItems.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Upcoming</h2>
+          <div className="flex items-center gap-3"><div className="section-flag section-flag--tan">Upcoming</div><div className="flex-1 h-[2px] bg-[var(--border)]" /></div>
           <div className="space-y-2">
             {sliceFor("upcoming", upcomingItems).map((item) => {
               const dt = new Date(item.round_time);
@@ -555,15 +572,15 @@ export default function HomePage() {
                   key={`${item.kind}-${item.id}`}
                   href={item.href}
                   className={cx(
-                    "group flex items-center gap-3 rounded-[6px] border p-3 transition hover:shadow-sm sm:p-4",
+                    "group flex items-center gap-3 rounded-[6px] border border-l-[3px] border-l-[var(--gold)] p-3 transition hover:shadow-sm sm:p-4",
                     item.kind === "pool" ? "border-blue-200/60 bg-blue-50/20 hover:border-blue-300" :
                     item.kind === "ladder" ? "border-[var(--gold)]/30 bg-[var(--gold-light)]/20 hover:border-[var(--gold)]" :
                     "border-[var(--border)] bg-white/60 hover:border-[var(--pine)]/20"
                   )}
                 >
                   <div className={cx(
-                    "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full text-white sm:h-10 sm:w-10",
-                    item.kind === "pool" ? "bg-blue-600" : item.kind === "ladder" ? "bg-[var(--tan)]" : "bg-[var(--pine)]"
+                    "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full sm:h-10 sm:w-10",
+                    item.kind === "pool" ? "bg-blue-50 text-blue-700" : item.kind === "ladder" ? "bg-[var(--gold-light)] text-[var(--tan)]" : "bg-[var(--green-light)] text-[var(--pine)]"
                   )}>
                     <div className="grid h-full w-full place-items-center text-[10px] font-semibold sm:text-xs">
                       {item.kind === "pool" ? (
@@ -608,7 +625,7 @@ export default function HomePage() {
       {/* ── NEEDS YOUR RESPONSE ── */}
       {!loading && buckets.needsMyResponse.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Needs your response</h2>
+          <div className="flex items-center gap-3"><div className="section-flag section-flag--green">Needs your response</div><div className="flex-1 h-[2px] bg-[var(--border)]" /></div>
           <div className="space-y-2">
             {sliceFor("needsResponse", buckets.needsMyResponse).map((r) => {
               const opp = opponentFor(r);
@@ -619,7 +636,7 @@ export default function HomePage() {
                   href={`/matches/${r.id}`}
                   className="group flex items-center gap-2.5 rounded-[6px] border border-[var(--gold)]/40 bg-[var(--gold-light)]/30 p-3 transition hover:border-[var(--gold)] hover:shadow-sm sm:gap-3 sm:p-4"
                 >
-                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--pine)] text-white sm:h-10 sm:w-10">
+                  <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-[var(--green-light)] text-[var(--pine)] sm:h-10 sm:w-10">
                     {opp.avatarUrl ? (
                       <img src={opp.avatarUrl} alt={opp.name} className="h-full w-full object-cover" />
                     ) : (
@@ -651,7 +668,7 @@ export default function HomePage() {
       {/* ── AWAITING THEIR RESPONSE ── */}
       {!loading && buckets.awaitingTheir.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Awaiting response</h2>
+          <div className="flex items-center gap-3"><div className="section-flag section-flag--tan">Awaiting response</div><div className="flex-1 h-[2px] bg-[var(--border)]" /></div>
           <div className="space-y-2">
             {sliceFor("awaiting", buckets.awaitingTheir).map((r) => {
               const opp = opponentFor(r);
@@ -693,7 +710,7 @@ export default function HomePage() {
       {/* ── TOURNAMENTS ── */}
       {!loading && tournaments.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-[var(--muted)]">Your tournaments</h2>
+          <div className="flex items-center gap-3"><div className="section-flag section-flag--green">Your tournaments</div><div className="flex-1 h-[2px] bg-[var(--border)]" /></div>
           <div className="space-y-2">
             {sliceFor("tournaments", tournaments).map((t) => {
               const p = currentPeriod(t);

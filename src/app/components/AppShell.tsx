@@ -586,15 +586,12 @@ export function AppShell({
                   key={item.href}
                   href={item.href}
                   className={cx(
-                    "relative flex items-center gap-2.5 rounded-[3px] px-3 py-2 text-[13px] font-medium transition",
+                    "relative flex items-center gap-2.5 rounded-[3px] px-3 py-2.5 text-[13px] font-medium transition",
                     active
-                      ? "bg-[var(--green-light)] text-[var(--pine)] font-semibold"
-                      : "text-[var(--ink)] hover:bg-[var(--green-light)]/50"
+                      ? "bg-[var(--green-light)] text-[var(--gold)] font-semibold border-l-[3px] border-l-[var(--gold)] pl-[9px]"
+                      : "text-[var(--muted)] hover:bg-[var(--green-light)]/50 hover:text-[var(--ink)]"
                   )}
                 >
-                  {active && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[var(--gold)]" />
-                  )}
                   <NavIcon name={item.icon} size={16} />
                   <span>{item.label}</span>
                 </Link>
@@ -602,7 +599,8 @@ export function AppShell({
             })}
           </nav>
 
-          <div className="mt-5 border-t border-[var(--border)] pt-4">
+          <div className="mt-5 pt-4">
+            <hr className="gold-rule mb-4" />
             <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>
               Where serious golfers settle scores.
             </div>
@@ -615,9 +613,9 @@ export function AppShell({
             {children}
           </div>
 
-          <footer className="mt-6 hidden text-center md:block">
+          <footer className="mt-8 hidden text-center md:block">
             <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]" style={{ fontFamily: "var(--font-body)" }}>
-              &copy; {new Date().getFullYear()} Reciprocity &bull; Earn your standing.
+              &copy; {new Date().getFullYear()} Reciprocity <span className="text-[var(--gold)]">&bull;</span> Earn your standing.
             </span>
           </footer>
         </main>
