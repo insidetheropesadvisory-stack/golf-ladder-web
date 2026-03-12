@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx, initials, emailToName } from "@/lib/utils";
 import BadgeRow from "@/app/components/BadgeRow";
+import Coachmark from "@/app/components/Coachmark";
 
 type MatchRow = {
   id: string;
@@ -442,6 +443,7 @@ export default function HomePage() {
             key={t.label}
             href={t.href}
             className="rounded-[6px] border border-[var(--border)] border-t-2 border-t-[var(--gold)] bg-[var(--paper-2)] p-3 sm:p-4 shadow-[var(--shadow-sm)] transition hover:-translate-y-[1px] hover:shadow-[var(--shadow)]"
+            {...(t.label === "Ladder rank" ? { "data-coachmark": "ladder-rank-stat" } : {})}
           >
             <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--muted)] sm:text-[10px] sm:tracking-[0.2em]" style={{ fontFamily: "var(--font-body)" }}>{t.label}</div>
             <div
@@ -456,6 +458,12 @@ export default function HomePage() {
           </Link>
         ))}
       </div>
+
+      <Coachmark
+        target="ladder-rank-stat"
+        storageKey="coachmark_dashboard"
+        message="This is your ladder rank. Challenge players above you to climb — win and you swap positions."
+      />
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">

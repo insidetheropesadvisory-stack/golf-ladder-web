@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/supabase";
 import { initials } from "@/lib/utils";
+import Coachmark from "@/app/components/Coachmark";
 
 type Tournament = {
   id: string;
@@ -136,7 +137,7 @@ export default function TournamentsPage() {
       </div>
 
       {/* How it works */}
-      <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 sm:p-5">
+      <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 sm:p-5" data-coachmark="tournament-scoring">
         <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-3">How it works</div>
         <div className="space-y-2 text-sm text-[var(--ink)]">
           <div className="flex items-start gap-2.5">
@@ -153,6 +154,11 @@ export default function TournamentsPage() {
           </div>
         </div>
       </div>
+      <Coachmark
+        target="tournament-scoring"
+        storageKey="coachmark_tournament"
+        message="Normalized scoring means every course is fair — lowest differential each period wins, regardless of where you play."
+      />
 
       {loading ? (
         <div className="space-y-3">

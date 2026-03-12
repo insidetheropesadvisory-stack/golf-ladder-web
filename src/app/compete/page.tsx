@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LadderChallenges from "./LadderChallenges";
+import Coachmark from "@/app/components/Coachmark";
 
 export const metadata = {
   title: "Compete — Reciprocity",
@@ -54,7 +55,7 @@ export default function CompetePage() {
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 rounded-[4px]" data-coachmark="different-courses">
             <div className="icon-box icon-box--green">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
@@ -69,6 +70,11 @@ export default function CompetePage() {
             </div>
           </div>
         </div>
+        <Coachmark
+          target="different-courses"
+          storageKey="coachmark_compete"
+          message="You don't need to play together. Submit your round from any course — handicap differential decides the winner."
+        />
         <div className="flex gap-3">
           <Link href="/matches/new" className="btn-gold">Start a Match</Link>
           <Link href="/matches" className="btn-outline-gold">My Matches</Link>

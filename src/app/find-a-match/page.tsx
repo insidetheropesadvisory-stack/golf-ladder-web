@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/supabase";
 import { cx, initials } from "@/lib/utils";
+import Coachmark from "@/app/components/Coachmark";
 
 type PoolListing = {
   id: string;
@@ -198,10 +199,16 @@ export default function FindAMatchPage() {
         <Link
           href="/pool/new"
           className="btn-gold shrink-0"
+          data-coachmark="post-a-round"
         >
           Post a Round
         </Link>
       </div>
+      <Coachmark
+        target="post-a-round"
+        storageKey="coachmark_findmatch"
+        message="Post your next round and let other players request to join. A great way to play courses you'd never normally access."
+      />
 
       {/* How it works */}
       <div className="rounded-[6px] border border-[var(--border)] bg-white/60 p-4 sm:p-5">

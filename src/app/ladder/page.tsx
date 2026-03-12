@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/supabase";
 import { initials } from "@/lib/utils";
+import Coachmark from "@/app/components/Coachmark";
 
 type Ranking = {
   id: string;
@@ -282,6 +283,7 @@ export default function LadderPage() {
                 <div key={r.id} className="space-y-1.5">
                   <div
                     ref={isMe ? myRowRef : undefined}
+                    {...(challengeable ? { "data-coachmark": "ladder-challengeable" } : {})}
                     className={`flex items-center gap-2 rounded-[6px] border px-3 py-2.5 transition sm:gap-3 sm:px-4 sm:py-3 ${
                       isMe
                         ? "border-[var(--pine)]/30 bg-[var(--pine)]/5 ring-2 ring-[var(--pine)]/20"
@@ -392,6 +394,12 @@ export default function LadderPage() {
           </div>
         </>
       )}
+
+      <Coachmark
+        target="ladder-challengeable"
+        storageKey="coachmark_ladder"
+        message="Challenge anyone within 3 spots above you. Win and you take their place on the ladder."
+      />
 
       {status && (
         <div className="rounded-[6px] bg-red-50 px-4 py-3 text-sm text-red-700">{status}</div>
