@@ -65,6 +65,8 @@ export async function GET(request: Request) {
       // Check cache first
       const cached = await cacheGet(cacheKey);
       if (cached) {
+        // Still merge overrides in case new data was imported since caching
+        await mergeOverrides(cached, Number(cid));
         return NextResponse.json({ course: cached, cached: true });
       }
 
@@ -75,6 +77,9 @@ export async function GET(request: Request) {
 
       const data = await res.json();
       const course = normalizeCourse(data);
+
+      // Merge tee overrides from our DB
+      await mergeOverrides(course, Number(cid));
 
       // Cache the normalized course
       await cacheSet(cacheKey, course);
@@ -147,6 +152,44 @@ export async function GET(request: Request) {
     });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
+  }
+}
+
+/**
+ * Merge manually-entered tee data from `course_tee_overrides` into the course object.
+ * Fills in missing rating/slope/par/yards without overwriting existing API data.
+ */
+async function mergeOverrides(course: any, courseApiId: number) {
+  try {
+    const sb = adminClient();
+    const { data: overrides } = await sb
+      .from("course_tee_overrides")
+      .select("tee_name, rating, slope, par, yards")
+      .eq("course_api_id", courseApiId);
+
+    if (!overrides || overrides.length === 0) return;
+
+    for (const ov of overrides) {
+      const tee = course.tees?.[ov.tee_name];
+      if (tee) {
+        // Fill in missing values from overrides
+        if (tee.course_rating == null && ov.rating != null) tee.course_rating = Number(ov.rating);
+        if (tee.slope == null && ov.slope != null) tee.slope = Number(ov.slope);
+        if (tee.par == null && ov.par != null) tee.par = Number(ov.par);
+        if (tee.total_yards == null && ov.yards != null) tee.total_yards = Number(ov.yards);
+      } else if (course.tees) {
+        // Tee doesn't exist in API — add it from overrides
+        course.tees[ov.tee_name] = {
+          course_rating: ov.rating != null ? Number(ov.rating) : null,
+          slope: ov.slope != null ? Number(ov.slope) : null,
+          par: ov.par != null ? Number(ov.par) : null,
+          total_yards: ov.yards != null ? Number(ov.yards) : null,
+          holes: [],
+        };
+      }
+    }
+  } catch {
+    // Non-critical — if overrides table doesn't exist yet, just skip
   }
 }
 
