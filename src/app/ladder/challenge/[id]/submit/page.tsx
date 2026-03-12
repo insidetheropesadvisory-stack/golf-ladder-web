@@ -174,21 +174,31 @@ export default function LadderSubmitPage() {
           <div className="space-y-2">
             <label className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--muted)]">Tees played</label>
             <div className="flex flex-wrap gap-2">
-              {tees.map((t) => (
-                <button
-                  key={t.name}
-                  type="button"
-                  onClick={() => setSelectedTee(t.name)}
-                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                    selectedTee === t.name
-                      ? "border-[var(--pine)] bg-[var(--pine)]/5 text-[var(--pine)]"
-                      : "border-[var(--border)] bg-white/80 text-[var(--ink)] hover:border-[var(--pine)]/30"
-                  }`}
-                >
-                  <div>{t.name}</div>
-                  {t.yards && <div className="text-[10px] text-[var(--muted)]">{t.yards} yds</div>}
-                </button>
-              ))}
+              {tees.map((t) => {
+                const hasData = t.rating != null && t.slope != null;
+                return (
+                  <button
+                    key={t.name}
+                    type="button"
+                    onClick={() => hasData && setSelectedTee(t.name)}
+                    disabled={!hasData}
+                    className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                      !hasData
+                        ? "border-[var(--border)] bg-black/[0.02] text-[var(--muted)] cursor-not-allowed opacity-60"
+                        : selectedTee === t.name
+                        ? "border-[var(--pine)] bg-[var(--pine)]/5 text-[var(--pine)]"
+                        : "border-[var(--border)] bg-white/80 text-[var(--ink)] hover:border-[var(--pine)]/30"
+                    }`}
+                  >
+                    <div>{t.name}</div>
+                    {hasData ? (
+                      t.yards && <div className="text-[10px] text-[var(--muted)]">{t.yards} yds</div>
+                    ) : (
+                      <div className="text-[10px] text-amber-600">Coming soon</div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : courseName.trim() ? (
